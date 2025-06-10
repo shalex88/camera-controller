@@ -12,7 +12,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(GoogleTest)
 
 file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS "../src/*.cpp")
-list(REMOVE_ITEM SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/../src/main.cpp")
+list(REMOVE_ITEM SOURCE_FILES "../src/apps/main/main.cpp")
 file(GLOB_RECURSE TEST_FILES CONFIGURE_DEPENDS "*.cpp")
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES} ${TEST_FILES})
