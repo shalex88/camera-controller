@@ -1,7 +1,7 @@
-# nfov-service
+# camera-service
 
-[![Test](https://github.com/shalex88/nfov-service/actions/workflows/test.yml/badge.svg)](https://github.com/shalex88/nfov-service/actions/workflows/test.yml)
-[![Coverage](https://img.shields.io/codecov/c/github/shalex88/nfov-service)](https://codecov.io/github/shalex88/nfov-service)
-[![Release](https://img.shields.io/github/v/release/shalex88/nfov-service.svg)](https://github.com/shalex88/nfov-service/releases/latest)
+[![Test](https://github.com/shalex88/camera-service/actions/workflows/test.yml/badge.svg)](https://github.com/shalex88/camera-service/actions/workflows/test.yml)
+[![Coverage](https://img.shields.io/codecov/c/github/shalex88/camera-service)](https://codecov.io/github/shalex88/camera-service)
+[![Release](https://img.shields.io/github/v/release/shalex88/camera-service.svg)](https://github.com/shalex88/camera-service/releases/latest)
 
  

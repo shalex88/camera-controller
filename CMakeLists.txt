@@ -1,4 +1,4 @@
-set(PROJECT_NAME nfov-service)
+set(PROJECT_NAME camera-service)
 include(cmake/SetVersion.cmake)
 include(cmake/EnableVcpkg.cmake)
 cmake_minimum_required(VERSION 3.28)

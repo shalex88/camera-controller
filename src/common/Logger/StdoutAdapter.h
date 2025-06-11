@@ -1,8 +1,8 @@
-#ifndef PERIPHERY_MANAGER_STDOUTADAPTER_H
-#define PERIPHERY_MANAGER_STDOUTADAPTER_H
+#pragma once
 
 #include <iostream>
-#include "Logger/LoggerInterface.h"
+
+#include "LoggerInterface.h"
 
 class StdoutAdapter : public LoggerInterface {
 public:
@@ -49,5 +49,3 @@ private:
         }
     }
 };
-
-#endif //PERIPHERY_MANAGER_STDOUTADAPTER_H

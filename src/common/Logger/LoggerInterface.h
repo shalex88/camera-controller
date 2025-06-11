@@ -1,7 +1,7 @@
-#ifndef PERIPHERY_MANAGER_LOGGERINTERFACE_H
-#define PERIPHERY_MANAGER_LOGGERINTERFACE_H
+#pragma once
 
 #include <string>
+
 #include <fmt/format.h>
 
 class LoggerInterface {
@@ -19,7 +19,7 @@ public:
 
     template<typename... Args>
     void log(LogLevel level, const std::string& format_str, Args&&... args) {
-        std::string formatted_str = fmt::format(fmt::runtime(format_str), std::forward<Args>(args)...);
+        const std::string formatted_str = fmt::format(fmt::runtime(format_str), std::forward<Args>(args)...);
         logImpl(level, formatted_str);
     }
 
@@ -28,5 +28,3 @@ public:
 protected:
     virtual void logImpl(LogLevel level, const std::string &msg) = 0;
 };
-
-#endif //PERIPHERY_MANAGER_LOGGERINTERFACE_H
