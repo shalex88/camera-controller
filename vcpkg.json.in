@@ -2,6 +2,7 @@
   "name": "@PROJECT_NAME@",
   "version": "@VERSION@",
   "dependencies": [
-    "spdlog"
+    "spdlog",
+    "yaml-cpp"
   ]
 }

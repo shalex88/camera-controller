@@ -2,31 +2,25 @@
 #include <memory>
 
 #include "data/CameraFactory.h"
-#include "core/CameraCore.h"
-#include "api/CameraController.h"
+#include "api/CameraControllerFactory.h"
+#include "core/CameraCoreFactory.h"
 #include "common/Logger/Logger.h"
-// #include "common/Logger/Config.h"
+#include "common/Config/Config.h"
 
 int main() {
     LOG_INFO("{} v{}.{}.{}{}", APP_NAME, APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH, APP_VERSION_DIRTY);
 
     // Cross-cutting concerns (common)
-    // auto config = std::make_shared<Config>();
-    // try {
-    //     config->load_from_file("config/config.json");
-    // } catch (const std::exception& e) {
-    //     LOG_ERROR("Error loading configuration: {}", e.what());
-    //     return EXIT_FAILURE;
-    // }
+    auto config = std::make_unique<Config>("../config/config.yaml");
 
-    // Data access layer (camera)
-    auto camera = camera_service::data::CameraFactory::createCamera("nfov");
+    // Data access layer
+    auto camera = camera_service::data::CameraFactory::createCamera(config->get("camera"));
 
-    // Business logic layer (core)
-    auto core = std::make_unique<camera_service::core::CameraCore>(std::move(camera));
+    // Business logic layer
+    auto core = camera_service::core::CameraCoreFactory::createCore(config->get("camera"), std::move(camera));
 
-    // Presentation layer (grpc)
-    auto controller = std::make_unique<camera_service::api::CameraController>(std::move(core));
+    // Presentation layer
+    auto controller = camera_service::api::CameraControllerFactory::createController(config->get("camera"), std::move(core));
 
     try {
         LOG_INFO("Starting controller...");

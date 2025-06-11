@@ -17,12 +17,14 @@ file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS "${SOURCE_DIR}/*.cpp")
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
 find_package(spdlog CONFIG REQUIRED)
+find_package(yaml-cpp CONFIG REQUIRED)
 
 function(link_common_libraries target)
     target_link_libraries(${target}
         PRIVATE
         #ADD your libs here
         spdlog::spdlog
+        yaml-cpp::yaml-cpp
     )
 endfunction(link_common_libraries)
 
