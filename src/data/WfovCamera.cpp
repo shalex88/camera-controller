@@ -1,25 +1,25 @@
-#include "NfovCamera.h"
+#include "WfovCamera.h"
 
 #include <iostream>
 
 #include "common/Logger/Logger.h"
 
 namespace camera_service::data {
-    NfovCamera::NfovCamera()
+    WfovCamera::WfovCamera()
         : m_zoomLevel(1.0)
           , m_focusValue(0.0)
           , m_connected(false) {
     }
 
-    NfovCamera::~NfovCamera() {
+    WfovCamera::~WfovCamera() {
         if (m_connected) {
             disconnect();
         }
     }
 
-    void NfovCamera::setZoom(const double zoomLevel) {
+    void WfovCamera::setZoom(const double zoomLevel) {
         if (!m_connected) {
-            throw CameraException("Cannot set zoom: NFOV Camera not connected");
+            throw CameraException("Cannot set zoom: WFOV Camera not connected");
         }
 
         if (zoomLevel <= 0) {
@@ -31,16 +31,16 @@ namespace camera_service::data {
         m_zoomLevel = zoomLevel;
     }
 
-    double NfovCamera::getZoom() const {
+    double WfovCamera::getZoom() const {
         if (!m_connected) {
-            throw CameraException("Cannot get zoom: NFOV Camera not connected");
+            throw CameraException("Cannot get zoom: WFOV Camera not connected");
         }
         return m_zoomLevel;
     }
 
-    void NfovCamera::setFocus(const double focusValue) {
+    void WfovCamera::setFocus(const double focusValue) {
         if (!m_connected) {
-            throw CameraException("Cannot set focus: NFOV Camera not connected");
+            throw CameraException("Cannot set focus: WFOV Camera not connected");
         }
 
         // Here would be the actual implementation to control hardware
@@ -48,31 +48,31 @@ namespace camera_service::data {
         m_focusValue = focusValue;
     }
 
-    double NfovCamera::getFocus() const {
+    double WfovCamera::getFocus() const {
         if (!m_connected) {
-            throw CameraException("Cannot get focus: Camera not connected");
+            throw CameraException("Cannot get focus: WFOV Camera not connected");
         }
         return m_focusValue;
     }
 
-    bool NfovCamera::connect() {
+    bool WfovCamera::connect() {
         // Here would be the actual implementation to connect to hardware
-        LOG_INFO("Connecting to NFOV camera...");
+        LOG_INFO("Connecting to Wfov camera...");
         m_connected = true;
         return m_connected;
     }
 
-    void NfovCamera::disconnect() {
+    void WfovCamera::disconnect() {
         if (!m_connected) {
             return;
         }
 
         // Here would be the actual implementation to disconnect from hardware
-        LOG_INFO("Disconnecting from NFOV camera...");
+        LOG_INFO("Disconnecting from WFOV camera...");
         m_connected = false;
     }
 
-    bool NfovCamera::isConnected() const {
+    bool WfovCamera::isConnected() const {
         return m_connected;
     }
 }

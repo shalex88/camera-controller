@@ -1,4 +1,4 @@
-#include "CameraController.h"
+#include "TcpCameraController.h"
 
 #include <iostream>
 
@@ -6,21 +6,21 @@
 #include "common/Logger/Logger.h"
 
 namespace camera_service::api {
-    CameraController::CameraController(std::unique_ptr<core::ICore> core)
+    TcpCameraController::TcpCameraController(std::unique_ptr<core::ICore> core)
         : m_core(std::move(core)), m_running(false) {
         if (!m_core) {
-            throw ControllerException("Cannot initialize CameraController with null core");
+            throw ControllerException("Cannot initialize CameraController with null Core");
         }
     }
 
-    CameraController::~CameraController() {
+    TcpCameraController::~TcpCameraController() {
         if (m_running) {
             stop();
         }
     }
 
-    bool CameraController::start() {
-        LOG_INFO("Starting Camera Controller...");
+    bool TcpCameraController::start() {
+        LOG_INFO("Starting Tcp API Controller...");
 
         try {
             if (!m_core->initialize()) {
@@ -28,7 +28,7 @@ namespace camera_service::api {
             }
 
             m_running = true;
-            LOG_INFO("Camera Controller started successfully.");
+            LOG_INFO("Tcp API Controller started successfully.");
             return true;
         } catch (const core::CoreException& e) {
             throw ControllerException(std::string("Core error during controller start: ") + e.what());
@@ -37,12 +37,12 @@ namespace camera_service::api {
         }
     }
 
-    void CameraController::stop() {
+    void TcpCameraController::stop() {
         if (!m_running) {
             return;
         }
 
-        LOG_INFO("Stopping Camera Controller...");
+        LOG_INFO("Stopping NFOV Camera Controller...");
 
         try {
             m_core->shutdown();
@@ -55,7 +55,7 @@ namespace camera_service::api {
         }
     }
 
-    bool CameraController::setZoom(double zoomLevel) {
+    bool TcpCameraController::setZoom(double zoomLevel) {
         if (!m_running) {
             throw ControllerException("Controller not running");
         }
@@ -68,7 +68,7 @@ namespace camera_service::api {
         }
     }
 
-    double CameraController::getZoom() {
+    double TcpCameraController::getZoom() {
         if (!m_running) {
             throw ControllerException("Controller not running");
         }
@@ -80,7 +80,7 @@ namespace camera_service::api {
         }
     }
 
-    bool CameraController::setFocus(double focusValue) {
+    bool TcpCameraController::setFocus(double focusValue) {
         if (!m_running) {
             throw ControllerException("Controller not running");
         }
@@ -93,7 +93,7 @@ namespace camera_service::api {
         }
     }
 
-    double CameraController::getFocus() {
+    double TcpCameraController::getFocus() {
         if (!m_running) {
             throw ControllerException("Controller not running");
         }

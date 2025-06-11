@@ -1,7 +1,5 @@
 #pragma once
 #include <memory>
-#include <string>
-#include <stdexcept>
 
 #include "api/ICameraController.h"
 
@@ -10,10 +8,10 @@ namespace camera_service::core {
 }
 
 namespace camera_service::api {
-    class CameraController final : public ICameraController {
+    class GrpcCameraController final : public ICameraController {
     public:
-        explicit CameraController(std::unique_ptr<core::ICore> core);
-        ~CameraController() override;
+        explicit GrpcCameraController(std::unique_ptr<core::ICore> core);
+        ~GrpcCameraController() override;
 
         bool start() override;
         void stop() override;

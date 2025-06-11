@@ -29,7 +29,7 @@ namespace camera_service::core {
         }
 
         m_initialized = true;
-        LOG_INFO("Core initialized successfully.");
+        LOG_INFO("NFOV Core initialized successfully.");
         return true;
     }
 

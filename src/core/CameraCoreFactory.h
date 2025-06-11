@@ -2,8 +2,8 @@
 #include <memory>
 #include <string>
 
-#include "CameraCore.h"
 #include "data/ICamera.h"
+#include "core/ICore.h"
 
 namespace camera_service::core {
     class CameraCoreFactory {

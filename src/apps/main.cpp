@@ -20,10 +20,9 @@ int main() {
     auto core = camera_service::core::CameraCoreFactory::createCore(config->get("camera"), std::move(camera));
 
     // Presentation layer
-    auto controller = camera_service::api::CameraControllerFactory::createController(config->get("camera"), std::move(core));
+    auto controller = camera_service::api::CameraControllerFactory::createController(config->get("api"), std::move(core));
 
     try {
-        LOG_INFO("Starting controller...");
         if (!controller->start()) {
             LOG_ERROR("Controller failed");
             return EXIT_FAILURE;
