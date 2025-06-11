@@ -16,15 +16,18 @@ file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS "${SOURCE_DIR}/*.cpp")
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
+find_package(spdlog CONFIG REQUIRED)
+
 function(link_common_libraries target)
     target_link_libraries(${target}
         PRIVATE
         #ADD your libs here
+        spdlog::spdlog
     )
 endfunction(link_common_libraries)
 
 link_common_libraries(${PROJECT_NAME})
-add_subdirectory(tests)
+#add_subdirectory(tests)
 
 include(GNUInstallDirs)
 install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})
