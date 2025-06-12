@@ -27,7 +27,7 @@ foreach(TEST_DIR ${TEST_DIRS})
 
         if(TEST_FILES)
             add_executable(${TARGET_NAME} ${TEST_FILES} ${SOURCE_FILES})
-            target_link_libraries(${TARGET_NAME} gtest gtest_main gmock)
+            target_link_libraries(${TARGET_NAME} PRIVATE gtest gtest_main gmock)
             link_common_libraries(${TARGET_NAME})
 
             include(GoogleTest)

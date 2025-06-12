@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get project name
+      - name: Get the project name
         run: |
           echo "PROJECT_NAME=$(echo "${{ github.repository }}" | awk -F '/' '{print $2}')" >> $GITHUB_ENV
 
@@ -26,13 +26,13 @@ jobs:
 
       - name: Build
         run: |
-          cmake --build build --target ${{ env.PROJECT_NAME }}-tests
+          cmake --build build --target ${{ env.PROJECT_NAME }}-unit-tests
 
       - name: Test
         run: cd ./build/$sub_project && ./$bin
         env:
           sub_project: tests
-          bin: ${{ env.PROJECT_NAME }}-tests
+          bin: ${{ env.PROJECT_NAME }}-unit-tests
 
       - name: Create coverage reports
         if: github.event_name == 'push'

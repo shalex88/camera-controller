@@ -29,7 +29,7 @@ function(link_common_libraries target)
 endfunction(link_common_libraries)
 
 link_common_libraries(${PROJECT_NAME})
-#add_subdirectory(tests)
+add_subdirectory(tests)
 
 include(GNUInstallDirs)
 install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})
