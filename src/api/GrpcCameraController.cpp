@@ -32,8 +32,6 @@ namespace camera_service::api {
             return true;
         } catch (const core::CoreException& e) {
             throw ControllerException(std::string("Core error during controller start: ") + e.what());
-        } catch (const std::exception& e) {
-            throw ControllerException(std::string("Error starting controller: ") + e.what());
         }
     }
 
@@ -46,15 +44,12 @@ namespace camera_service::api {
 
         try {
             m_core->shutdown();
-            m_running = false;
             LOG_INFO("Camera Controller stopped successfully.");
-        } catch (const std::exception& e) {
+        } catch (const core::CoreException& e) {
             // FIXME: Is it a good exception handling?
             LOG_ERROR("Error during controller shutdown: {}", e.what());
-            // Still mark as stopped even if there was an error
-            m_running = false;
-            // throw ControllerException(std::string("Error stoping the core: ") + e.what());
         }
+        m_running = false;
     }
 
     bool GrpcCameraController::setZoom(double zoomLevel) {
