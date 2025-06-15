@@ -4,12 +4,12 @@
 
 #include "LoggerInterface.h"
 
-class StdoutAdapter : public LoggerInterface {
+class StdoutAdapter final : public LoggerInterface {
 public:
     StdoutAdapter() = default;
 
-    void setLogLevel(LogLevel level) override {
-        if (level <= LoggerInterface::LogLevel::Critical) {
+    void setLogLevel(const LogLevel level) override {
+        if (level <= LogLevel::Critical) {
             log_level_ = level;
         } else {
             throw std::invalid_argument("Invalid log severity");
@@ -17,7 +17,7 @@ public:
     }
 
 protected:
-    void logImpl(LogLevel level, const std::string& msg) override {
+    void logImpl(const LogLevel level, const std::string& msg) override {
         if (level >= log_level_) {
             std::cout << "[" << toSpdLogLevel(level) << "] " << msg << std::endl;
         }
@@ -28,9 +28,9 @@ protected:
     }
 
 private:
-    LogLevel log_level_ = LoggerInterface::LogLevel::Info;
+    LogLevel log_level_ = LogLevel::Info;
 
-    std::string toSpdLogLevel(LogLevel level) {
+    static std::string toSpdLogLevel(const LogLevel level) {
         switch (level) {
             case LogLevel::Trace:
                 return "trace";

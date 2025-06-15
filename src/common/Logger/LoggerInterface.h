@@ -18,7 +18,7 @@ public:
     virtual ~LoggerInterface() = default;
 
     template<typename... Args>
-    void log(LogLevel level, const std::string& format_str, Args&&... args) {
+    void log(const LogLevel level, const std::string& format_str, Args&&... args) {
         const std::string formatted_str = fmt::format(fmt::runtime(format_str), std::forward<Args>(args)...);
         logImpl(level, formatted_str);
     }

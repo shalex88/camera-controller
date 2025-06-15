@@ -20,20 +20,20 @@ public:
     MOCK_METHOD(double, getFocus, (), (const, override));
 };
 
-class CoreFactoryTest : public Test {
+class CoreFactoryTests : public Test {
 protected:
-    std::unique_ptr<MockCamera> createMockCamera() {
+    static std::unique_ptr<MockCamera> createMockCamera() {
         return std::make_unique<MockCamera>();
     }
 };
 
-TEST_F(CoreFactoryTest, CreateCameraCoreSuccess) {
+TEST_F(CoreFactoryTests, CreateCameraCoreSuccess) {
     auto core = core::CoreFactory::createCore("nfov", createMockCamera());
     ASSERT_NE(nullptr, core);
     EXPECT_TRUE(dynamic_cast<core::Core*>(core.get()) != nullptr);
 }
 
-TEST_F(CoreFactoryTest, ThrowsOnUnknownType) {
+TEST_F(CoreFactoryTests, ThrowsOnUnknownType) {
     EXPECT_THROW(
         core::CoreFactory::createCore("unknown", createMockCamera()),
         core::CoreException

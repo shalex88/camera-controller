@@ -16,10 +16,10 @@ namespace camera_service::core {
         virtual bool initialize() = 0;
         virtual void shutdown() = 0;
 
-        virtual void setZoom(double zoomLevel) = 0;
+        virtual void setZoom(double zoom_level) = 0;
         virtual double getZoom() const = 0;
 
-        virtual void setFocus(double focusValue) = 0;
+        virtual void setFocus(double focus_value) = 0;
         virtual double getFocus() const = 0;
     };
 }

@@ -16,14 +16,14 @@ namespace camera_service::api {
         bool start() override;
         void stop() override;
 
-        bool setZoom(double zoomLevel) override;
+        bool setZoom(double zoom_level) override;
         double getZoom() override;
 
-        bool setFocus(double focusValue) override;
+        bool setFocus(double focus_value) override;
         double getFocus() override;
 
     private:
-        std::shared_ptr<core::ICore> m_core;
-        bool m_running;
+        std::shared_ptr<core::ICore> core_;
+        bool running_;
     };
 }

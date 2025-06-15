@@ -8,17 +8,15 @@ Config::Config(const std::string& filename) {
     if (!std::filesystem::exists(filename)) {
         throw ConfigException("File does not exist: " + filename);
     }
-    load_from_file(filename);
+    loadFromFile(filename);
 }
 
-void Config::load_from_file(const std::string& filename) {
+void Config::loadFromFile(const std::string& filename) {
     try {
-        YAML::Node config = YAML::LoadFile(filename);
-        
         // Convert YAML nodes to string key-value pairs
-        for (const auto& it : config) {
-            std::string key = it.first.as<std::string>();
-            std::string value = it.second.as<std::string>();
+        for (YAML::Node config = YAML::LoadFile(filename); const auto& it : config) {
+            auto key = it.first.as<std::string>();
+            const auto value = it.second.as<std::string>();
             data_[key] = value;
         }
     } catch (const YAML::Exception& e) {
@@ -27,7 +25,7 @@ void Config::load_from_file(const std::string& filename) {
 }
 
 std::string Config::get(const std::string& key) const {
-    auto it = data_.find(key);
+    const auto it = data_.find(key);
     if (it == data_.end()) {
         throw ConfigException("Key not found: " + key);
     }
@@ -35,7 +33,7 @@ std::string Config::get(const std::string& key) const {
 }
 
 bool Config::has(const std::string& key) const {
-    return data_.find(key) != data_.end();
+    return data_.contains(key);
 }
 
 void Config::set(const std::string& key, const std::string& value) {

@@ -12,9 +12,9 @@ namespace camera_service::data {
     public:
         virtual ~ICamera() = default;
 
-        virtual void setZoom(double zoomLevel) = 0;
+        virtual void setZoom(double zoom_level) = 0;
         virtual double getZoom() const = 0;
-        virtual void setFocus(double focusValue) = 0;
+        virtual void setFocus(double focus_value) = 0;
         virtual double getFocus() const = 0;
         virtual bool connect() = 0;
         virtual void disconnect() = 0;

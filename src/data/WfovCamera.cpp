@@ -6,73 +6,73 @@
 
 namespace camera_service::data {
     WfovCamera::WfovCamera()
-        : m_zoomLevel(1.0)
-          , m_focusValue(0.0)
-          , m_connected(false) {
+        : zoom_level_(1.0)
+          , focus_value_(0.0)
+          , connected_(false) {
     }
 
     WfovCamera::~WfovCamera() {
-        if (m_connected) {
+        if (connected_) {
             disconnect();
         }
     }
 
-    void WfovCamera::setZoom(const double zoomLevel) {
-        if (!m_connected) {
+    void WfovCamera::setZoom(const double zoom_level) {
+        if (!connected_) {
             throw CameraException("Cannot set zoom: WFOV Camera not connected");
         }
 
-        if (zoomLevel <= 0) {
+        if (zoom_level <= 0) {
             throw CameraException("Invalid zoom level: Value must be greater than zero");
         }
 
         // Here would be the actual implementation to control hardware
-        LOG_INFO("Setting camera zoom to: {}", zoomLevel);
-        m_zoomLevel = zoomLevel;
+        LOG_INFO("Setting camera zoom to: {}", zoom_level);
+        zoom_level_ = zoom_level;
     }
 
     double WfovCamera::getZoom() const {
-        if (!m_connected) {
+        if (!connected_) {
             throw CameraException("Cannot get zoom: WFOV Camera not connected");
         }
-        return m_zoomLevel;
+        return zoom_level_;
     }
 
-    void WfovCamera::setFocus(const double focusValue) {
-        if (!m_connected) {
+    void WfovCamera::setFocus(const double focus_value) {
+        if (!connected_) {
             throw CameraException("Cannot set focus: WFOV Camera not connected");
         }
 
         // Here would be the actual implementation to control hardware
-        LOG_INFO("Setting camera focus to: {}", focusValue);
-        m_focusValue = focusValue;
+        LOG_INFO("Setting camera focus to: {}", focus_value);
+        focus_value_ = focus_value;
     }
 
     double WfovCamera::getFocus() const {
-        if (!m_connected) {
+        if (!connected_) {
             throw CameraException("Cannot get focus: WFOV Camera not connected");
         }
-        return m_focusValue;
+        return focus_value_;
     }
 
     bool WfovCamera::connect() {
         // Here would be the actual implementation to connect to hardware
         LOG_INFO("Connecting to Wfov camera...");
-        m_connected = true;
-        return m_connected;
+        connected_ = true;
+        return connected_;
     }
 
     void WfovCamera::disconnect() {
-        if (!m_connected) {
+        if (!connected_) {
             return;
         }
 
         // Here would be the actual implementation to disconnect from hardware
         LOG_INFO("Disconnecting from WFOV camera...");
-        m_connected = false;
+        connected_ = false;
     }
 
     bool WfovCamera::isConnected() const {
-        return m_connected;
+        return connected_;
     }
 }

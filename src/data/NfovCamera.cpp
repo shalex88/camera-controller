@@ -6,73 +6,73 @@
 
 namespace camera_service::data {
     NfovCamera::NfovCamera()
-        : m_zoomLevel(1.0)
-          , m_focusValue(0.0)
-          , m_connected(false) {
+        : zoom_level_(1.0)
+          , focus_value_(0.0)
+          , connected_(false) {
     }
 
     NfovCamera::~NfovCamera() {
-        if (m_connected) {
+        if (connected_) {
             disconnect();
         }
     }
 
-    void NfovCamera::setZoom(const double zoomLevel) {
-        if (!m_connected) {
+    void NfovCamera::setZoom(const double zoom_level) {
+        if (!connected_) {
             throw CameraException("Cannot set zoom: NFOV Camera not connected");
         }
 
-        if (zoomLevel <= 0) {
+        if (zoom_level <= 0) {
             throw CameraException("Invalid zoom level: Value must be greater than zero");
         }
 
         // Here would be the actual implementation to control hardware
-        LOG_INFO("Setting camera zoom to: {}", zoomLevel);
-        m_zoomLevel = zoomLevel;
+        LOG_INFO("Setting camera zoom to: {}", zoom_level);
+        zoom_level_ = zoom_level;
     }
 
     double NfovCamera::getZoom() const {
-        if (!m_connected) {
+        if (!connected_) {
             throw CameraException("Cannot get zoom: NFOV Camera not connected");
         }
-        return m_zoomLevel;
+        return zoom_level_;
     }
 
-    void NfovCamera::setFocus(const double focusValue) {
-        if (!m_connected) {
+    void NfovCamera::setFocus(const double focus_value) {
+        if (!connected_) {
             throw CameraException("Cannot set focus: NFOV Camera not connected");
         }
 
         // Here would be the actual implementation to control hardware
-        LOG_INFO("Setting camera focus to: {}", focusValue);
-        m_focusValue = focusValue;
+        LOG_INFO("Setting camera focus to: {}", focus_value);
+        focus_value_ = focus_value;
     }
 
     double NfovCamera::getFocus() const {
-        if (!m_connected) {
+        if (!connected_) {
             throw CameraException("Cannot get focus: Camera not connected");
         }
-        return m_focusValue;
+        return focus_value_;
     }
 
     bool NfovCamera::connect() {
         // Here would be the actual implementation to connect to hardware
         LOG_INFO("Connecting to NFOV camera...");
-        m_connected = true;
-        return m_connected;
+        connected_ = true;
+        return connected_;
     }
 
     void NfovCamera::disconnect() {
-        if (!m_connected) {
+        if (!connected_) {
             return;
         }
 
         // Here would be the actual implementation to disconnect from hardware
         LOG_INFO("Disconnecting from NFOV camera...");
-        m_connected = false;
+        connected_ = false;
     }
 
     bool NfovCamera::isConnected() const {
-        return m_connected;
+        return connected_;
     }
 }

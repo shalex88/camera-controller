@@ -36,7 +36,7 @@ protected:
 private:
     std::shared_ptr<spdlog::logger> logger_;
 
-    spdlog::level::level_enum toSpdLogLevel(const LogLevel level) {
+    static spdlog::level::level_enum toSpdLogLevel(const LogLevel level) {
         switch (level) {
             case LogLevel::Trace:
                 return spdlog::level::trace;

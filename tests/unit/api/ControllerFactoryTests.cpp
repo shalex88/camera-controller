@@ -20,26 +20,26 @@ public:
     MOCK_METHOD(double, getFocus, (), (const, override));
 };
 
-class ControllerFactoryTest : public Test {
+class ControllerFactoryTests : public Test {
 protected:
-    std::unique_ptr<MockCore> createMockCore() {
+    static std::unique_ptr<MockCore> createMockCore() {
         return std::make_unique<MockCore>();
     }
 };
 
-TEST_F(ControllerFactoryTest, CreateGrpcControllerSuccess) {
+TEST_F(ControllerFactoryTests, CreateGrpcControllerSuccess) {
     auto controller = api::ControllerFactory::createController("grpc", createMockCore());
     ASSERT_NE(nullptr, controller);
     EXPECT_TRUE(dynamic_cast<api::GrpcController*>(controller.get()) != nullptr);
 }
 
-TEST_F(ControllerFactoryTest, CreateTcpControllerSuccess) {
+TEST_F(ControllerFactoryTests, CreateTcpControllerSuccess) {
     auto controller = api::ControllerFactory::createController("tcp", createMockCore());
     ASSERT_NE(nullptr, controller);
     EXPECT_TRUE(dynamic_cast<api::TcpController*>(controller.get()) != nullptr);
 }
 
-TEST_F(ControllerFactoryTest, ThrowsOnUnknownType) {
+TEST_F(ControllerFactoryTests, ThrowsOnUnknownType) {
     EXPECT_THROW(
         api::ControllerFactory::createController("unknown", createMockCore()),
         api::ControllerException

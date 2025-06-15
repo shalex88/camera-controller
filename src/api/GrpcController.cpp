@@ -7,14 +7,14 @@
 
 namespace camera_service::api {
     GrpcController::GrpcController(std::unique_ptr<core::ICore> core)
-        : m_core(std::move(core)), m_running(false) {
-        if (!m_core) {
+        : core_(std::move(core)), running_(false) {
+        if (!core_) {
             throw ControllerException("Cannot initialize CameraController with null Core");
         }
     }
 
     GrpcController::~GrpcController() {
-        if (m_running) {
+        if (running_) {
             stop();
         }
     }
@@ -23,11 +23,11 @@ namespace camera_service::api {
         LOG_INFO("Starting GRPC API Controller...");
 
         try {
-            if (!m_core->initialize()) {
+            if (!core_->initialize()) {
                 throw ControllerException("Failed to initialize core component");
             }
 
-            m_running = true;
+            running_ = true;
             LOG_INFO("GRPC API Controller started successfully.");
             return true;
         } catch (const core::CoreException& e) {
@@ -36,29 +36,29 @@ namespace camera_service::api {
     }
 
     void GrpcController::stop() {
-        if (!m_running) {
+        if (!running_) {
             return;
         }
 
         LOG_INFO("Stopping NFOV Camera Controller...");
 
         try {
-            m_core->shutdown();
+            core_->shutdown();
             LOG_INFO("Camera Controller stopped successfully.");
         } catch (const core::CoreException& e) {
             // FIXME: Is it a good exception handling?
             LOG_ERROR("Error during controller shutdown: {}", e.what());
         }
-        m_running = false;
+        running_ = false;
     }
 
-    bool GrpcController::setZoom(double zoomLevel) {
-        if (!m_running) {
+    bool GrpcController::setZoom(const double zoom_level) {
+        if (!running_) {
             throw ControllerException("Controller not running");
         }
 
         try {
-            m_core->setZoom(zoomLevel);
+            core_->setZoom(zoom_level);
             return true;
         } catch (const core::CoreException& e) {
             throw ControllerException(std::string("Core error during zoom operation: ") + e.what());
@@ -66,24 +66,24 @@ namespace camera_service::api {
     }
 
     double GrpcController::getZoom() {
-        if (!m_running) {
+        if (!running_) {
             throw ControllerException("Controller not running");
         }
 
         try {
-            return m_core->getZoom();
+            return core_->getZoom();
         } catch (const core::CoreException& e) {
             throw ControllerException(std::string("Core error retrieving zoom: ") + e.what());
         }
     }
 
-    bool GrpcController::setFocus(double focusValue) {
-        if (!m_running) {
+    bool GrpcController::setFocus(const double focus_value) {
+        if (!running_) {
             throw ControllerException("Controller not running");
         }
 
         try {
-            m_core->setFocus(focusValue);
+            core_->setFocus(focus_value);
             return true;
         } catch (const core::CoreException& e) {
             throw ControllerException(std::string("Core error during focus operation: ") + e.what());
@@ -91,12 +91,12 @@ namespace camera_service::api {
     }
 
     double GrpcController::getFocus() {
-        if (!m_running) {
+        if (!running_) {
             throw ControllerException("Controller not running");
         }
 
         try {
-            return m_core->getFocus();
+            return core_->getFocus();
         } catch (const core::CoreException& e) {
             throw ControllerException(std::string("Core error retrieving focus: ") + e.what());
         }
