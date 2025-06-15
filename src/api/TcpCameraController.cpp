@@ -20,7 +20,7 @@ namespace camera_service::api {
     }
 
     bool TcpCameraController::start() {
-        LOG_INFO("Starting Tcp API Controller...");
+        LOG_INFO("Starting TCP API Controller...");
 
         try {
             if (!m_core->initialize()) {
@@ -28,12 +28,10 @@ namespace camera_service::api {
             }
 
             m_running = true;
-            LOG_INFO("Tcp API Controller started successfully.");
+            LOG_INFO("TCP API Controller started successfully.");
             return true;
         } catch (const core::CoreException& e) {
             throw ControllerException(std::string("Core error during controller start: ") + e.what());
-        } catch (const std::exception& e) {
-            throw ControllerException(std::string("Error starting controller: ") + e.what());
         }
     }
 
@@ -46,13 +44,12 @@ namespace camera_service::api {
 
         try {
             m_core->shutdown();
-            m_running = false;
             LOG_INFO("Camera Controller stopped successfully.");
-        } catch (const std::exception& e) {
+        } catch (const core::CoreException& e) {
+            // FIXME: Is it a good exception handling?
             LOG_ERROR("Error during controller shutdown: {}", e.what());
-            // Still mark as stopped even if there was an error
-            m_running = false;
         }
+        m_running = false;
     }
 
     bool TcpCameraController::setZoom(double zoomLevel) {
