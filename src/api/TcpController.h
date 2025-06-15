@@ -1,17 +1,17 @@
 #pragma once
 #include <memory>
 
-#include "api/ICameraController.h"
+#include "api/IController.h"
 
 namespace camera_service::core {
     class ICore;
 }
 
 namespace camera_service::api {
-    class TcpCameraController final : public ICameraController {
+    class TcpController final : public IController {
     public:
-        explicit TcpCameraController(std::unique_ptr<core::ICore> core);
-        ~TcpCameraController() override;
+        explicit TcpController(std::unique_ptr<core::ICore> core);
+        ~TcpController() override;
 
         bool start() override;
         void stop() override;

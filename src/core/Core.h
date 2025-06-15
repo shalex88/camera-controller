@@ -8,10 +8,10 @@ namespace camera_service::data {
 }
 
 namespace camera_service::core {
-    class CameraCore final : public ICore {
+    class Core final : public ICore {
     public:
-        explicit CameraCore(std::unique_ptr<data::ICamera> camera);
-        ~CameraCore() override;
+        explicit Core(std::unique_ptr<data::ICamera> camera);
+        ~Core() override;
 
         bool initialize() override;
         void shutdown() override;

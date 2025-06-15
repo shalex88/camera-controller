@@ -2,8 +2,8 @@
 #include <memory>
 
 #include "data/CameraFactory.h"
-#include "api/CameraControllerFactory.h"
-#include "core/CameraCoreFactory.h"
+#include "api/ControllerFactory.h"
+#include "core/CoreFactory.h"
 #include "common/Logger/Logger.h"
 #include "common/Config/Config.h"
 
@@ -17,10 +17,10 @@ int main() {
     auto camera = camera_service::data::CameraFactory::createCamera(config->get("camera"));
 
     // Business logic layer
-    auto core = camera_service::core::CameraCoreFactory::createCore(config->get("camera"), std::move(camera));
+    auto core = camera_service::core::CoreFactory::createCore(config->get("camera"), std::move(camera));
 
     // Presentation layer
-    auto controller = camera_service::api::CameraControllerFactory::createController(config->get("api"), std::move(core));
+    auto controller = camera_service::api::ControllerFactory::createController(config->get("api"), std::move(core));
 
     try {
         if (!controller->start()) {

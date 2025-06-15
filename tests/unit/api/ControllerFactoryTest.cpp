@@ -1,10 +1,10 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 /* Add your project include files here */
-#include "api/CameraControllerFactory.h"
+#include "api/ControllerFactory.h"
 
-#include "api/GrpcCameraController.h"
-#include "api/TcpCameraController.h"
+#include "api/GrpcController.h"
+#include "api/TcpController.h"
 #include "core/ICore.h"
 
 using namespace camera_service;
@@ -20,28 +20,28 @@ public:
     MOCK_METHOD(double, getFocus, (), (const, override));
 };
 
-class CameraControllerFactoryTest : public Test {
+class ControllerFactoryTest : public Test {
 protected:
     std::unique_ptr<MockCore> createMockCore() {
         return std::make_unique<MockCore>();
     }
 };
 
-TEST_F(CameraControllerFactoryTest, CreateGrpcController) {
-    auto controller = api::CameraControllerFactory::createController("grpc", createMockCore());
+TEST_F(ControllerFactoryTest, CreateGrpcControllerSuccess) {
+    auto controller = api::ControllerFactory::createController("grpc", createMockCore());
     ASSERT_NE(nullptr, controller);
-    EXPECT_TRUE(dynamic_cast<api::GrpcCameraController*>(controller.get()) != nullptr);
+    EXPECT_TRUE(dynamic_cast<api::GrpcController*>(controller.get()) != nullptr);
 }
 
-TEST_F(CameraControllerFactoryTest, CreateTcpController) {
-    auto controller = api::CameraControllerFactory::createController("tcp", createMockCore());
+TEST_F(ControllerFactoryTest, CreateTcpControllerSuccess) {
+    auto controller = api::ControllerFactory::createController("tcp", createMockCore());
     ASSERT_NE(nullptr, controller);
-    EXPECT_TRUE(dynamic_cast<api::TcpCameraController*>(controller.get()) != nullptr);
+    EXPECT_TRUE(dynamic_cast<api::TcpController*>(controller.get()) != nullptr);
 }
 
-TEST_F(CameraControllerFactoryTest, ThrowsOnUnknownType) {
+TEST_F(ControllerFactoryTest, ThrowsOnUnknownType) {
     EXPECT_THROW(
-        api::CameraControllerFactory::createController("unknown", createMockCore()),
+        api::ControllerFactory::createController("unknown", createMockCore()),
         api::ControllerException
     );
 }

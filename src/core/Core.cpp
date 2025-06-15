@@ -1,4 +1,4 @@
-#include "CameraCore.h"
+#include "Core.h"
 
 #include <iostream>
 
@@ -6,20 +6,20 @@
 #include "data/ICamera.h"
 
 namespace camera_service::core {
-    CameraCore::CameraCore(std::unique_ptr<data::ICamera> camera)
+    Core::Core(std::unique_ptr<data::ICamera> camera)
         : m_camera(std::move(camera)), m_initialized(false) {
         if (!m_camera) {
             throw CoreException("Cannot initialize Core with null camera");
         }
     }
 
-    CameraCore::~CameraCore() {
+    Core::~Core() {
         if (m_initialized) {
             shutdown();
         }
     }
 
-    bool CameraCore::initialize() {
+    bool Core::initialize() {
         LOG_INFO("Initializing Core...");
 
         if (!m_camera->isConnected()) {
@@ -33,7 +33,7 @@ namespace camera_service::core {
         return true;
     }
 
-    void CameraCore::shutdown() {
+    void Core::shutdown() {
         if (!m_initialized) {
             return;
         }
@@ -48,7 +48,7 @@ namespace camera_service::core {
         LOG_INFO("Core shut down successfully.");
     }
 
-    void CameraCore::setZoom(const double zoomLevel) {
+    void Core::setZoom(const double zoomLevel) {
         if (!m_initialized) {
             throw CoreException("Core not initialized");
         }
@@ -60,7 +60,7 @@ namespace camera_service::core {
         }
     }
 
-    double CameraCore::getZoom() const {
+    double Core::getZoom() const {
         if (!m_initialized) {
             throw CoreException("Core not initialized");
         }
@@ -72,7 +72,7 @@ namespace camera_service::core {
         }
     }
 
-    void CameraCore::setFocus(const double focusValue) {
+    void Core::setFocus(const double focusValue) {
         if (!m_initialized) {
             throw CoreException("Core not initialized");
         }
@@ -84,7 +84,7 @@ namespace camera_service::core {
         }
     }
 
-    double CameraCore::getFocus() const {
+    double Core::getFocus() const {
         if (!m_initialized) {
             throw CoreException("Core not initialized");
         }

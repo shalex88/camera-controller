@@ -1,26 +1,26 @@
-#include "GrpcCameraController.h"
+#include "TcpController.h"
 
 #include <iostream>
 
-#include "core/CameraCore.h"
+#include "core/Core.h"
 #include "common/Logger/Logger.h"
 
 namespace camera_service::api {
-    GrpcCameraController::GrpcCameraController(std::unique_ptr<core::ICore> core)
+    TcpController::TcpController(std::unique_ptr<core::ICore> core)
         : m_core(std::move(core)), m_running(false) {
         if (!m_core) {
             throw ControllerException("Cannot initialize CameraController with null Core");
         }
     }
 
-    GrpcCameraController::~GrpcCameraController() {
+    TcpController::~TcpController() {
         if (m_running) {
             stop();
         }
     }
 
-    bool GrpcCameraController::start() {
-        LOG_INFO("Starting GRPC API Controller...");
+    bool TcpController::start() {
+        LOG_INFO("Starting TCP API Controller...");
 
         try {
             if (!m_core->initialize()) {
@@ -28,14 +28,14 @@ namespace camera_service::api {
             }
 
             m_running = true;
-            LOG_INFO("GRPC API Controller started successfully.");
+            LOG_INFO("TCP API Controller started successfully.");
             return true;
         } catch (const core::CoreException& e) {
             throw ControllerException(std::string("Core error during controller start: ") + e.what());
         }
     }
 
-    void GrpcCameraController::stop() {
+    void TcpController::stop() {
         if (!m_running) {
             return;
         }
@@ -52,7 +52,7 @@ namespace camera_service::api {
         m_running = false;
     }
 
-    bool GrpcCameraController::setZoom(double zoomLevel) {
+    bool TcpController::setZoom(double zoomLevel) {
         if (!m_running) {
             throw ControllerException("Controller not running");
         }
@@ -65,7 +65,7 @@ namespace camera_service::api {
         }
     }
 
-    double GrpcCameraController::getZoom() {
+    double TcpController::getZoom() {
         if (!m_running) {
             throw ControllerException("Controller not running");
         }
@@ -77,7 +77,7 @@ namespace camera_service::api {
         }
     }
 
-    bool GrpcCameraController::setFocus(double focusValue) {
+    bool TcpController::setFocus(double focusValue) {
         if (!m_running) {
             throw ControllerException("Controller not running");
         }
@@ -90,7 +90,7 @@ namespace camera_service::api {
         }
     }
 
-    double GrpcCameraController::getFocus() {
+    double TcpController::getFocus() {
         if (!m_running) {
             throw ControllerException("Controller not running");
         }

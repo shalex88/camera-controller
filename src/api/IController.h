@@ -9,9 +9,9 @@ namespace camera_service::api {
         }
     };
 
-    class ICameraController {
+    class IController {
     public:
-        virtual ~ICameraController() = default;
+        virtual ~IController() = default;
 
         virtual bool start() = 0;
         virtual void stop() = 0;
