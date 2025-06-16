@@ -18,46 +18,52 @@ public:
     MOCK_METHOD(double, getFocus, (), (const, override));
 };
 
-TEST(GrpcControllerTests, CreationSuccess) {
-    auto mock_core = std::make_unique<MockCore>();
+class GrpcControllerTests : public Test {
+protected:
+    void SetUp() override {
+        mock_core = createMockCore();
+    }
+
+    static std::unique_ptr<MockCore> createMockCore() {
+        return std::make_unique<MockCore>();
+    }
+
+    std::unique_ptr<MockCore> mock_core;
+};
+
+TEST_F(GrpcControllerTests, CreationSuccess) {
     EXPECT_NO_THROW(api::GrpcController controller(std::move(mock_core)));
 }
 
-TEST(GrpcControllerTests, CreationFail) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(GrpcControllerTests, CreationFail) {
     EXPECT_THROW(api::GrpcController controller(nullptr), api::ControllerException );
 }
 
-TEST(GrpcControllerTests, StartSuccess) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(GrpcControllerTests, StartSuccess) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(true));
     api::GrpcController controller(std::move(mock_core));
     EXPECT_TRUE(controller.start());
 }
 
-TEST(GrpcControllerTests, StartCoreInitFails) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(GrpcControllerTests, StartCoreInitFails) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(false));
     api::GrpcController controller(std::move(mock_core));
     EXPECT_THROW(controller.start(), api::ControllerException );
 }
 
-TEST(GrpcControllerTests, StartCoreThrows) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(GrpcControllerTests, StartCoreThrows) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Throw(core::CoreException("fail")));
     api::GrpcController controller(std::move(mock_core));
     EXPECT_THROW(controller.start(), api::ControllerException );
 }
 
-TEST(GrpcControllerTests, StopSuccessIfNotRunning) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(GrpcControllerTests, StopSuccessIfNotRunning) {
     EXPECT_CALL(*mock_core, shutdown()).Times(0);
     api::GrpcController controller(std::move(mock_core));
     EXPECT_NO_THROW(controller.stop());
 }
 
-TEST(GrpcControllerTests, StopCallsShutdownSuccess) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(GrpcControllerTests, StopCallsShutdownSuccess) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(true));
     EXPECT_CALL(*mock_core, shutdown()).Times(1);
     api::GrpcController controller(std::move(mock_core));
@@ -65,8 +71,7 @@ TEST(GrpcControllerTests, StopCallsShutdownSuccess) {
     controller.stop();
 }
 
-TEST(GrpcControllerTests, StopCallsShutdownFail) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(GrpcControllerTests, StopCallsShutdownFail) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(true));
     EXPECT_CALL(*mock_core, shutdown()).WillOnce(Throw(core::CoreException("fail")));
     api::GrpcController controller(std::move(mock_core));
@@ -74,8 +79,7 @@ TEST(GrpcControllerTests, StopCallsShutdownFail) {
     EXPECT_NO_THROW(controller.stop());
 }
 
-TEST(GrpcControllerTests, SetZoomAndGetZoom) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(GrpcControllerTests, SetZoomAndGetZoom) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(true));
     EXPECT_CALL(*mock_core, setZoom(2.5)).Times(1);
     EXPECT_CALL(*mock_core, getZoom()).WillOnce(Return(2.5));
@@ -85,8 +89,7 @@ TEST(GrpcControllerTests, SetZoomAndGetZoom) {
     EXPECT_DOUBLE_EQ(controller.getZoom(), 2.5);
 }
 
-TEST(GrpcControllerTests, SetFocusAndGetFocus) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(GrpcControllerTests, SetFocusAndGetFocus) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(true));
     EXPECT_CALL(*mock_core, setFocus(1.1)).Times(1);
     EXPECT_CALL(*mock_core, getFocus()).WillOnce(Return(1.1));
@@ -96,8 +99,7 @@ TEST(GrpcControllerTests, SetFocusAndGetFocus) {
     EXPECT_DOUBLE_EQ(controller.getFocus(), 1.1);
 }
 
-TEST(GrpcControllerTests, ThrowsIfNotRunning) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(GrpcControllerTests, ThrowsIfNotRunning) {
     api::GrpcController controller(std::move(mock_core));
     EXPECT_THROW(controller.setZoom(1.0), api::ControllerException );
     EXPECT_THROW(controller.getZoom(), api::ControllerException );
@@ -105,8 +107,7 @@ TEST(GrpcControllerTests, ThrowsIfNotRunning) {
     EXPECT_THROW(controller.getFocus(), api::ControllerException );
 }
 
-TEST(GrpcControllerTests, SetZoomThrowsCoreException) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(GrpcControllerTests, SetZoomThrowsCoreException) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(true));
     EXPECT_CALL(*mock_core, setZoom(_)).WillOnce(Throw(core::CoreException("fail")));
     api::GrpcController controller(std::move(mock_core));
@@ -114,8 +115,7 @@ TEST(GrpcControllerTests, SetZoomThrowsCoreException) {
     EXPECT_THROW(controller.setZoom(1.0), api::ControllerException );
 }
 
-TEST(GrpcControllerTests, GetZoomThrowsCoreException) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(GrpcControllerTests, GetZoomThrowsCoreException) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(true));
     EXPECT_CALL(*mock_core, getZoom()).WillOnce(Throw(core::CoreException("fail")));
     api::GrpcController controller(std::move(mock_core));
@@ -124,8 +124,7 @@ TEST(GrpcControllerTests, GetZoomThrowsCoreException) {
 }
 
 
-TEST(GrpcControllerTests, SetFocusThrowsCoreException) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(GrpcControllerTests, SetFocusThrowsCoreException) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(true));
     EXPECT_CALL(*mock_core, setFocus(_)).WillOnce(Throw(core::CoreException("fail")));
     api::GrpcController controller(std::move(mock_core));
@@ -133,8 +132,7 @@ TEST(GrpcControllerTests, SetFocusThrowsCoreException) {
     EXPECT_THROW(controller.setFocus(1.0), api::ControllerException );
 }
 
-TEST(GrpcControllerTests, GetZoomFocusCoreException) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(GrpcControllerTests, GetZoomFocusCoreException) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(true));
     EXPECT_CALL(*mock_core, getFocus()).WillOnce(Throw(core::CoreException("fail")));
     api::GrpcController controller(std::move(mock_core));

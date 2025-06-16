@@ -18,46 +18,52 @@ public:
     MOCK_METHOD(double, getFocus, (), (const, override));
 };
 
-TEST(TcpControllerTests, CreationSuccess) {
-    auto mock_core = std::make_unique<MockCore>();
+class TcpControllerTests : public Test {
+protected:
+    void SetUp() override {
+        mock_core = createMockCore();
+    }
+
+    static std::unique_ptr<MockCore> createMockCore() {
+        return std::make_unique<MockCore>();
+    }
+
+    std::unique_ptr<MockCore> mock_core;
+};
+
+TEST_F(TcpControllerTests, CreationSuccess) {
     EXPECT_NO_THROW(api::TcpController controller(std::move(mock_core)));
 }
 
-TEST(TcpControllerTests, CreationFail) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(TcpControllerTests, CreationFail) {
     EXPECT_THROW(api::TcpController controller(nullptr), api::ControllerException );
 }
 
-TEST(TcpControllerTests, StartSuccess) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(TcpControllerTests, StartSuccess) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(true));
     api::TcpController controller(std::move(mock_core));
     EXPECT_TRUE(controller.start());
 }
 
-TEST(TcpControllerTests, StartCoreInitFails) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(TcpControllerTests, StartCoreInitFails) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(false));
     api::TcpController controller(std::move(mock_core));
     EXPECT_THROW(controller.start(), api::ControllerException );
 }
 
-TEST(TcpControllerTests, StartCoreThrows) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(TcpControllerTests, StartCoreThrows) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Throw(core::CoreException("fail")));
     api::TcpController controller(std::move(mock_core));
     EXPECT_THROW(controller.start(), api::ControllerException );
 }
 
-TEST(TcpControllerTests, StopSuccessIfNotRunning) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(TcpControllerTests, StopSuccessIfNotRunning) {
     EXPECT_CALL(*mock_core, shutdown()).Times(0);
     api::TcpController controller(std::move(mock_core));
     EXPECT_NO_THROW(controller.stop());
 }
 
-TEST(TcpControllerTests, StopCallsShutdownSuccess) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(TcpControllerTests, StopCallsShutdownSuccess) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(true));
     EXPECT_CALL(*mock_core, shutdown()).Times(1);
     api::TcpController controller(std::move(mock_core));
@@ -65,8 +71,7 @@ TEST(TcpControllerTests, StopCallsShutdownSuccess) {
     controller.stop();
 }
 
-TEST(TcpControllerTests, StopCallsShutdownFail) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(TcpControllerTests, StopCallsShutdownFail) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(true));
     EXPECT_CALL(*mock_core, shutdown()).WillOnce(Throw(core::CoreException("fail")));
     api::TcpController controller(std::move(mock_core));
@@ -74,8 +79,7 @@ TEST(TcpControllerTests, StopCallsShutdownFail) {
     EXPECT_NO_THROW(controller.stop());
 }
 
-TEST(TcpControllerTests, SetZoomAndGetZoom) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(TcpControllerTests, SetZoomAndGetZoom) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(true));
     EXPECT_CALL(*mock_core, setZoom(2.5)).Times(1);
     EXPECT_CALL(*mock_core, getZoom()).WillOnce(Return(2.5));
@@ -85,8 +89,7 @@ TEST(TcpControllerTests, SetZoomAndGetZoom) {
     EXPECT_DOUBLE_EQ(controller.getZoom(), 2.5);
 }
 
-TEST(TcpControllerTests, SetFocusAndGetFocus) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(TcpControllerTests, SetFocusAndGetFocus) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(true));
     EXPECT_CALL(*mock_core, setFocus(1.1)).Times(1);
     EXPECT_CALL(*mock_core, getFocus()).WillOnce(Return(1.1));
@@ -96,8 +99,7 @@ TEST(TcpControllerTests, SetFocusAndGetFocus) {
     EXPECT_DOUBLE_EQ(controller.getFocus(), 1.1);
 }
 
-TEST(TcpControllerTests, ThrowsIfNotRunning) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(TcpControllerTests, ThrowsIfNotRunning) {
     api::TcpController controller(std::move(mock_core));
     EXPECT_THROW(controller.setZoom(1.0), api::ControllerException );
     EXPECT_THROW(controller.getZoom(), api::ControllerException );
@@ -105,8 +107,7 @@ TEST(TcpControllerTests, ThrowsIfNotRunning) {
     EXPECT_THROW(controller.getFocus(), api::ControllerException );
 }
 
-TEST(TcpControllerTests, SetZoomThrowsCoreException) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(TcpControllerTests, SetZoomThrowsCoreException) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(true));
     EXPECT_CALL(*mock_core, setZoom(_)).WillOnce(Throw(core::CoreException("fail")));
     api::TcpController controller(std::move(mock_core));
@@ -114,8 +115,7 @@ TEST(TcpControllerTests, SetZoomThrowsCoreException) {
     EXPECT_THROW(controller.setZoom(1.0), api::ControllerException );
 }
 
-TEST(TcpControllerTests, GetZoomThrowsCoreException) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(TcpControllerTests, GetZoomThrowsCoreException) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(true));
     EXPECT_CALL(*mock_core, getZoom()).WillOnce(Throw(core::CoreException("fail")));
     api::TcpController controller(std::move(mock_core));
@@ -124,8 +124,7 @@ TEST(TcpControllerTests, GetZoomThrowsCoreException) {
 }
 
 
-TEST(TcpControllerTests, SetFocusThrowsCoreException) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(TcpControllerTests, SetFocusThrowsCoreException) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(true));
     EXPECT_CALL(*mock_core, setFocus(_)).WillOnce(Throw(core::CoreException("fail")));
     api::TcpController controller(std::move(mock_core));
@@ -133,8 +132,7 @@ TEST(TcpControllerTests, SetFocusThrowsCoreException) {
     EXPECT_THROW(controller.setFocus(1.0), api::ControllerException );
 }
 
-TEST(TcpControllerTests, GetZoomFocusCoreException) {
-    auto mock_core = std::make_unique<MockCore>();
+TEST_F(TcpControllerTests, GetZoomFocusCoreException) {
     EXPECT_CALL(*mock_core, initialize()).WillOnce(Return(true));
     EXPECT_CALL(*mock_core, getFocus()).WillOnce(Throw(core::CoreException("fail")));
     api::TcpController controller(std::move(mock_core));
