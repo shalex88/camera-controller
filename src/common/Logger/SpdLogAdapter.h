@@ -24,13 +24,8 @@ public:
         logger_->set_level(toSpdLogLevel(level));
     }
 
-protected:
     void logImpl(const LogLevel level, const std::string &msg) override {
         logger_->log(toSpdLogLevel(level), msg);
-
-        if (level == LogLevel::Critical) {
-            throw std::runtime_error(msg);
-        }
     }
 
 private:

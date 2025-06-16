@@ -28,9 +28,34 @@ protected:
     NiceMock<MockLoggerAdapter>* mock_logger{};
 };
 
-TEST_F(LoggerTest, SetLogLevel) {
+TEST_F(LoggerTest, SetLogLevelToTrace) {
+    EXPECT_CALL(*mock_logger, setLogLevel(LoggerInterface::LogLevel::Trace));
+    SET_LOG_LEVEL(LoggerInterface::LogLevel::Trace);
+}
+
+TEST_F(LoggerTest, SetLogLevelToDebug) {
     EXPECT_CALL(*mock_logger, setLogLevel(LoggerInterface::LogLevel::Debug));
     SET_LOG_LEVEL(LoggerInterface::LogLevel::Debug);
+}
+
+TEST_F(LoggerTest, SetLogLevelToInfo) {
+    EXPECT_CALL(*mock_logger, setLogLevel(LoggerInterface::LogLevel::Info));
+    SET_LOG_LEVEL(LoggerInterface::LogLevel::Info);
+}
+
+TEST_F(LoggerTest, SetLogLevelToWarn) {
+    EXPECT_CALL(*mock_logger, setLogLevel(LoggerInterface::LogLevel::Warn));
+    SET_LOG_LEVEL(LoggerInterface::LogLevel::Warn);
+}
+
+TEST_F(LoggerTest, SetLogLevelToError) {
+    EXPECT_CALL(*mock_logger, setLogLevel(LoggerInterface::LogLevel::Error));
+    SET_LOG_LEVEL(LoggerInterface::LogLevel::Error);
+}
+
+TEST_F(LoggerTest, SetLogLevelToCritical) {
+    EXPECT_CALL(*mock_logger, setLogLevel(LoggerInterface::LogLevel::Critical));
+    SET_LOG_LEVEL(LoggerInterface::LogLevel::Critical);
 }
 
 TEST_F(LoggerTest, LogTrace) {
