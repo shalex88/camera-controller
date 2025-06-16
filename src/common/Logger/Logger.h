@@ -4,7 +4,6 @@
 
 #include "LoggerInterface.h"
 #include "SpdLogAdapter.h"
-#include "StdoutAdapter.h"
 
 class Logger {
 public:
@@ -25,10 +24,14 @@ public:
         logger_adapter_->log(level, format, std::forward<Args>(args)...);
     }
 
+    void setLoggerAdapter(std::unique_ptr<LoggerInterface> adapter) {
+        logger_adapter_ = std::move(adapter);
+    }
+
 private:
     Logger() = default;
 
-    std::unique_ptr<LoggerInterface> logger_adapter_ = std::make_unique<SpdLogAdapter>(); /* Or use StdoutAdapter */
+    std::unique_ptr<LoggerInterface> logger_adapter_ = std::make_unique<SpdLogAdapter>();
 };
 
 #define SET_LOG_LEVEL(level) Logger::getInstance().setLogLevel(level)
