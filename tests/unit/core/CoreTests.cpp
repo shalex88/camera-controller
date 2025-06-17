@@ -22,11 +22,7 @@ public:
 class CoreTests : public Test {
 protected:
     void SetUp() override {
-        camera = createMockCamera();
-    }
-
-    static std::unique_ptr<MockCamera> createMockCamera() {
-        return std::make_unique<MockCamera>();
+        camera = std::make_unique<MockCamera>();
     }
 
     std::unique_ptr<MockCamera> camera;
