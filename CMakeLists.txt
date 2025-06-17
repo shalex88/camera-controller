@@ -11,7 +11,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(SOURCE_DIR "src")
 set(INCLUDE_DIR "include")
 
-include_directories(${INCLUDE_DIR} ${SOURCE_DIR})
+add_subdirectory(proto)
+
+include_directories(${INCLUDE_DIR} ${SOURCE_DIR} ${proto_INCLUDE_DIRS})
 file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS "${SOURCE_DIR}/*.cpp")
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
@@ -25,11 +27,11 @@ function(link_common_libraries target)
             #ADD your libs here
             spdlog::spdlog
             yaml-cpp::yaml-cpp
+            proto
     )
 endfunction(link_common_libraries)
 
 link_common_libraries(${PROJECT_NAME})
-add_subdirectory(proto)
 add_subdirectory(tests)
 
 include(GNUInstallDirs)

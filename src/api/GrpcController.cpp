@@ -1,9 +1,12 @@
 #include "GrpcController.h"
 
 #include <iostream>
+#include <future>
+#include <grpcpp/grpcpp.h>
 
 #include "core/Core.h"
 #include "common/Logger/Logger.h"
+#include "GrpcImplementation.h"
 
 namespace camera_service::api {
     GrpcController::GrpcController(std::unique_ptr<core::ICore> core)
@@ -114,10 +117,22 @@ namespace camera_service::api {
     }
 
     void GrpcController::runLoop() {
+        std::string server_address("localhost:50051");
+        GrpcImplementation service(this);
+
+        grpc::EnableDefaultHealthCheckService(true);
+        grpc::ServerBuilder builder;
+        builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+        builder.RegisterService(&service);
+
+        const std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
+        LOG_INFO("Service is listening on {}", server_address);
+
         while (running_) {
-            // This method is intended to be overridden in derived classes
-            // For now, we just simulate a blocking call
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
+
+        server->Shutdown();
+        LOG_INFO("Service stopped listening");
     }
 }
