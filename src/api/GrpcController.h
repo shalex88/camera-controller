@@ -1,5 +1,7 @@
 #pragma once
+#include <atomic>
 #include <memory>
+#include <thread>
 
 #include "api/IController.h"
 
@@ -14,16 +16,20 @@ namespace camera_service::api {
         ~GrpcController() override;
 
         bool start() override;
-        void stop() override;
+        bool stop() override;
+
+        bool isRunning() const override;
 
         bool setZoom(double zoom_level) override;
-        double getZoom() override;
+        double getZoom() const override;
 
         bool setFocus(double focus_value) override;
-        double getFocus() override;
+        double getFocus() const override;
 
     private:
+        std::thread server_thread_;
         std::shared_ptr<core::ICore> core_;
-        bool running_;
+        std::atomic<bool> running_;
+        void runLoop() override;
     };
 }

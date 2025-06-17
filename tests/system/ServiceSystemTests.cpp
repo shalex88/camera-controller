@@ -25,7 +25,9 @@ protected:
         ASSERT_NE(nullptr, controller);
 
         EXPECT_TRUE(controller->start());
+        EXPECT_TRUE(controller->isRunning());
     }
+
     std::unique_ptr<Config> config;
     std::unique_ptr<data::ICamera> camera;
     std::unique_ptr<core::ICore> core;

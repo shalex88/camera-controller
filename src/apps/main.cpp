@@ -23,9 +23,9 @@ int main() {
         // Presentation layer
         const auto controller = camera_service::api::ControllerFactory::createController(config->get("api"), std::move(core));
 
-        if (!controller->start()) {
-            LOG_ERROR("Controller failed");
-            return EXIT_FAILURE;
+        controller->start();
+        while (controller->isRunning()) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     } catch (const std::exception& e) {
         LOG_ERROR("Error during startup: {}", e.what());

@@ -28,19 +28,25 @@ namespace camera_service::api {
             }
 
             running_ = true;
-            LOG_INFO("GRPC API Controller started successfully.");
+            server_thread_ = std::thread(&GrpcController::runLoop, this);
+
             return true;
         } catch (const core::CoreException& e) {
             throw ControllerException(std::string("Core error during controller start: ") + e.what());
         }
     }
 
-    void GrpcController::stop() {
+    bool GrpcController::stop() {
         if (!running_) {
-            return;
+            return true;
         }
 
         LOG_INFO("Stopping NFOV Camera Controller...");
+        running_ = false;
+
+        if (server_thread_.joinable()) {
+            server_thread_.join();
+        }
 
         try {
             core_->shutdown();
@@ -49,7 +55,12 @@ namespace camera_service::api {
             // FIXME: Is it a good exception handling?
             LOG_ERROR("Error during controller shutdown: {}", e.what());
         }
-        running_ = false;
+
+        return true;
+    }
+
+    bool GrpcController::isRunning() const {
+        return running_;
     }
 
     bool GrpcController::setZoom(const double zoom_level) {
@@ -65,7 +76,7 @@ namespace camera_service::api {
         }
     }
 
-    double GrpcController::getZoom() {
+    double GrpcController::getZoom() const {
         if (!running_) {
             throw ControllerException("Controller not running");
         }
@@ -90,7 +101,7 @@ namespace camera_service::api {
         }
     }
 
-    double GrpcController::getFocus() {
+    double GrpcController::getFocus() const {
         if (!running_) {
             throw ControllerException("Controller not running");
         }
@@ -99,6 +110,14 @@ namespace camera_service::api {
             return core_->getFocus();
         } catch (const core::CoreException& e) {
             throw ControllerException(std::string("Core error retrieving focus: ") + e.what());
+        }
+    }
+
+    void GrpcController::runLoop() {
+        while (running_) {
+            // This method is intended to be overridden in derived classes
+            // For now, we just simulate a blocking call
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     }
 }

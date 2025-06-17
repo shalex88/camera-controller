@@ -4,7 +4,6 @@
 #include "api/ControllerFactory.h"
 
 #include "api/GrpcController.h"
-#include "api/TcpController.h"
 #include "core/ICore.h"
 
 using namespace camera_service;
@@ -31,12 +30,6 @@ TEST_F(ControllerFactoryTests, CreateGrpcControllerSuccess) {
     auto controller = api::ControllerFactory::createController("grpc", createMockCore());
     ASSERT_NE(nullptr, controller);
     EXPECT_TRUE(dynamic_cast<api::GrpcController*>(controller.get()) != nullptr);
-}
-
-TEST_F(ControllerFactoryTests, CreateTcpControllerSuccess) {
-    auto controller = api::ControllerFactory::createController("tcp", createMockCore());
-    ASSERT_NE(nullptr, controller);
-    EXPECT_TRUE(dynamic_cast<api::TcpController*>(controller.get()) != nullptr);
 }
 
 TEST_F(ControllerFactoryTests, ThrowsOnUnknownType) {
