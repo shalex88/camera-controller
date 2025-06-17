@@ -21,14 +21,15 @@ find_package(yaml-cpp CONFIG REQUIRED)
 
 function(link_common_libraries target)
     target_link_libraries(${target}
-        PRIVATE
-        #ADD your libs here
-        spdlog::spdlog
-        yaml-cpp::yaml-cpp
+            PRIVATE
+            #ADD your libs here
+            spdlog::spdlog
+            yaml-cpp::yaml-cpp
     )
 endfunction(link_common_libraries)
 
 link_common_libraries(${PROJECT_NAME})
+add_subdirectory(proto)
 add_subdirectory(tests)
 
 include(GNUInstallDirs)

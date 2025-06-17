@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package camera;
+
+service CameraService {
+  rpc SetZoom (SetZoomRequest) returns (SetZoomResponse);
+  rpc GetZoom (GetZoomRequest) returns (GetZoomResponse);
+  rpc SetFocus (SetFocusRequest) returns (SetFocusResponse);
+  rpc GetFocus (GetFocusRequest) returns (GetFocusResponse);
+}
+
+message SetZoomRequest {
+  double zoom = 1;
+}
+
+message SetZoomResponse {
+  double zoom = 1;
+}
+
+message GetZoomRequest {
+}
+
+message GetZoomResponse {
+  double zoom = 1;
+}
+
+message SetFocusRequest {
+  double focus = 1;
+}
+
+message SetFocusResponse {
+  double focus = 1;
+}
+
+message GetFocusRequest {
+}
+
+message GetFocusResponse {
+  double focus = 1;
+}
