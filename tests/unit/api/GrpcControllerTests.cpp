@@ -21,18 +21,16 @@ public:
 class GrpcControllerTests : public Test {
 protected:
     void SetUp() override {
-        mock_core = createMockCore();
-    }
-
-    static std::unique_ptr<MockCore> createMockCore() {
-        return std::make_unique<MockCore>();
+        mock_core = std::make_unique<MockCore>();
     }
 
     std::unique_ptr<MockCore> mock_core;
 };
 
 TEST_F(GrpcControllerTests, CreationSuccess) {
-    EXPECT_NO_THROW(api::GrpcController controller(std::move(mock_core)));
+    auto controller = std::make_unique<api::GrpcController>(std::move(mock_core));
+    ASSERT_NE(nullptr, controller);
+    EXPECT_NO_THROW();
 }
 
 TEST_F(GrpcControllerTests, CreationFail) {
