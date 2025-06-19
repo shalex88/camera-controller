@@ -9,6 +9,7 @@ namespace camera_service::api {
     class ControllerFactory {
     public:
         static std::unique_ptr<IController> createController(const std::string& controller_type,
-                                                                   std::unique_ptr<core::ICore> core);
+                                                           const std::string& port,
+                                                           std::unique_ptr<core::ICore> core);
     };
 }

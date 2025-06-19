@@ -23,7 +23,6 @@ namespace camera_service::api {
 
         virtual bool setFocus(double focus_value) = 0;
         virtual double getFocus() const = 0;
-    private:
         virtual void runLoop() = 0;
     };
 }

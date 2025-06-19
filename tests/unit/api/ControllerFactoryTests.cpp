@@ -3,7 +3,7 @@
 /* Add your project include files here */
 #include "api/ControllerFactory.h"
 
-#include "api/GrpcController.h"
+#include "api/ApiController.h"
 #include "core/ICore.h"
 
 using namespace camera_service;
@@ -24,17 +24,18 @@ protected:
     static std::unique_ptr<MockCore> createMockCore() {
         return std::make_unique<MockCore>();
     }
+    std::string port = "50051";
 };
 
 TEST_F(ControllerFactoryTests, CreateGrpcControllerSuccess) {
-    auto controller = api::ControllerFactory::createController("grpc", createMockCore());
+    auto controller = api::ControllerFactory::createController("grpc", port, createMockCore());
     ASSERT_NE(nullptr, controller);
-    EXPECT_TRUE(dynamic_cast<api::GrpcController*>(controller.get()) != nullptr);
+    EXPECT_TRUE(dynamic_cast<api::ApiController*>(controller.get()) != nullptr);
 }
 
 TEST_F(ControllerFactoryTests, ThrowsOnUnknownType) {
     EXPECT_THROW(
-        api::ControllerFactory::createController("unknown", createMockCore()),
+        api::ControllerFactory::createController("unknown", port, createMockCore()),
         api::ControllerException
     );
 }

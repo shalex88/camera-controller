@@ -13,15 +13,18 @@ int main() {
     try {
         // Cross-cutting concerns (common)
         const auto config = std::make_unique<Config>("../config/config.yaml");
+        const auto api_config = config->get("api");
+        const auto port_config = config->get("port");
+        const auto camera_config = config->get("camera");
 
         // Data access layer
-        auto camera = camera_service::data::CameraFactory::createCamera(config->get("camera"));
+        auto camera = camera_service::data::CameraFactory::createCamera(camera_config);
 
         // Business logic layer
-        auto core = camera_service::core::CoreFactory::createCore(config->get("camera"), std::move(camera));
+        auto core = camera_service::core::CoreFactory::createCore(camera_config, std::move(camera));
 
         // Presentation layer
-        const auto controller = camera_service::api::ControllerFactory::createController(config->get("api"), std::move(core));
+        const auto controller = camera_service::api::ControllerFactory::createController(api_config, port_config, std::move(core));
 
         controller->startAsync();
         while (controller->isRunning()) {

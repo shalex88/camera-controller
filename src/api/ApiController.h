@@ -1,8 +1,9 @@
 #pragma once
 #include <atomic>
 #include <memory>
-#include <thread>
+#include <string>
 
+#include "api/IApiAdapter.h"
 #include "api/IController.h"
 
 namespace camera_service::core {
@@ -10,10 +11,10 @@ namespace camera_service::core {
 }
 
 namespace camera_service::api {
-    class GrpcController final : public IController {
+    class ApiController final : public IController {
     public:
-        explicit GrpcController(std::unique_ptr<core::ICore> core);
-        ~GrpcController() override;
+        explicit ApiController(std::unique_ptr<core::ICore> core, std::unique_ptr<IApiAdapter> api_adapter, const std::string& port);
+        ~ApiController() override;
 
         bool startAsync() override;
         bool stop() override;
@@ -25,11 +26,12 @@ namespace camera_service::api {
 
         bool setFocus(double focus_value) override;
         double getFocus() const override;
+        void runLoop() override;
 
     private:
-        std::thread server_thread_;
-        std::shared_ptr<core::ICore> core_;
+        std::unique_ptr<IApiAdapter> api_adapter_;
+        std::unique_ptr<core::ICore> core_;
         std::atomic<bool> running_;
-        void runLoop() override;
+        std::string port_;
     };
 }

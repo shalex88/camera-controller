@@ -1,12 +1,19 @@
 #pragma once
 
-#include "camera_service.pb.h"
-#include "camera_service.grpc.pb.h"
+#include "api/proto/camera_service.pb.h"
+#include "api/proto/camera_service.grpc.pb.h"
+#include "api/IApiAdapter.h"
 
 namespace camera_service::api {
-    class GrpcImplementation final : public camera::CameraService::CallbackService {
+    class IController;
+    class GrpcAdapter final : public camera::CameraService::CallbackService, public IApiAdapter {
     public:
-        explicit GrpcImplementation(GrpcController* controller);
+        explicit GrpcAdapter();
+        void setController(IController* controller) override;
+        ~GrpcAdapter() override;
+
+        bool start(const std::string& port) override;
+        void stop() override;
 
         grpc::ServerUnaryReactor* SetZoom(
             grpc::CallbackServerContext* context,
@@ -28,7 +35,10 @@ namespace camera_service::api {
             const camera::GetFocusRequest* request,
             camera::GetFocusResponse* response) override;
 
+        void runLoop() override;
+
     private:
-        GrpcController* controller_;
+        IController* controller_;
+        std::unique_ptr<grpc::Server> server_;
     };
 }
