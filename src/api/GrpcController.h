@@ -15,7 +15,7 @@ namespace camera_service::api {
         explicit GrpcController(std::unique_ptr<core::ICore> core);
         ~GrpcController() override;
 
-        bool start() override;
+        bool startAsync() override;
         bool stop() override;
 
         bool isRunning() const override;

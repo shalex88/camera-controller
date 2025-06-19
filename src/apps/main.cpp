@@ -23,7 +23,7 @@ int main() {
         // Presentation layer
         const auto controller = camera_service::api::ControllerFactory::createController(config->get("api"), std::move(core));
 
-        controller->start();
+        controller->startAsync();
         while (controller->isRunning()) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }

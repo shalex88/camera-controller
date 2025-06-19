@@ -22,7 +22,7 @@ namespace camera_service::api {
         }
     }
 
-    bool GrpcController::start() {
+    bool GrpcController::startAsync() {
         LOG_INFO("Starting GRPC API Controller...");
 
         try {

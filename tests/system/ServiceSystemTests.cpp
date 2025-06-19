@@ -24,7 +24,7 @@ protected:
             std::move(core)));
         ASSERT_NE(nullptr, controller);
 
-        EXPECT_TRUE(controller->start());
+        EXPECT_TRUE(controller->startAsync());
         EXPECT_TRUE(controller->isRunning());
     }
 

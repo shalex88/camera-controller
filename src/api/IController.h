@@ -13,7 +13,7 @@ namespace camera_service::api {
     public:
         virtual ~IController() = default;
 
-        virtual bool start() = 0;
+        virtual bool startAsync() = 0;
         virtual bool stop() = 0;
 
         virtual bool isRunning() const = 0;
