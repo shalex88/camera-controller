@@ -2,14 +2,14 @@
 
 #include "api/proto/camera_service.pb.h"
 #include "api/proto/camera_service.grpc.pb.h"
-#include "api/IApiAdapter.h"
+#include "api/IControllerAdapter.h"
 
 namespace camera_service::api {
-    class IController;
-    class GrpcAdapter final : public camera::CameraService::CallbackService, public IApiAdapter {
+    class Controller;
+    class GrpcAdapter final : public camera::CameraService::CallbackService, public IControllerAdapter {
     public:
         explicit GrpcAdapter();
-        void setController(IController* controller) override;
+        void setController(Controller* controller) override;
         ~GrpcAdapter() override;
 
         bool start(const std::string& port) override;
@@ -38,7 +38,7 @@ namespace camera_service::api {
         void runLoop() override;
 
     private:
-        IController* controller_;
+        Controller* controller_;
         std::unique_ptr<grpc::Server> server_;
     };
 }

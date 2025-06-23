@@ -103,7 +103,7 @@ protected:
     std::unique_ptr<Config> config;
     std::unique_ptr<data::ICamera> camera;
     std::unique_ptr<core::ICore> core;
-    std::unique_ptr<api::IController> controller;
+    std::unique_ptr<api::Controller> controller;
     std::string api_config;
     std::string port_config;
     std::string camera_config;

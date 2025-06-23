@@ -3,7 +3,7 @@
 /* Add your project include files here */
 #include "api/ControllerFactory.h"
 
-#include "api/ApiController.h"
+#include "api/Controller.h"
 #include "core/ICore.h"
 
 using namespace camera_service;
@@ -30,7 +30,7 @@ protected:
 TEST_F(ControllerFactoryTests, CreateGrpcControllerSuccess) {
     auto controller = api::ControllerFactory::createController("grpc", port, createMockCore());
     ASSERT_NE(nullptr, controller);
-    EXPECT_TRUE(dynamic_cast<api::ApiController*>(controller.get()) != nullptr);
+    EXPECT_TRUE(dynamic_cast<api::Controller*>(controller.get()) != nullptr);
 }
 
 TEST_F(ControllerFactoryTests, ThrowsOnUnknownType) {

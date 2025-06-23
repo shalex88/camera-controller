@@ -4,7 +4,7 @@
 #include <future>
 #include <grpcpp/grpcpp.h>
 
-#include "ApiController.h"
+#include "Controller.h"
 #include "common/Logger/Logger.h"
 
 namespace camera_service::api {
@@ -15,7 +15,7 @@ namespace camera_service::api {
         stop();
     }
 
-    void GrpcAdapter::setController(IController* controller) {
+    void GrpcAdapter::setController(Controller* controller) {
         if (!controller) {
             throw std::invalid_argument("Controller cannot be null");
         }
@@ -23,7 +23,7 @@ namespace camera_service::api {
     }
 
     bool GrpcAdapter::start(const std::string& port) {
-        std::string server_address("localhost:" + port);
+        const std::string server_address("localhost:" + port);
 
         grpc::EnableDefaultHealthCheckService(true);
         grpc::ServerBuilder builder;

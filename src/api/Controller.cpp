@@ -1,4 +1,4 @@
-#include "ApiController.h"
+#include "Controller.h"
 
 #include <future>
 
@@ -6,24 +6,24 @@
 #include "common/Logger/Logger.h"
 
 namespace camera_service::api {
-    ApiController::ApiController(std::unique_ptr<core::ICore> core, std::unique_ptr<IApiAdapter> api_adapter, const std::string& port)
-        : core_(std::move(core)), running_(false), api_adapter_(std::move(api_adapter)), port_(port) {
+    Controller::Controller(std::unique_ptr<core::ICore> core, std::unique_ptr<IControllerAdapter> controller_impl, const std::string& port)
+        : controller_impl_(std::move(controller_impl)), core_(std::move(core)), running_(false), port_(port) {
         if (!core_) {
             throw ControllerException("Core cannot be null");
         }
-        if (!api_adapter_) {
-            throw ControllerException("API adapter cannot be null");
+        if (!controller_impl_) {
+            throw ControllerException("Controller implementation cannot be null");
         }
-        api_adapter_->setController(this);
+        controller_impl_->setController(this);
     }
 
-    ApiController::~ApiController() {
+    Controller::~Controller() {
         if (running_) {
             stop();
         }
     }
 
-    bool ApiController::startAsync() {
+    bool Controller::startAsync() {
         LOG_INFO("Starting GRPC API Controller...");
 
         try {
@@ -31,9 +31,9 @@ namespace camera_service::api {
                 throw ControllerException("Core initialization failed");
             }
 
-            if (!api_adapter_->start(port_)) {
+            if (!controller_impl_->start(port_)) {
                 core_->shutdown();
-                throw ControllerException("Failed to start API adapter");
+                throw ControllerException("Failed to start Controller implementation");
             }
 
             running_ = true;
@@ -50,7 +50,7 @@ namespace camera_service::api {
         }
     }
 
-    bool ApiController::stop() {
+    bool Controller::stop() {
         if (!running_) {
             return true;
         }
@@ -58,7 +58,7 @@ namespace camera_service::api {
         LOG_INFO("Stopping API Controller...");
         running_ = false;
 
-        api_adapter_->stop();
+        controller_impl_->stop();
 
         try {
             if (core_) {
@@ -71,11 +71,11 @@ namespace camera_service::api {
         }
     }
 
-    bool ApiController::isRunning() const {
+    bool Controller::isRunning() const {
         return running_;
     }
 
-    bool ApiController::setZoom(const double zoom_level) {
+    bool Controller::setZoom(const double zoom_level) const {
         if (!running_) {
             throw ControllerException("Controller is not running");
         }
@@ -88,7 +88,7 @@ namespace camera_service::api {
         }
     }
 
-    double ApiController::getZoom() const {
+    double Controller::getZoom() const {
         if (!running_) {
             throw ControllerException("Controller is not running");
         }
@@ -100,7 +100,7 @@ namespace camera_service::api {
         }
     }
 
-    bool ApiController::setFocus(const double focus_value) {
+    bool Controller::setFocus(const double focus_value) const {
         if (!running_) {
             throw ControllerException("Controller is not running");
         }
@@ -113,7 +113,7 @@ namespace camera_service::api {
         }
     }
 
-    double ApiController::getFocus() const {
+    double Controller::getFocus() const {
         if (!running_) {
             throw ControllerException("Controller is not running");
         }
@@ -125,9 +125,9 @@ namespace camera_service::api {
         }
     }
 
-    void ApiController::runLoop() {
-        if (api_adapter_) {
-            api_adapter_->runLoop();
+    void Controller::runLoop() const {
+        if (controller_impl_) {
+            controller_impl_->runLoop();
         }
     }
 }

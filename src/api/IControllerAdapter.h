@@ -2,13 +2,13 @@
 #include <string>
 
 namespace camera_service::api {
-    class IController; // forward declaration
+    class Controller; // forward declaration
 
-    class IApiAdapter {
+    class IControllerAdapter {
     public:
-        virtual ~IApiAdapter() = default;
+        virtual ~IControllerAdapter() = default;
 
-        virtual void setController(IController* controller) = 0;
+        virtual void setController(Controller* controller) = 0;
         virtual bool start(const std::string& port) = 0;
         virtual void stop() = 0;
         virtual void runLoop() = 0;
