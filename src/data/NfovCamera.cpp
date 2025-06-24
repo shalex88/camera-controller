@@ -17,7 +17,7 @@ namespace camera_service::data {
         }
     }
 
-    void NfovCamera::setZoom(const double zoom_level) {
+    void NfovCamera::setZoom(const types::zoom zoom_level) {
         if (!connected_) {
             throw CameraException("Cannot set zoom: NFOV Camera not connected");
         }
@@ -31,14 +31,14 @@ namespace camera_service::data {
         zoom_level_ = zoom_level;
     }
 
-    double NfovCamera::getZoom() const {
+    types::zoom NfovCamera::getZoom() const {
         if (!connected_) {
             throw CameraException("Cannot get zoom: NFOV Camera not connected");
         }
         return zoom_level_;
     }
 
-    void NfovCamera::setFocus(const double focus_value) {
+    void NfovCamera::setFocus(const types::focus focus_value) {
         if (!connected_) {
             throw CameraException("Cannot set focus: NFOV Camera not connected");
         }
@@ -48,7 +48,7 @@ namespace camera_service::data {
         focus_value_ = focus_value;
     }
 
-    double NfovCamera::getFocus() const {
+    types::focus NfovCamera::getFocus() const {
         if (!connected_) {
             throw CameraException("Cannot get focus: Camera not connected");
         }

@@ -16,6 +16,7 @@ namespace camera_service::data {
         bool isConnected() const override;
 
     private:
+        //TODO: make stateless
         double zoom_level_;
         double focus_value_;
         bool connected_;

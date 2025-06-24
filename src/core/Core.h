@@ -2,6 +2,7 @@
 #include <memory>
 
 #include "core/ICore.h"
+#include "common/types/CameraTypes.h"
 
 namespace camera_service::data {
     class ICamera;
@@ -16,11 +17,11 @@ namespace camera_service::core {
         bool initialize() override;
         void shutdown() override;
 
-        void setZoom(double zoom_level) override;
-        double getZoom() const override;
+        void setZoom(types::zoom zoom_level) override;
+        types::zoom getZoom() const override;
 
-        void setFocus(double focus_value) override;
-        double getFocus() const override;
+        void setFocus(types::focus focus_value) override;
+        types::focus getFocus() const override;
 
     private:
         std::unique_ptr<data::ICamera> camera_;

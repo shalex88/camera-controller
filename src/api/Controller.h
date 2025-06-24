@@ -4,6 +4,7 @@
 #include <string>
 
 #include "api/IControllerAdapter.h"
+#include "common/types/CameraTypes.h"
 
 namespace camera_service::core {
     class ICore;
@@ -26,11 +27,11 @@ namespace camera_service::api {
 
         bool isRunning() const;
 
-        bool setZoom(double zoom_level) const;
-        double getZoom() const;
+        void setZoom(types::zoom zoom_level) const;
+        types::zoom getZoom() const;
 
-        bool setFocus(double focus_value) const;
-        double getFocus() const;
+        void setFocus(types::focus focus_value) const;
+        types::focus getFocus() const;
         void runLoop() const;
 
     private:

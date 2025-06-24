@@ -3,10 +3,10 @@ syntax = "proto3";
 package camera;
 
 service CameraService {
-  rpc SetZoom (SetZoomRequest) returns (SetZoomResponse);
-  rpc GetZoom (GetZoomRequest) returns (GetZoomResponse);
-  rpc SetFocus (SetFocusRequest) returns (SetFocusResponse);
-  rpc GetFocus (GetFocusRequest) returns (GetFocusResponse);
+  rpc SetZoom (SetZoomRequest) returns (SetZoomResponse) {}
+  rpc GetZoom (GetZoomRequest) returns (GetZoomResponse) {}
+  rpc SetFocus (SetFocusRequest) returns (SetFocusResponse) {}
+  rpc GetFocus (GetFocusRequest) returns (GetFocusResponse) {}
 }
 
 message SetZoomRequest {

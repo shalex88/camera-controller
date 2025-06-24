@@ -17,7 +17,7 @@ namespace camera_service::data {
         }
     }
 
-    void WfovCamera::setZoom(const double zoom_level) {
+    void WfovCamera::setZoom(const types::zoom zoom_level) {
         if (!connected_) {
             throw CameraException("Cannot set zoom: WFOV Camera not connected");
         }
@@ -31,14 +31,14 @@ namespace camera_service::data {
         zoom_level_ = zoom_level;
     }
 
-    double WfovCamera::getZoom() const {
+    types::zoom WfovCamera::getZoom() const {
         if (!connected_) {
             throw CameraException("Cannot get zoom: WFOV Camera not connected");
         }
         return zoom_level_;
     }
 
-    void WfovCamera::setFocus(const double focus_value) {
+    void WfovCamera::setFocus(const types::focus focus_value) {
         if (!connected_) {
             throw CameraException("Cannot set focus: WFOV Camera not connected");
         }
@@ -48,7 +48,7 @@ namespace camera_service::data {
         focus_value_ = focus_value;
     }
 
-    double WfovCamera::getFocus() const {
+    types::focus WfovCamera::getFocus() const {
         if (!connected_) {
             throw CameraException("Cannot get focus: WFOV Camera not connected");
         }

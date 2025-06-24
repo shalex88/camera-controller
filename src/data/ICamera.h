@@ -1,6 +1,8 @@
 #pragma once
 #include <stdexcept>
 
+#include "common/types/CameraTypes.h"
+
 namespace camera_service::data {
     class CameraException final : public std::runtime_error {
     public:
@@ -12,10 +14,10 @@ namespace camera_service::data {
     public:
         virtual ~ICamera() = default;
 
-        virtual void setZoom(double zoom_level) = 0;
-        virtual double getZoom() const = 0;
-        virtual void setFocus(double focus_value) = 0;
-        virtual double getFocus() const = 0;
+        virtual void setZoom(types::zoom zoom_level) = 0;
+        virtual types::zoom getZoom() const = 0;
+        virtual void setFocus(types::focus focus_value) = 0;
+        virtual types::focus getFocus() const = 0;
         virtual bool connect() = 0;
         virtual void disconnect() = 0;
         virtual bool isConnected() const = 0;

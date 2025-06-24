@@ -28,7 +28,7 @@
 
 - [ ] Add a configuration object
 - [ ] Add DTO support
-- [ ] Add type alias support
+- [ ] Add limits check for type aliases
 - [ ] Add thread safety
 - [ ] Add result pattern
 - [ ] Improve error handling

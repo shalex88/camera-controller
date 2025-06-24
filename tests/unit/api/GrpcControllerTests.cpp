@@ -93,7 +93,7 @@ TEST_F(GrpcControllerTests, SetZoomAndGetZoom) {
     EXPECT_CALL(*mock_core, getZoom()).WillOnce(Return(2.5));
     api::Controller controller(std::move(mock_core), std::make_unique<api::GrpcAdapter>(), port);
     EXPECT_TRUE(controller.startAsync());
-    EXPECT_TRUE(controller.setZoom(2.5));
+    controller.setZoom(2.5);
     EXPECT_DOUBLE_EQ(controller.getZoom(), 2.5);
 }
 
@@ -103,7 +103,7 @@ TEST_F(GrpcControllerTests, SetFocusAndGetFocus) {
     EXPECT_CALL(*mock_core, getFocus()).WillOnce(Return(1.1));
     api::Controller controller(std::move(mock_core), std::make_unique<api::GrpcAdapter>(), port);
     EXPECT_TRUE(controller.startAsync());
-    EXPECT_TRUE(controller.setFocus(1.1));
+    controller.setFocus(1.1);
     EXPECT_DOUBLE_EQ(controller.getFocus(), 1.1);
 }
 

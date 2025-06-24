@@ -78,20 +78,19 @@ namespace camera_service::api {
         return running_;
     }
 
-    bool Controller::setZoom(const double zoom_level) const {
+    void Controller::setZoom(const types::zoom zoom_level) const {
         if (!running_) {
             throw ControllerException("Controller is not running");
         }
 
         try {
             core_->setZoom(zoom_level);
-            return true;
         } catch (const core::CoreException& e) {
             throw ControllerException(std::string("Core error during zoom operation: ") + e.what());
         }
     }
 
-    double Controller::getZoom() const {
+    types::zoom Controller::getZoom() const {
         if (!running_) {
             throw ControllerException("Controller is not running");
         }
@@ -103,20 +102,19 @@ namespace camera_service::api {
         }
     }
 
-    bool Controller::setFocus(const double focus_value) const {
+    void Controller::setFocus(const types::focus focus_value) const {
         if (!running_) {
             throw ControllerException("Controller is not running");
         }
 
         try {
             core_->setFocus(focus_value);
-            return true;
         } catch (const core::CoreException& e) {
             throw ControllerException(std::string("Core error during focus operation: ") + e.what());
         }
     }
 
-    double Controller::getFocus() const {
+    types::focus Controller::getFocus() const {
         if (!running_) {
             throw ControllerException("Controller is not running");
         }

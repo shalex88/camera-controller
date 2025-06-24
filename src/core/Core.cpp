@@ -48,7 +48,7 @@ namespace camera_service::core {
         LOG_INFO("Core shut down successfully.");
     }
 
-    void Core::setZoom(const double zoom_level) {
+    void Core::setZoom(const types::zoom zoom_level) {
         if (!initialized_) {
             throw CoreException("Core not initialized");
         }
@@ -60,7 +60,7 @@ namespace camera_service::core {
         }
     }
 
-    double Core::getZoom() const {
+    types::zoom Core::getZoom() const {
         if (!initialized_) {
             throw CoreException("Core not initialized");
         }
@@ -72,7 +72,7 @@ namespace camera_service::core {
         }
     }
 
-    void Core::setFocus(const double focus_value) {
+    void Core::setFocus(const types::focus focus_value) {
         if (!initialized_) {
             throw CoreException("Core not initialized");
         }
@@ -84,7 +84,7 @@ namespace camera_service::core {
         }
     }
 
-    double Core::getFocus() const {
+    types::focus Core::getFocus() const {
         if (!initialized_) {
             throw CoreException("Core not initialized");
         }
