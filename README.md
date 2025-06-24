@@ -23,3 +23,14 @@
 ```bash
 ./camera-service-system-tests
 ```
+
+## TODO
+
+- [ ] Add a configuration object
+- [ ] Add DTO support
+- [ ] Add type alias support
+- [ ] Add thread safety
+- [ ] Add result pattern
+- [ ] Improve error handling
+- [ ] Add health status
+- [ ] Add a state pattern

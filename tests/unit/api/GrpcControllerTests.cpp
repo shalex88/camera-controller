@@ -35,8 +35,16 @@ TEST_F(GrpcControllerTests, CreationSuccess) {
     EXPECT_NO_THROW();
 }
 
-TEST_F(GrpcControllerTests, CreationFail) {
+TEST_F(GrpcControllerTests, CreationFailNoCore) {
     EXPECT_THROW(api::Controller controller(nullptr, std::make_unique<api::GrpcAdapter>(), port), api::ControllerException );
+}
+
+TEST_F(GrpcControllerTests, CreationFailNoControllerImpl) {
+    EXPECT_THROW(api::Controller controller(std::move(mock_core), nullptr, port), api::ControllerException );
+}
+
+TEST_F(GrpcControllerTests, CreationFailNoPort) {
+    EXPECT_THROW(api::Controller controller(std::move(mock_core), std::make_unique<api::GrpcAdapter>(), ""), api::ControllerException );
 }
 
 TEST_F(GrpcControllerTests, StartSuccess) {

@@ -14,6 +14,9 @@ namespace camera_service::api {
         if (!controller_impl_) {
             throw ControllerException("Controller implementation cannot be null");
         }
+        if (port_.empty()) {
+            throw ControllerException("Port cannot be empty");
+        }
         controller_impl_->setController(this);
     }
 
