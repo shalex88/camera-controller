@@ -3,6 +3,7 @@
 #include "api/proto/camera_service.pb.h"
 #include "api/proto/camera_service.grpc.pb.h"
 #include "api/ITransport.h"
+#include "common/types/Result.h"
 
 namespace camera_service::api {
     class Controller;
@@ -12,8 +13,9 @@ namespace camera_service::api {
         void setController(Controller* controller) override;
         ~GrpcTransport() override;
 
-        bool start(const std::string& port) override;
-        void stop() override;
+        Result<void> start(const std::string& port) override;
+        Result<void> stop() override;
+        Result<void> runLoop() override;
 
         grpc::ServerUnaryReactor* SetZoom(
             grpc::CallbackServerContext* context,
@@ -34,8 +36,6 @@ namespace camera_service::api {
             grpc::CallbackServerContext* context,
             const camera::GetFocusRequest* request,
             camera::GetFocusResponse* response) override;
-
-        void runLoop() override;
 
     private:
         Controller* controller_;

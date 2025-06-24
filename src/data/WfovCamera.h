@@ -7,18 +7,17 @@ namespace camera_service::data {
         WfovCamera();
         ~WfovCamera() override;
 
-        void setZoom(double zoom_level) override;
-        double getZoom() const override;
-        void setFocus(double focus_value) override;
-        double getFocus() const override;
-        bool connect() override;
-        void disconnect() override;
+        Result<void> setZoom(types::zoom zoom_level) override;
+        Result<types::zoom> getZoom() const override;
+        Result<void> setFocus(types::focus focus_value) override;
+        Result<types::focus> getFocus() const override;
+        Result<void> connect() override;
+        Result<void> disconnect() override;
         bool isConnected() const override;
 
     private:
-        //TODO: make stateless
-        double zoom_level_;
-        double focus_value_;
+        types::zoom zoom_level_;
+        types::focus focus_value_;
         bool connected_;
     };
 }

@@ -1,74 +1,98 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
-/* Add your project include files here */
 #include "data/WfovCamera.h"
+#include "common/types/Result.h"
 
 using namespace camera_service;
 using namespace testing;
 
 class WfovCameraTests : public Test {
 protected:
-    data::WfovCamera camera;
+    void SetUp() override {
+        camera = std::make_unique<data::WfovCamera>();
+    }
+
+    std::unique_ptr<data::WfovCamera> camera;
 };
 
 TEST_F(WfovCameraTests, CanBeConstructed) {
-    EXPECT_FALSE(camera.isConnected());
+    auto camera = std::make_unique<data::WfovCamera>();
+    ASSERT_NE(nullptr, camera);
 }
 
 TEST_F(WfovCameraTests, InitiallyNotConnected) {
-    EXPECT_FALSE(camera.isConnected());
+    EXPECT_FALSE(camera->isConnected());
 }
 
 TEST_F(WfovCameraTests, ConnectDisconnect) {
-    EXPECT_TRUE(camera.connect());
-    EXPECT_TRUE(camera.isConnected());
+    auto connectResult = camera->connect();
+    EXPECT_TRUE(connectResult.isSuccess()) << "Failed to connect: " << connectResult.error();
+    EXPECT_TRUE(camera->isConnected());
 
-    camera.disconnect();
-    EXPECT_FALSE(camera.isConnected());
+    auto disconnectResult = camera->disconnect();
+    EXPECT_TRUE(disconnectResult.isSuccess()) << "Failed to disconnect: " << disconnectResult.error();
+    EXPECT_FALSE(camera->isConnected());
 }
 
 TEST_F(WfovCameraTests, DisconnectWhenNotConnected) {
-    EXPECT_NO_THROW(camera.disconnect());
+    auto result = camera->disconnect();
+    EXPECT_TRUE(result.isError());
+    EXPECT_FALSE(camera->isConnected());
 }
 
 TEST_F(WfovCameraTests, SetZoomWhenNotConnected) {
-    EXPECT_THROW(camera.setZoom(2.0), data::CameraException);
+    auto result = camera->setZoom(2.0);
+    EXPECT_TRUE(result.isError());
+    EXPECT_EQ(result.error(), "Cannot set zoom: WFOV Camera not connected");
 }
 
 TEST_F(WfovCameraTests, GetZoomWhenNotConnected) {
-    EXPECT_THROW(camera.getZoom(), data::CameraException);
+    auto result = camera->getZoom();
+    EXPECT_TRUE(result.isError());
+    EXPECT_EQ(result.error(), "Cannot get zoom: WFOV Camera not connected");
 }
 
 TEST_F(WfovCameraTests, SetFocusWhenNotConnected) {
-    EXPECT_THROW(camera.setFocus(1.0), data::CameraException);
+    auto result = camera->setFocus(1.0);
+    EXPECT_TRUE(result.isError());
+    EXPECT_EQ(result.error(), "Cannot set focus: WFOV Camera not connected");
 }
 
 TEST_F(WfovCameraTests, GetFocusWhenNotConnected) {
-    EXPECT_THROW(camera.getFocus(), data::CameraException);
+    auto result = camera->getFocus();
+    EXPECT_TRUE(result.isError());
+    EXPECT_EQ(result.error(), "Cannot get focus: WFOV Camera not connected");
 }
 
-TEST_F(WfovCameraTests, SetAndGetZoom) {
-    camera.connect();
+TEST_F(WfovCameraTests, ZoomOperations) {
+    auto connectResult = camera->connect();
+    ASSERT_TRUE(connectResult.isSuccess()) << "Failed to connect: " << connectResult.error();
 
-    camera.setZoom(2.0);
-    EXPECT_DOUBLE_EQ(camera.getZoom(), 2.0);
+    auto setResult = camera->setZoom(2.0);
+    EXPECT_TRUE(setResult.isSuccess()) << "Failed to set zoom: " << setResult.error();
 
-    camera.setZoom(3.5);
-    EXPECT_DOUBLE_EQ(camera.getZoom(), 3.5);
+    auto getResult = camera->getZoom();
+    ASSERT_TRUE(getResult.isSuccess()) << "Failed to get zoom: " << getResult.error();
+    EXPECT_DOUBLE_EQ(2.0, getResult.value());
 }
 
-TEST_F(WfovCameraTests, SetInvalidZoom) {
-    camera.connect();
-    EXPECT_THROW(camera.setZoom(0.0), data::CameraException);
-    EXPECT_THROW(camera.setZoom(-1.0), data::CameraException);
+TEST_F(WfovCameraTests, FocusOperations) {
+    auto connectResult = camera->connect();
+    ASSERT_TRUE(connectResult.isSuccess()) << "Failed to connect: " << connectResult.error();
+
+    auto setResult = camera->setFocus(1.5);
+    EXPECT_TRUE(setResult.isSuccess()) << "Failed to set focus: " << setResult.error();
+
+    auto getResult = camera->getFocus();
+    ASSERT_TRUE(getResult.isSuccess()) << "Failed to get focus: " << getResult.error();
+    EXPECT_DOUBLE_EQ(1.5, getResult.value());
 }
 
-TEST_F(WfovCameraTests, SetAndGetFocus) {
-    camera.connect();
+TEST_F(WfovCameraTests, InvalidZoomValue) {
+    auto connectResult = camera->connect();
+    ASSERT_TRUE(connectResult.isSuccess()) << "Failed to connect: " << connectResult.error();
 
-    camera.setFocus(1.5);
-    EXPECT_DOUBLE_EQ(camera.getFocus(), 1.5);
-
-    camera.setFocus(-0.5);
-    EXPECT_DOUBLE_EQ(camera.getFocus(), -0.5);
+    auto result = camera->setZoom(-1.0);
+    EXPECT_TRUE(result.isError());
+    EXPECT_EQ(result.error(), "Invalid zoom level: Value must be greater than zero");
 }

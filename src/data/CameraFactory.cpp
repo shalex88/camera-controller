@@ -10,6 +10,6 @@ namespace camera_service::data {
         } else if (camera_type == "wfov") {
             return std::make_unique<WfovCamera>();
         }
-        throw CameraException("Unknown camera type");
+        throw std::invalid_argument("Unknown camera type");
     }
 }

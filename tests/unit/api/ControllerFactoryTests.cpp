@@ -1,22 +1,21 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
-/* Add your project include files here */
 #include "api/ControllerFactory.h"
-
 #include "api/Controller.h"
 #include "core/ICore.h"
+#include "common/types/Result.h"
 
 using namespace camera_service;
 using namespace testing;
 
 class MockCore final: public core::ICore {
 public:
-    MOCK_METHOD(bool, initialize, (), (override));
-    MOCK_METHOD(void, shutdown, (), (override));
-    MOCK_METHOD(void, setZoom, (double), (override));
-    MOCK_METHOD(double, getZoom, (), (const, override));
-    MOCK_METHOD(void, setFocus, (double), (override));
-    MOCK_METHOD(double, getFocus, (), (const, override));
+    MOCK_METHOD(Result<void>, initialize, (), (override));
+    MOCK_METHOD(Result<void>, shutdown, (), (override));
+    MOCK_METHOD(Result<void>, setZoom, (types::zoom), (override));
+    MOCK_METHOD(Result<types::zoom>, getZoom, (), (const, override));
+    MOCK_METHOD(Result<void>, setFocus, (types::focus), (override));
+    MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
 };
 
 class ControllerFactoryTests : public Test {
@@ -36,6 +35,6 @@ TEST_F(ControllerFactoryTests, CreateGrpcControllerSuccess) {
 TEST_F(ControllerFactoryTests, ThrowsOnUnknownType) {
     EXPECT_THROW(
         api::ControllerFactory::createController("unknown", port, createMockCore()),
-        api::ControllerException
+        std::invalid_argument
     );
 }

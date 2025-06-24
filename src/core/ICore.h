@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
-#include <stdexcept>
-
+#include "common/types/Result.h"
 #include "common/types/CameraTypes.h"
 
 namespace camera_service::core {
@@ -15,13 +14,13 @@ namespace camera_service::core {
     public:
         virtual ~ICore() = default;
 
-        virtual bool initialize() = 0;
-        virtual void shutdown() = 0;
+        virtual Result<void> initialize() = 0;
+        virtual Result<void> shutdown() = 0;
 
-        virtual void setZoom(types::zoom zoom_level) = 0;
-        virtual types::zoom getZoom() const = 0;
+        virtual Result<void> setZoom(types::zoom zoom_level) = 0;
+        virtual Result<types::zoom> getZoom() const = 0;
 
-        virtual void setFocus(types::focus focus_value) = 0;
-        virtual types::focus getFocus() const = 0;
+        virtual Result<void> setFocus(types::focus focus_value) = 0;
+        virtual Result<types::focus> getFocus() const = 0;
     };
 }

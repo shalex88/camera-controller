@@ -9,13 +9,13 @@ namespace camera_service::api {
     Controller::Controller(std::unique_ptr<core::ICore> core, std::unique_ptr<ITransport> transport, const std::string& port)
         : transport_(std::move(transport)), core_(std::move(core)), running_(false), port_(port) {
         if (!core_) {
-            throw ControllerException("Core cannot be null");
+            throw std::invalid_argument("Core cannot be null");
         }
         if (!transport_) {
-            throw ControllerException("Controller implementation cannot be null");
+            throw std::invalid_argument("Controller implementation cannot be null");
         }
         if (port_.empty()) {
-            throw ControllerException("Port cannot be empty");
+            throw std::invalid_argument("Port cannot be empty");
         }
         transport_->setController(this);
     }
@@ -26,109 +26,96 @@ namespace camera_service::api {
         }
     }
 
-    bool Controller::startAsync() {
+    Result<void> Controller::startAsync() {
         LOG_INFO("Starting GRPC API Controller...");
 
-        try {
-            if (!core_->initialize()) {
-                throw ControllerException("Core initialization failed");
-            }
-
-            if (!transport_->start(port_)) {
-                core_->shutdown();
-                throw ControllerException("Failed to start Controller implementation");
-            }
-
-            running_ = true;
-
-            std::thread([this]() {
-                this->runLoop();
-            }).detach();
-
-            return true;
-
-        } catch (const core::CoreException& e) {
-            LOG_ERROR("Failed to start API Controller: {}", e.what());
-            throw ControllerException(std::string("Core error during startup: ") + e.what());
+        auto initResult = core_->initialize();
+        if (initResult.isError()) {
+            return Result<void>::error("Core initialization failed: " + initResult.error());
         }
+
+        auto startResult = transport_->start(port_);
+        if (startResult.isError()) {
+            auto shutdownResult = core_->shutdown();
+            return Result<void>::error("Failed to start Controller implementation: " + startResult.error());
+        }
+
+        running_ = true;
+
+        std::thread([this]() {
+            this->runLoop();
+        }).detach();
+
+        return Result<void>::success();
     }
 
-    bool Controller::stop() {
+    Result<void> Controller::stop() {
         if (!running_) {
-            return true;
+            return Result<void>::success();
         }
 
         LOG_INFO("Stopping API Controller...");
         running_ = false;
 
-        transport_->stop();
-
-        try {
-            if (core_) {
-                core_->shutdown();
-            }
-            return true;
-        } catch (const core::CoreException& e) {
-            LOG_ERROR("Error stopping core: {}", e.what());
-            return false;
+        auto stopResult = transport_->stop();
+        if (stopResult.isError()) {
+            LOG_ERROR("Error stopping transport: {}", stopResult.error());
         }
+
+        if (core_) {
+            auto shutdownResult = core_->shutdown();
+            if (shutdownResult.isError()) {
+                LOG_ERROR("Error stopping core: {}", shutdownResult.error());
+                return Result<void>::error("Failed to shutdown core: " + shutdownResult.error());
+            }
+        }
+        return Result<void>::success();
     }
 
     bool Controller::isRunning() const {
         return running_;
     }
 
-    void Controller::runLoop() const {
+    Result<void> Controller::runLoop() const {
         if (transport_) {
-            transport_->runLoop();
+            auto result = transport_->runLoop();
+            if (result.isError()) {
+                return Result<void>::error("Transport loop failed: " + result.error());
+            }
+            return Result<void>::success();
         }
+        return Result<void>::error("Transport not initialized");
     }
 
-    void Controller::setZoom(const types::zoom zoom_level) const {
+    Result<void> Controller::setZoom(const types::zoom zoom_level) const {
         if (!running_) {
-            throw ControllerException("Controller is not running");
+            return Result<void>::error("Controller is not running");
         }
 
-        try {
-            core_->setZoom(zoom_level);
-        } catch (const core::CoreException& e) {
-            throw ControllerException(std::string("Core error during zoom operation: ") + e.what());
-        }
+        return core_->setZoom(zoom_level);
     }
 
-    types::zoom Controller::getZoom() const {
+    Result<types::zoom> Controller::getZoom() const {
         if (!running_) {
-            throw ControllerException("Controller is not running");
+            return Result<types::zoom>::error("Controller is not running");
         }
 
-        try {
-            return core_->getZoom();
-        } catch (const core::CoreException& e) {
-            throw ControllerException(std::string("Core error retrieving zoom: ") + e.what());
-        }
+        return core_->getZoom();
     }
 
-    void Controller::setFocus(const types::focus focus_value) const {
+    Result<void> Controller::setFocus(const types::focus focus_value) const {
         if (!running_) {
-            throw ControllerException("Controller is not running");
+            return Result<void>::error("Controller is not running");
         }
 
-        try {
-            core_->setFocus(focus_value);
-        } catch (const core::CoreException& e) {
-            throw ControllerException(std::string("Core error during focus operation: ") + e.what());
-        }
+        return core_->setFocus(focus_value);
     }
 
-    types::focus Controller::getFocus() const {
+    Result<types::focus> Controller::getFocus() const {
         if (!running_) {
-            throw ControllerException("Controller is not running");
+            return Result<types::focus>::error("Controller is not running");
         }
 
-        try {
-            return core_->getFocus();
-        } catch (const core::CoreException& e) {
-            throw ControllerException(std::string("Core error retrieving focus: ") + e.what());
-        }
+        return core_->getFocus();
     }
 }

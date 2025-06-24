@@ -10,6 +10,7 @@
 #include "core/CoreFactory.h"
 #include "data/CameraFactory.h"
 #include "common/Config/Config.h"
+#include "common/types/Result.h"
 
 using namespace camera_service;
 using namespace testing;
@@ -20,7 +21,7 @@ public:
     explicit CameraServiceClient(const std::shared_ptr<grpc::Channel>& channel)
         : stub_(camera::CameraService::NewStub(channel)) {}
 
-    bool SetZoom(double zoom_value, const std::chrono::milliseconds timeout = 300ms) const {
+    Result<void> SetZoom(double zoom_value, const std::chrono::milliseconds timeout = 300ms) const {
         camera::SetZoomRequest request;
         camera::SetZoomResponse response;
         grpc::ClientContext context;
@@ -29,10 +30,13 @@ public:
         context.set_deadline(std::chrono::system_clock::now() + timeout);
 
         const grpc::Status status = stub_->SetZoom(&context, request, &response);
-        return status.ok();
+        if (!status.ok()) {
+            return Result<void>::error(status.error_message());
+        }
+        return Result<void>::success();
     }
 
-    std::optional<double> GetZoom(const std::chrono::milliseconds timeout = 300ms) const {
+    Result<double> GetZoom(const std::chrono::milliseconds timeout = 300ms) const {
         camera::GetZoomRequest request;
         camera::GetZoomResponse response;
         grpc::ClientContext context;
@@ -41,12 +45,12 @@ public:
 
         const grpc::Status status = stub_->GetZoom(&context, request, &response);
         if (!status.ok()) {
-            return std::nullopt;
+            return Result<double>::error(status.error_message());
         }
-        return response.zoom();
+        return Result<double>::success(response.zoom());
     }
 
-    bool SetFocus(double focus_value, const std::chrono::milliseconds timeout = 300ms) const {
+    Result<void> SetFocus(double focus_value, const std::chrono::milliseconds timeout = 300ms) const {
         camera::SetFocusRequest request;
         camera::SetFocusResponse response;
         grpc::ClientContext context;
@@ -55,10 +59,13 @@ public:
         context.set_deadline(std::chrono::system_clock::now() + timeout);
 
         const grpc::Status status = stub_->SetFocus(&context, request, &response);
-        return status.ok();
+        if (!status.ok()) {
+            return Result<void>::error(status.error_message());
+        }
+        return Result<void>::success();
     }
 
-    std::optional<double> GetFocus(const std::chrono::milliseconds timeout = 300ms) const {
+    Result<double> GetFocus(const std::chrono::milliseconds timeout = 300ms) const {
         camera::GetFocusRequest request;
         camera::GetFocusResponse response;
         grpc::ClientContext context;
@@ -67,9 +74,9 @@ public:
 
         const grpc::Status status = stub_->GetFocus(&context, request, &response);
         if (!status.ok()) {
-            return std::nullopt;
+            return Result<double>::error(status.error_message());
         }
-        return response.focus();
+        return Result<double>::success(response.focus());
     }
 
 private:
@@ -95,7 +102,7 @@ protected:
             std::move(core)));
         ASSERT_NE(nullptr, controller);
 
-        EXPECT_TRUE(controller->startAsync());
+        EXPECT_TRUE(controller->startAsync().isSuccess());
         std::this_thread::sleep_for(1s);
         EXPECT_TRUE(controller->isRunning());
     }
@@ -117,18 +124,18 @@ TEST_F(ServiceSystemTests, CameraRequestResponse) {
 
     constexpr double test_zoom = 2.5;
     std::cout << "Test SetZoom " << test_zoom <<" and GetZoom" << std::endl;
-    EXPECT_TRUE(client.SetZoom(test_zoom));
+    EXPECT_TRUE(client.SetZoom(test_zoom).isSuccess());
 
     auto zoom_result = client.GetZoom();
-    ASSERT_TRUE(zoom_result.has_value());
+    ASSERT_TRUE(zoom_result.isSuccess());
     EXPECT_DOUBLE_EQ(test_zoom, zoom_result.value());
 
     constexpr double test_focus = 1.8;
     std::cout << "Test SetFocus " << test_focus <<" and GetFocus" << std::endl;
-    EXPECT_TRUE(client.SetFocus(test_focus));
+    EXPECT_TRUE(client.SetFocus(test_focus).isSuccess());
 
     auto focus_result = client.GetFocus();
-    ASSERT_TRUE(focus_result.has_value());
+    ASSERT_TRUE(focus_result.isSuccess());
     EXPECT_DOUBLE_EQ(test_focus, focus_result.value());
 }
 

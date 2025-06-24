@@ -9,6 +9,6 @@ namespace camera_service::api {
             auto transport = std::make_unique<GrpcTransport>();
             return std::make_unique<Controller>(std::move(core), std::move(transport), port);
         }
-        throw ControllerException("Unknown controller type");
+        throw std::invalid_argument("Unknown controller type");
     }
 }

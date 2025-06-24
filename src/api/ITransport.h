@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include "common/types/Result.h"
 
 namespace camera_service::api {
     class Controller; // forward declaration
@@ -8,9 +9,9 @@ namespace camera_service::api {
     public:
         virtual ~ITransport() = default;
 
-        virtual void setController(Controller* controller) = 0;
-        virtual bool start(const std::string& port) = 0;
-        virtual void stop() = 0;
-        virtual void runLoop() = 0;
+        virtual void setController(Controller* controller) = 0;  // Keep as void since it's a simple setter
+        virtual Result<void> start(const std::string& port) = 0;
+        virtual Result<void> stop() = 0;
+        virtual Result<void> runLoop() = 0;
     };
 }

@@ -22,5 +22,9 @@ TEST(CameraFactoryTests, CreateWfovCameraSuccess) {
 }
 
 TEST(CameraFactoryTests, ThrowsOnUnknownType) {
-    EXPECT_THROW(data::CameraFactory::createCamera("unknown"), data::CameraException);
+    EXPECT_THROW(data::CameraFactory::createCamera("unknown"), std::invalid_argument);
+}
+
+TEST(CameraFactoryTests, ThrowsOnEmptyType) {
+    EXPECT_THROW(data::CameraFactory::createCamera(""), std::invalid_argument);
 }

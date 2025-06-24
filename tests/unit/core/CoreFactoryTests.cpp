@@ -5,19 +5,20 @@
 
 #include "core/Core.h"
 #include "data/ICamera.h"
+#include "common/types/Result.h"
 
 using namespace camera_service;
 using namespace testing;
 
 class MockCamera final : public data::ICamera {
 public:
-    MOCK_METHOD(bool, connect, (), (override));
-    MOCK_METHOD(void, disconnect, (), (override));
+    MOCK_METHOD(Result<void>, connect, (), (override));
+    MOCK_METHOD(Result<void>, disconnect, (), (override));
     MOCK_METHOD(bool, isConnected, (), (const, override));
-    MOCK_METHOD(void, setZoom, (double), (override));
-    MOCK_METHOD(double, getZoom, (), (const, override));
-    MOCK_METHOD(void, setFocus, (double), (override));
-    MOCK_METHOD(double, getFocus, (), (const, override));
+    MOCK_METHOD(Result<void>, setZoom, (types::zoom), (override));
+    MOCK_METHOD(Result<types::zoom>, getZoom, (), (const, override));
+    MOCK_METHOD(Result<void>, setFocus, (types::focus), (override));
+    MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
 };
 
 class CoreFactoryTests : public Test {
@@ -36,6 +37,13 @@ TEST_F(CoreFactoryTests, CreateCameraCoreSuccess) {
 TEST_F(CoreFactoryTests, ThrowsOnUnknownType) {
     EXPECT_THROW(
         core::CoreFactory::createCore("unknown", createMockCamera()),
-        core::CoreException
+        std::invalid_argument
+    );
+}
+
+TEST_F(CoreFactoryTests, ThrowsOnNullCamera) {
+    EXPECT_THROW(
+        core::CoreFactory::createCore("nfov", nullptr),
+        std::invalid_argument
     );
 }

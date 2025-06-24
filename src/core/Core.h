@@ -3,6 +3,7 @@
 
 #include "core/ICore.h"
 #include "common/types/CameraTypes.h"
+#include "common/types/Result.h"
 
 namespace camera_service::data {
     class ICamera;
@@ -14,14 +15,14 @@ namespace camera_service::core {
         explicit Core(std::unique_ptr<data::ICamera> camera);
         ~Core() override;
 
-        bool initialize() override;
-        void shutdown() override;
+        Result<void> initialize() override;
+        Result<void> shutdown() override;
 
-        void setZoom(types::zoom zoom_level) override;
-        types::zoom getZoom() const override;
+        Result<void> setZoom(types::zoom zoom_level) override;
+        Result<types::zoom> getZoom() const override;
 
-        void setFocus(types::focus focus_value) override;
-        types::focus getFocus() const override;
+        Result<void> setFocus(types::focus focus_value) override;
+        Result<types::focus> getFocus() const override;
 
     private:
         std::unique_ptr<data::ICamera> camera_;

@@ -5,32 +5,28 @@
 
 #include "api/ITransport.h"
 #include "common/types/CameraTypes.h"
+#include "common/types/Result.h"
 
 namespace camera_service::core {
     class ICore;
 }
 
 namespace camera_service::api {
-    class ControllerException final : public std::runtime_error {
-    public:
-        explicit ControllerException(const std::string& message) : std::runtime_error(message) {
-        }
-    };
-
     class Controller final {
     public:
         explicit Controller(std::unique_ptr<core::ICore> core, std::unique_ptr<ITransport> transport, const std::string& port);
         ~Controller();
 
-        bool startAsync();
-        bool stop();
+        Result<void> startAsync();
+        Result<void> stop();
+        // Keep as bool since it's a simple state check
         bool isRunning() const;
-        void runLoop() const;
+        Result<void> runLoop() const;
 
-        void setZoom(types::zoom zoom_level) const;
-        types::zoom getZoom() const;
-        void setFocus(types::focus focus_value) const;
-        types::focus getFocus() const;
+        Result<void> setZoom(types::zoom zoom_level) const;
+        Result<types::zoom> getZoom() const;
+        Result<void> setFocus(types::focus focus_value) const;
+        Result<types::focus> getFocus() const;
 
     private:
         std::unique_ptr<ITransport> transport_;
