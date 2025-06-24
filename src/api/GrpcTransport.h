@@ -2,15 +2,15 @@
 
 #include "api/proto/camera_service.pb.h"
 #include "api/proto/camera_service.grpc.pb.h"
-#include "api/IControllerAdapter.h"
+#include "api/ITransport.h"
 
 namespace camera_service::api {
     class Controller;
-    class GrpcAdapter final : public camera::CameraService::CallbackService, public IControllerAdapter {
+    class GrpcTransport final : public camera::CameraService::CallbackService, public ITransport {
     public:
-        explicit GrpcAdapter();
+        explicit GrpcTransport();
         void setController(Controller* controller) override;
-        ~GrpcAdapter() override;
+        ~GrpcTransport() override;
 
         bool start(const std::string& port) override;
         void stop() override;

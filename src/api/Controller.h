@@ -3,7 +3,7 @@
 #include <memory>
 #include <string>
 
-#include "api/IControllerAdapter.h"
+#include "api/ITransport.h"
 #include "common/types/CameraTypes.h"
 
 namespace camera_service::core {
@@ -19,23 +19,21 @@ namespace camera_service::api {
 
     class Controller final {
     public:
-        explicit Controller(std::unique_ptr<core::ICore> core, std::unique_ptr<IControllerAdapter> controller_impl, const std::string& port);
+        explicit Controller(std::unique_ptr<core::ICore> core, std::unique_ptr<ITransport> transport, const std::string& port);
         ~Controller();
 
         bool startAsync();
         bool stop();
-
         bool isRunning() const;
+        void runLoop() const;
 
         void setZoom(types::zoom zoom_level) const;
         types::zoom getZoom() const;
-
         void setFocus(types::focus focus_value) const;
         types::focus getFocus() const;
-        void runLoop() const;
 
     private:
-        std::unique_ptr<IControllerAdapter> controller_impl_;
+        std::unique_ptr<ITransport> transport_;
         std::unique_ptr<core::ICore> core_;
         std::atomic<bool> running_;
         std::string port_;

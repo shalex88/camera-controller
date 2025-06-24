@@ -1,4 +1,4 @@
-#include "GrpcAdapter.h"
+#include "GrpcTransport.h"
 
 #include <iostream>
 #include <future>
@@ -8,21 +8,21 @@
 #include "common/Logger/Logger.h"
 
 namespace camera_service::api {
-    GrpcAdapter::GrpcAdapter() : controller_(nullptr) {
+    GrpcTransport::GrpcTransport() : controller_(nullptr) {
     }
 
-    GrpcAdapter::~GrpcAdapter() {
+    GrpcTransport::~GrpcTransport() {
         stop();
     }
 
-    void GrpcAdapter::setController(Controller* controller) {
+    void GrpcTransport::setController(Controller* controller) {
         if (!controller) {
             throw std::invalid_argument("Controller cannot be null");
         }
         controller_ = controller;
     }
 
-    bool GrpcAdapter::start(const std::string& port) {
+    bool GrpcTransport::start(const std::string& port) {
         const std::string server_address("localhost:" + port);
 
         grpc::EnableDefaultHealthCheckService(true);
@@ -40,7 +40,7 @@ namespace camera_service::api {
         return true;
     }
 
-    void GrpcAdapter::stop() {
+    void GrpcTransport::stop() {
         if (server_) {
             server_->Shutdown();
             server_.reset();
@@ -76,7 +76,7 @@ namespace camera_service::api {
         return reactor;
     }
 
-    grpc::ServerUnaryReactor* GrpcAdapter::SetZoom(
+    grpc::ServerUnaryReactor* GrpcTransport::SetZoom(
         grpc::CallbackServerContext* context,
         const camera::SetZoomRequest* request,
         camera::SetZoomResponse* response) {
@@ -87,7 +87,7 @@ namespace camera_service::api {
                                  });
     }
 
-    grpc::ServerUnaryReactor* GrpcAdapter::SetFocus(
+    grpc::ServerUnaryReactor* GrpcTransport::SetFocus(
         grpc::CallbackServerContext* context,
         const camera::SetFocusRequest* request,
         camera::SetFocusResponse* response) {
@@ -98,7 +98,7 @@ namespace camera_service::api {
                                  });
     }
 
-    grpc::ServerUnaryReactor* GrpcAdapter::GetZoom(
+    grpc::ServerUnaryReactor* GrpcTransport::GetZoom(
         grpc::CallbackServerContext* context,
         const camera::GetZoomRequest* request,
         camera::GetZoomResponse* response) {
@@ -109,7 +109,7 @@ namespace camera_service::api {
                                  });
     }
 
-    grpc::ServerUnaryReactor* GrpcAdapter::GetFocus(
+    grpc::ServerUnaryReactor* GrpcTransport::GetFocus(
         grpc::CallbackServerContext* context,
         const camera::GetFocusRequest* request,
         camera::GetFocusResponse* response) {
@@ -121,7 +121,7 @@ namespace camera_service::api {
                                  });
     }
 
-    void GrpcAdapter::runLoop() {
+    void GrpcTransport::runLoop() {
         if (server_) {
             server_->Wait();
         }

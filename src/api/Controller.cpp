@@ -6,18 +6,18 @@
 #include "common/Logger/Logger.h"
 
 namespace camera_service::api {
-    Controller::Controller(std::unique_ptr<core::ICore> core, std::unique_ptr<IControllerAdapter> controller_impl, const std::string& port)
-        : controller_impl_(std::move(controller_impl)), core_(std::move(core)), running_(false), port_(port) {
+    Controller::Controller(std::unique_ptr<core::ICore> core, std::unique_ptr<ITransport> transport, const std::string& port)
+        : transport_(std::move(transport)), core_(std::move(core)), running_(false), port_(port) {
         if (!core_) {
             throw ControllerException("Core cannot be null");
         }
-        if (!controller_impl_) {
+        if (!transport_) {
             throw ControllerException("Controller implementation cannot be null");
         }
         if (port_.empty()) {
             throw ControllerException("Port cannot be empty");
         }
-        controller_impl_->setController(this);
+        transport_->setController(this);
     }
 
     Controller::~Controller() {
@@ -34,7 +34,7 @@ namespace camera_service::api {
                 throw ControllerException("Core initialization failed");
             }
 
-            if (!controller_impl_->start(port_)) {
+            if (!transport_->start(port_)) {
                 core_->shutdown();
                 throw ControllerException("Failed to start Controller implementation");
             }
@@ -61,7 +61,7 @@ namespace camera_service::api {
         LOG_INFO("Stopping API Controller...");
         running_ = false;
 
-        controller_impl_->stop();
+        transport_->stop();
 
         try {
             if (core_) {
@@ -76,6 +76,12 @@ namespace camera_service::api {
 
     bool Controller::isRunning() const {
         return running_;
+    }
+
+    void Controller::runLoop() const {
+        if (transport_) {
+            transport_->runLoop();
+        }
     }
 
     void Controller::setZoom(const types::zoom zoom_level) const {
@@ -123,12 +129,6 @@ namespace camera_service::api {
             return core_->getFocus();
         } catch (const core::CoreException& e) {
             throw ControllerException(std::string("Core error retrieving focus: ") + e.what());
-        }
-    }
-
-    void Controller::runLoop() const {
-        if (controller_impl_) {
-            controller_impl_->runLoop();
         }
     }
 }
