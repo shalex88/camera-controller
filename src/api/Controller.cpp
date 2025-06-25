@@ -29,15 +29,13 @@ namespace camera_service::api {
     Result<void> Controller::startAsync() {
         LOG_INFO("Starting GRPC API Controller...");
 
-        auto initResult = core_->initialize();
-        if (initResult.isError()) {
-            return Result<void>::error("Core initialization failed: " + initResult.error());
+        if (const auto init_result = core_->initialize(); init_result.isError()) {
+            return Result<void>::error("Core initialization failed: " + init_result.error());
         }
 
-        auto startResult = transport_->start(port_);
-        if (startResult.isError()) {
-            auto shutdownResult = core_->shutdown();
-            return Result<void>::error("Failed to start Controller implementation: " + startResult.error());
+        if (const auto result = transport_->start(port_); result.isError()) {
+            core_->shutdown();
+            return Result<void>::error("Failed to start Controller implementation: " + result.error());
         }
 
         running_ = true;
@@ -57,16 +55,14 @@ namespace camera_service::api {
         LOG_INFO("Stopping API Controller...");
         running_ = false;
 
-        auto stopResult = transport_->stop();
-        if (stopResult.isError()) {
-            LOG_ERROR("Error stopping transport: {}", stopResult.error());
+        if (const auto stop_result = transport_->stop(); stop_result.isError()) {
+            LOG_ERROR("Error stopping transport: {}", stop_result.error());
         }
 
         if (core_) {
-            auto shutdownResult = core_->shutdown();
-            if (shutdownResult.isError()) {
-                LOG_ERROR("Error stopping core: {}", shutdownResult.error());
-                return Result<void>::error("Failed to shutdown core: " + shutdownResult.error());
+            if (const auto shutdown_result = core_->shutdown(); shutdown_result.isError()) {
+                LOG_ERROR("Error stopping core: {}", shutdown_result.error());
+                return Result<void>::error("Failed to shut down core: " + shutdown_result.error());
             }
         }
         return Result<void>::success();
@@ -78,13 +74,12 @@ namespace camera_service::api {
 
     Result<void> Controller::runLoop() const {
         if (transport_) {
-            auto result = transport_->runLoop();
-            if (result.isError()) {
-                return Result<void>::error("Transport loop failed: " + result.error());
+            if (const auto loop_result = transport_->runLoop(); loop_result.isError()) {
+                return Result<void>::error("Transport loop failed: " + loop_result.error());
             }
             return Result<void>::success();
         }
-        return Result<void>::error("Transport not initialized");
+        return Result<void>::error("Transport isn't initialized");
     }
 
     Result<void> Controller::setZoom(const types::zoom zoom_level) const {

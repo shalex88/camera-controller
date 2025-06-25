@@ -58,8 +58,8 @@ TEST_F(GrpcControllerTests, StartSuccess) {
     EXPECT_CALL(*mock_core, shutdown())
         .WillOnce(Return(Result<void>::success()));
 
-    auto controller = std::make_unique<api::Controller>(std::move(mock_core), std::make_unique<api::GrpcTransport>(), port);
-    auto result = controller->startAsync();
+    const auto controller = std::make_unique<api::Controller>(std::move(mock_core), std::make_unique<api::GrpcTransport>(), port);
+    const auto result = controller->startAsync();
     EXPECT_TRUE(result.isSuccess()) << "Failed to start: " << result.error();
 }
 
@@ -68,15 +68,15 @@ TEST_F(GrpcControllerTests, StartFailOnInitialize) {
         .WillOnce(Return(Result<void>::error("Initialize failed")));
     // No shutdown expectation needed here since initialize fails
 
-    auto controller = std::make_unique<api::Controller>(std::move(mock_core), std::make_unique<api::GrpcTransport>(), port);
-    auto result = controller->startAsync();
+    const auto controller = std::make_unique<api::Controller>(std::move(mock_core), std::make_unique<api::GrpcTransport>(), port);
+    const auto result = controller->startAsync();
     EXPECT_TRUE(result.isError());
     EXPECT_EQ(result.error(), "Core initialization failed: Initialize failed");
 }
 
 TEST_F(GrpcControllerTests, StopSuccess) {
     // Add explicit order to ensure shutdown happens after start
-    Sequence s;
+    const Sequence s;
     EXPECT_CALL(*mock_core, initialize())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
@@ -84,15 +84,15 @@ TEST_F(GrpcControllerTests, StopSuccess) {
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
 
-    auto controller = std::make_unique<api::Controller>(std::move(mock_core), std::make_unique<api::GrpcTransport>(), port);
-    auto startResult = controller->startAsync();
-    ASSERT_TRUE(startResult.isSuccess()) << "Failed to start: " << startResult.error();
+    const auto controller = std::make_unique<api::Controller>(std::move(mock_core), std::make_unique<api::GrpcTransport>(), port);
+    const auto start_result = controller->startAsync();
+    ASSERT_TRUE(start_result.isSuccess()) << "Failed to start: " << start_result.error();
 
     // Give the transport time to start before stopping
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    auto stopResult = controller->stop();
-    EXPECT_TRUE(stopResult.isSuccess()) << "Failed to stop: " << stopResult.error();
+    const auto stop_result = controller->stop();
+    EXPECT_TRUE(stop_result.isSuccess()) << "Failed to stop: " << stop_result.error();
 
     // Give the transport time to fully clean up before destroying
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -114,23 +114,22 @@ TEST_F(GrpcControllerTests, ZoomOperations) {
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
 
-    auto controller = std::make_unique<api::Controller>(std::move(mock_core), std::make_unique<api::GrpcTransport>(), port);
-    auto startResult = controller->startAsync();
-    ASSERT_TRUE(startResult.isSuccess()) << "Failed to start: " << startResult.error();
+    const auto controller = std::make_unique<api::Controller>(std::move(mock_core), std::make_unique<api::GrpcTransport>(), port);
+    const auto start_result = controller->startAsync();
+    ASSERT_TRUE(start_result.isSuccess()) << "Failed to start: " << start_result.error();
 
     // Give the transport time to start before operations
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    auto setResult = controller->setZoom(2.0);
-    EXPECT_TRUE(setResult.isSuccess()) << "Failed to set zoom: " << setResult.error();
+    const auto set_result = controller->setZoom(2.0);
+    EXPECT_TRUE(set_result.isSuccess()) << "Failed to set zoom: " << set_result.error();
 
-    auto getResult = controller->getZoom();
-    ASSERT_TRUE(getResult.isSuccess()) << "Failed to get zoom: " << getResult.error();
-    EXPECT_DOUBLE_EQ(2.0, getResult.value());
+    const auto get_result = controller->getZoom();
+    ASSERT_TRUE(get_result.isSuccess()) << "Failed to get zoom: " << get_result.error();
+    EXPECT_DOUBLE_EQ(2.0, get_result.value());
 
-    // Stop explicitly to ensure clean shutdown
-    auto stopResult = controller->stop();
-    EXPECT_TRUE(stopResult.isSuccess()) << "Failed to stop: " << stopResult.error();
+    const auto stop_result = controller->stop();
+    EXPECT_TRUE(stop_result.isSuccess()) << "Failed to stop: " << stop_result.error();
 
     // Give the transport time to fully clean up before destroying
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -152,23 +151,22 @@ TEST_F(GrpcControllerTests, FocusOperations) {
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
 
-    auto controller = std::make_unique<api::Controller>(std::move(mock_core), std::make_unique<api::GrpcTransport>(), port);
-    auto startResult = controller->startAsync();
-    ASSERT_TRUE(startResult.isSuccess()) << "Failed to start: " << startResult.error();
+    const auto controller = std::make_unique<api::Controller>(std::move(mock_core), std::make_unique<api::GrpcTransport>(), port);
+    const auto start_result = controller->startAsync();
+    ASSERT_TRUE(start_result.isSuccess()) << "Failed to start: " << start_result.error();
 
     // Give the transport time to start before operations
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    auto setResult = controller->setFocus(1.5);
-    EXPECT_TRUE(setResult.isSuccess()) << "Failed to set focus: " << setResult.error();
+    const auto set_result = controller->setFocus(1.5);
+    EXPECT_TRUE(set_result.isSuccess()) << "Failed to set focus: " << set_result.error();
 
-    auto getResult = controller->getFocus();
-    ASSERT_TRUE(getResult.isSuccess()) << "Failed to get focus: " << getResult.error();
-    EXPECT_DOUBLE_EQ(1.5, getResult.value());
+    const auto get_result = controller->getFocus();
+    ASSERT_TRUE(get_result.isSuccess()) << "Failed to get focus: " << get_result.error();
+    EXPECT_DOUBLE_EQ(1.5, get_result.value());
 
-    // Stop explicitly to ensure clean shutdown
-    auto stopResult = controller->stop();
-    EXPECT_TRUE(stopResult.isSuccess()) << "Failed to stop: " << stopResult.error();
+    const auto stop_result = controller->stop();
+    EXPECT_TRUE(stop_result.isSuccess()) << "Failed to stop: " << stop_result.error();
 
     // Give the transport time to fully clean up before destroying
     std::this_thread::sleep_for(std::chrono::milliseconds(100));

@@ -1,10 +1,9 @@
 #include "GrpcTransport.h"
 
-#include <iostream>
 #include <future>
 #include <grpcpp/grpcpp.h>
 
-#include "Controller.h"
+#include "api/Controller.h"
 #include "common/Logger/Logger.h"
 
 namespace camera_service::api {
@@ -30,10 +29,10 @@ namespace camera_service::api {
         builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
         builder.RegisterService(this);
 
-        server_ = std::unique_ptr<grpc::Server>(builder.BuildAndStart());
+        server_ = std::unique_ptr(builder.BuildAndStart());
         if (!server_) {
-            LOG_ERROR("Failed to start gRPC server");
-            return Result<void>::error("Failed to start gRPC server");
+            LOG_ERROR("Failed to start the gRPC server");
+            return Result<void>::error("Failed to start the gRPC server");
         }
 
         LOG_INFO("Service is listening on {}", server_address);
@@ -50,7 +49,7 @@ namespace camera_service::api {
 
     Result<void> GrpcTransport::runLoop() {
         if (!server_) {
-            return Result<void>::error("Server not initialized");
+            return Result<void>::error("Server isn't initialized");
         }
         server_->Wait();
         return Result<void>::success();
@@ -61,15 +60,14 @@ namespace camera_service::api {
         grpc::CallbackServerContext* context,
         const RequestType* request,
         ResponseType* response,
-        ProcessFunc processFunction) {
-        auto reactor = context->DefaultReactor();
-        auto deadline = grpc::Timespec2Timepoint(context->raw_deadline());
+        ProcessFunc process_function) {
+        const auto reactor = context->DefaultReactor();
+        const auto deadline = grpc::Timespec2Timepoint(context->raw_deadline());
 
         // Launch the processing task asynchronously
-        std::future<grpc::Status> future = std::async(std::launch::async, [request, response, processFunction]() {
+        std::future<grpc::Status> future = std::async(std::launch::async, [request, response, process_function]() {
             try {
-                auto result = processFunction(request, response);
-                if (result.isError()) {
+                if (auto result = process_function(request, response); result.isError()) {
                     return grpc::Status(grpc::StatusCode::INTERNAL, result.error());
                 }
                 return grpc::Status::OK;
@@ -78,9 +76,9 @@ namespace camera_service::api {
             }
         });
 
-        // Calculate remaining time before the deadline
-        auto now = std::chrono::system_clock::now();
-        auto remaining_time = (deadline > now) ? (deadline - now) : std::chrono::seconds(0);
+        // Calculate the remaining time before the deadline
+        const auto now = std::chrono::system_clock::now();
+        const auto remaining_time = deadline > now ? deadline - now : std::chrono::seconds(0);
 
         // Wait for the processing to complete or timeout
         if (future.wait_for(remaining_time) == std::future_status::timeout) {
@@ -122,7 +120,7 @@ namespace camera_service::api {
         return handleGrpcRequest(context, request, response,
             [this](const camera::GetZoomRequest* req, camera::GetZoomResponse* resp) {
                 LOG_INFO("Request: GetZoom");
-                auto result = controller_->getZoom();
+                const auto result = controller_->getZoom();
                 if (result.isSuccess()) {
                     resp->set_zoom(result.value());
                     return Result<void>::success();
@@ -138,7 +136,7 @@ namespace camera_service::api {
         return handleGrpcRequest(context, request, response,
             [this](const camera::GetFocusRequest* req, camera::GetFocusResponse* resp) {
                 LOG_INFO("Request: GetFocus");
-                auto result = controller_->getFocus();
+                const auto result = controller_->getFocus();
                 if (result.isSuccess()) {
                     resp->set_focus(result.value());
                     return Result<void>::success();
@@ -146,4 +144,4 @@ namespace camera_service::api {
                 return Result<void>::error(result.error());
             });
     }
-};
+}

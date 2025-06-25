@@ -29,7 +29,7 @@ protected:
 };
 
 TEST_F(CoreFactoryTests, CreateCameraCoreSuccess) {
-    auto core = core::CoreFactory::createCore("nfov", createMockCamera());
+    const auto core = core::CoreFactory::createCore("nfov", createMockCamera());
     ASSERT_NE(nullptr, core);
     EXPECT_TRUE(dynamic_cast<core::Core*>(core.get()) != nullptr);
 }

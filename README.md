@@ -27,6 +27,7 @@
 ## TODO
 
 - [ ] Add a configuration object
+- [ ] Add concurrency support
 - [ ] Add DTO support
 - [ ] Add limits check for type aliases
 - [ ] Add thread safety

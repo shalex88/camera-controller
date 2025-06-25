@@ -41,9 +41,11 @@ TEST_F(CoreTests, InitializeSuccessWhenDisconnected) {
         .WillOnce(Return(true)); // for shutdown
     EXPECT_CALL(*camera, connect())
         .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*camera, disconnect())
+        .WillOnce(Return(Result<void>::success()));
 
     core::Core core(std::move(camera));
-    auto result = core.initialize();
+    const auto result = core.initialize();
     EXPECT_TRUE(result.isSuccess()) << "Failed to initialize: " << result.error();
 }
 
@@ -51,9 +53,11 @@ TEST_F(CoreTests, InitializeSuccessWhenAlreadyConnected) {
     EXPECT_CALL(*camera, isConnected())
         .WillOnce(Return(true))
         .WillOnce(Return(true)); // for shutdown
+    EXPECT_CALL(*camera, disconnect())
+        .WillOnce(Return(Result<void>::success()));
 
     core::Core core(std::move(camera));
-    auto result = core.initialize();
+    const auto result = core.initialize();
     EXPECT_TRUE(result.isSuccess()) << "Failed to initialize: " << result.error();
 }
 
@@ -64,7 +68,7 @@ TEST_F(CoreTests, InitializeFailsOnConnectError) {
         .WillOnce(Return(Result<void>::error("Failed to connect")));
 
     core::Core core(std::move(camera));
-    auto result = core.initialize();
+    const auto result = core.initialize();
     EXPECT_TRUE(result.isError());
     EXPECT_EQ(result.error(), "Failed to connect");
 }
@@ -80,18 +84,21 @@ TEST_F(CoreTests, ZoomOperations) {
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera, getZoom())
         .WillOnce(Return(Result<types::zoom>::success(2.0)));
+    EXPECT_CALL(*camera, disconnect())
+        .WillOnce(Return(Result<void>::success()));
+
 
     // Now create the core with the moved camera
     core::Core core(std::move(camera));
-    auto initResult = core.initialize();
-    ASSERT_TRUE(initResult.isSuccess()) << "Failed to initialize: " << initResult.error();
+    const auto init_result = core.initialize();
+    ASSERT_TRUE(init_result.isSuccess()) << "Failed to initialize: " << init_result.error();
 
-    auto setResult = core.setZoom(2.0);
-    EXPECT_TRUE(setResult.isSuccess()) << "Failed to set zoom: " << setResult.error();
+    const auto set_result = core.setZoom(2.0);
+    EXPECT_TRUE(set_result.isSuccess()) << "Failed to set zoom: " << set_result.error();
 
-    auto getResult = core.getZoom();
-    ASSERT_TRUE(getResult.isSuccess()) << "Failed to get zoom: " << getResult.error();
-    EXPECT_EQ(getResult.value(), 2.0);
+    const auto get_result = core.getZoom();
+    ASSERT_TRUE(get_result.isSuccess()) << "Failed to get zoom: " << get_result.error();
+    EXPECT_EQ(get_result.value(), 2.0);
 }
 
 TEST_F(CoreTests, FocusOperations) {
@@ -105,33 +112,35 @@ TEST_F(CoreTests, FocusOperations) {
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera, getFocus())
         .WillOnce(Return(Result<types::focus>::success(1.5)));
+    EXPECT_CALL(*camera, disconnect())
+        .WillOnce(Return(Result<void>::success()));
 
     // Now create the core with the moved camera
     core::Core core(std::move(camera));
-    auto initResult = core.initialize();
-    ASSERT_TRUE(initResult.isSuccess()) << "Failed to initialize: " << initResult.error();
+    const auto init_result = core.initialize();
+    ASSERT_TRUE(init_result.isSuccess()) << "Failed to initialize: " << init_result.error();
 
-    auto setResult = core.setFocus(1.5);
-    EXPECT_TRUE(setResult.isSuccess()) << "Failed to set focus: " << setResult.error();
+    const auto set_result = core.setFocus(1.5);
+    EXPECT_TRUE(set_result.isSuccess()) << "Failed to set focus: " << set_result.error();
 
-    auto getResult = core.getFocus();
-    ASSERT_TRUE(getResult.isSuccess()) << "Failed to get focus: " << getResult.error();
-    EXPECT_EQ(getResult.value(), 1.5);
+    const auto get_result = core.getFocus();
+    ASSERT_TRUE(get_result.isSuccess()) << "Failed to get focus: " << get_result.error();
+    EXPECT_EQ(get_result.value(), 1.5);
 }
 
 TEST_F(CoreTests, ShutdownSuccess) {
     EXPECT_CALL(*camera, isConnected())
-        .WillOnce(Return(false))  // for initialize
-        .WillOnce(Return(true));  // for shutdown check
+        .WillOnce(Return(false))  // initialize
+        .WillOnce(Return(true));  // shutdown
     EXPECT_CALL(*camera, connect())
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera, disconnect())
         .WillOnce(Return(Result<void>::success()));
 
     core::Core core(std::move(camera));
-    auto initResult = core.initialize();
-    ASSERT_TRUE(initResult.isSuccess()) << "Failed to initialize: " << initResult.error();
+    const auto init_result = core.initialize();
+    ASSERT_TRUE(init_result.isSuccess()) << "Failed to initialize: " << init_result.error();
 
-    auto shutdownResult = core.shutdown();
-    EXPECT_TRUE(shutdownResult.isSuccess()) << "Failed to shutdown: " << shutdownResult.error();
+    const auto shutdown_result = core.shutdown();
+    EXPECT_TRUE(shutdown_result.isSuccess()) << "Failed to shut down: " << shutdown_result.error();
 }

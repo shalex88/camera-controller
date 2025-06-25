@@ -21,9 +21,8 @@ namespace camera_service::core {
         LOG_INFO("Initializing Core...");
 
         if (!camera_->isConnected()) {
-            auto connectResult = camera_->connect();
-            if (connectResult.isError()) {
-                return Result<void>::error(connectResult.error());
+            if (const auto connect_result = camera_->connect(); connect_result.isError()) {
+                return Result<void>::error(connect_result.error());
             }
         }
 
@@ -40,9 +39,8 @@ namespace camera_service::core {
         LOG_INFO("Shutting down Core...");
 
         if (camera_ && camera_->isConnected()) {
-            auto disconnectResult = camera_->disconnect();
-            if (disconnectResult.isError()) {
-                return Result<void>::error(disconnectResult.error());
+            if (const auto disconnect_result = camera_->disconnect(); disconnect_result.isError()) {
+                return Result<void>::error(disconnect_result.error());
             }
         }
 

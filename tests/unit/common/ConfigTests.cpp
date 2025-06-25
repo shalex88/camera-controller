@@ -27,7 +27,7 @@ protected:
 };
 
 TEST_F(ConfigTests, LoadValidConfig) {
-    Config config(test_config_path_);
+    const Config config(test_config_path_);
     EXPECT_EQ(config.get("api"), "grpc");
     EXPECT_EQ(config.get("camera"), "nfov");
 }
@@ -37,21 +37,21 @@ TEST_F(ConfigTests, ThrowsOnNonexistentFile) {
 }
 
 TEST_F(ConfigTests, ThrowsOnInvalidYaml) {
-    std::ofstream configFile("invalid.yaml");
-    configFile << "invalid: : yaml : content";
-    configFile.close();
+    std::ofstream config_file("invalid.yaml");
+    config_file << "invalid: : yaml : content";
+    config_file.close();
 
     EXPECT_THROW(Config("invalid.yaml"), ConfigException);
     std::filesystem::remove("invalid.yaml");
 }
 
 TEST_F(ConfigTests, GetNonexistentKey) {
-    Config config(test_config_path_);
+    const Config config(test_config_path_);
     EXPECT_THROW(config.get("nonexistent"), ConfigException);
 }
 
 TEST_F(ConfigTests, HasKey) {
-    Config config(test_config_path_);
+    const Config config(test_config_path_);
     EXPECT_TRUE(config.has("camera"));
     EXPECT_FALSE(config.has("nonexistent"));
 }

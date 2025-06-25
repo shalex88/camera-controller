@@ -12,7 +12,7 @@ public:
     SpdLogAdapter() {
         auto stdout_sink = std::make_shared<spdlog::sinks::ostream_sink_mt>(std::cout, true);
         logger_ = std::make_shared<spdlog::logger>(APP_NAME, stdout_sink);
-        spdlog::set_default_logger(logger_);
+        set_default_logger(logger_);
         logger_->set_level(spdlog::level::info);
     }
 

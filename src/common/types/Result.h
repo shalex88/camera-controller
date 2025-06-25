@@ -73,13 +73,13 @@ public:
     }
 
     // Convenience function to create an error result
-    static Result<T, E> error(E error) {
-        return Result<T, E>(std::move(error));
+    static Result error(E error) {
+        return Result(std::move(error));
     }
 
 private:
-    using DataType = std::conditional_t<std::is_void_v<T>,
+    using data_type = std::conditional_t<std::is_void_v<T>,
                                       std::variant<Empty, E>,
                                       std::variant<T, E>>;
-    DataType data_;
+    data_type data_;
 };

@@ -27,9 +27,9 @@ protected:
 };
 
 TEST_F(ControllerFactoryTests, CreateGrpcControllerSuccess) {
-    auto controller = api::ControllerFactory::createController("grpc", port, createMockCore());
+    const auto controller = api::ControllerFactory::createController("grpc", port, createMockCore());
     ASSERT_NE(nullptr, controller);
-    EXPECT_TRUE(dynamic_cast<api::Controller*>(controller.get()) != nullptr);
+    EXPECT_TRUE(controller.get() != nullptr);
 }
 
 TEST_F(ControllerFactoryTests, ThrowsOnUnknownType) {

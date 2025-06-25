@@ -21,7 +21,7 @@ public:
     explicit CameraServiceClient(const std::shared_ptr<grpc::Channel>& channel)
         : stub_(camera::CameraService::NewStub(channel)) {}
 
-    Result<void> SetZoom(double zoom_value, const std::chrono::milliseconds timeout = 300ms) const {
+    Result<void> setZoom(const types::zoom zoom_value, const std::chrono::milliseconds timeout = 300ms) const {
         camera::SetZoomRequest request;
         camera::SetZoomResponse response;
         grpc::ClientContext context;
@@ -29,28 +29,26 @@ public:
         request.set_zoom(zoom_value);
         context.set_deadline(std::chrono::system_clock::now() + timeout);
 
-        const grpc::Status status = stub_->SetZoom(&context, request, &response);
-        if (!status.ok()) {
+        if (const grpc::Status status = stub_->SetZoom(&context, request, &response); !status.ok()) {
             return Result<void>::error(status.error_message());
         }
         return Result<void>::success();
     }
 
-    Result<double> GetZoom(const std::chrono::milliseconds timeout = 300ms) const {
-        camera::GetZoomRequest request;
+    Result<types::zoom> getZoom(const std::chrono::milliseconds timeout = 300ms) const {
+        const camera::GetZoomRequest request;
         camera::GetZoomResponse response;
         grpc::ClientContext context;
 
         context.set_deadline(std::chrono::system_clock::now() + timeout);
 
-        const grpc::Status status = stub_->GetZoom(&context, request, &response);
-        if (!status.ok()) {
-            return Result<double>::error(status.error_message());
+        if (const grpc::Status status = stub_->GetZoom(&context, request, &response); !status.ok()) {
+            return Result<types::zoom>::error(status.error_message());
         }
-        return Result<double>::success(response.zoom());
+        return Result<types::zoom>::success(response.zoom());
     }
 
-    Result<void> SetFocus(double focus_value, const std::chrono::milliseconds timeout = 300ms) const {
+    Result<void> setFocus(const types::focus focus_value, const std::chrono::milliseconds timeout = 300ms) const {
         camera::SetFocusRequest request;
         camera::SetFocusResponse response;
         grpc::ClientContext context;
@@ -58,25 +56,23 @@ public:
         request.set_focus(focus_value);
         context.set_deadline(std::chrono::system_clock::now() + timeout);
 
-        const grpc::Status status = stub_->SetFocus(&context, request, &response);
-        if (!status.ok()) {
+        if (const grpc::Status status = stub_->SetFocus(&context, request, &response); !status.ok()) {
             return Result<void>::error(status.error_message());
         }
         return Result<void>::success();
     }
 
-    Result<double> GetFocus(const std::chrono::milliseconds timeout = 300ms) const {
-        camera::GetFocusRequest request;
+    Result<types::focus> getFocus(const std::chrono::milliseconds timeout = 300ms) const {
+        const camera::GetFocusRequest request;
         camera::GetFocusResponse response;
         grpc::ClientContext context;
 
         context.set_deadline(std::chrono::system_clock::now() + timeout);
 
-        const grpc::Status status = stub_->GetFocus(&context, request, &response);
-        if (!status.ok()) {
-            return Result<double>::error(status.error_message());
+        if (const grpc::Status status = stub_->GetFocus(&context, request, &response); !status.ok()) {
+            return Result<types::focus>::error(status.error_message());
         }
-        return Result<double>::success(response.focus());
+        return Result<types::focus>::success(response.focus());
     }
 
 private:
@@ -119,22 +115,22 @@ protected:
 TEST_F(ServiceSystemTests, CameraRequestResponse) {
     const auto server_address = "localhost:" + port_config;
     std::cout << "Connecting to server at " << server_address << std::endl;
-    auto channel = grpc::CreateChannel(server_address, grpc::InsecureChannelCredentials());
-    CameraServiceClient client(channel);
+    const auto channel = CreateChannel(server_address, grpc::InsecureChannelCredentials());
+    const CameraServiceClient client(channel);
 
     constexpr double test_zoom = 2.5;
     std::cout << "Test SetZoom " << test_zoom <<" and GetZoom" << std::endl;
-    EXPECT_TRUE(client.SetZoom(test_zoom).isSuccess());
+    EXPECT_TRUE(client.setZoom(test_zoom).isSuccess());
 
-    auto zoom_result = client.GetZoom();
+    const auto zoom_result = client.getZoom();
     ASSERT_TRUE(zoom_result.isSuccess());
     EXPECT_DOUBLE_EQ(test_zoom, zoom_result.value());
 
     constexpr double test_focus = 1.8;
     std::cout << "Test SetFocus " << test_focus <<" and GetFocus" << std::endl;
-    EXPECT_TRUE(client.SetFocus(test_focus).isSuccess());
+    EXPECT_TRUE(client.setFocus(test_focus).isSuccess());
 
-    auto focus_result = client.GetFocus();
+    const auto focus_result = client.getFocus();
     ASSERT_TRUE(focus_result.isSuccess());
     EXPECT_DOUBLE_EQ(test_focus, focus_result.value());
 }
