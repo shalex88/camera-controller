@@ -9,7 +9,7 @@ add_library(proto ${PROTO_FILES})
 
 target_link_libraries(proto
         PUBLIC
-        protobuf::libprotobuf
+        protobuf::protobuf
         gRPC::grpc++
 )
 

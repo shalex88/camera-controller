@@ -3,7 +3,6 @@
   "version": "@VERSION@",
   "dependencies": [
     "spdlog",
-    "yaml-cpp",
-    "grpc"
+    "yaml-cpp"
   ]
 }
