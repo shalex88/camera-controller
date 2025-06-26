@@ -3,14 +3,13 @@
 #include "api/proto/camera_service.pb.h"
 #include "api/proto/camera_service.grpc.pb.h"
 #include "api/ITransport.h"
+#include "api/RequestHandler.h"
 #include "common/types/Result.h"
 
 namespace camera_service::api {
-    class Controller;
     class GrpcTransport final : public camera::CameraService::CallbackService, public ITransport {
     public:
-        explicit GrpcTransport();
-        void setController(Controller* controller) override;
+        explicit GrpcTransport(std::shared_ptr<RequestHandler> request_handler);
         ~GrpcTransport() override;
 
         Result<void> start(const std::string& port) override;
@@ -38,7 +37,7 @@ namespace camera_service::api {
             camera::GetFocusResponse* response) override;
 
     private:
-        Controller* controller_;
+        std::shared_ptr<RequestHandler> request_handler_;
         std::unique_ptr<grpc::Server> server_;
     };
 }

@@ -1,5 +1,6 @@
-#include "gtest/gtest.h"
-#include "gmock/gmock.h"
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
+/* Add your project include files here */
 #include "api/ControllerFactory.h"
 #include "api/Controller.h"
 #include "core/ICore.h"
@@ -26,10 +27,10 @@ protected:
     std::string port = "50051";
 };
 
-TEST_F(ControllerFactoryTests, CreateGrpcControllerSuccess) {
-    const auto controller = api::ControllerFactory::createController("grpc", port, createMockCore());
-    ASSERT_NE(nullptr, controller);
-    EXPECT_TRUE(controller.get() != nullptr);
+TEST_F(ControllerFactoryTests, CreateGrpcServiceSuccess) {
+    const auto service = api::ControllerFactory::createController("grpc", port, createMockCore());
+    ASSERT_NE(nullptr, service);
+    EXPECT_TRUE(service.get() != nullptr);
 }
 
 TEST_F(ControllerFactoryTests, ThrowsOnUnknownType) {

@@ -1,4 +1,6 @@
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
+/* Add your project include files here */
 #include "data/CameraFactory.h"
 #include "core/CoreFactory.h"
 #include "common/Config/Config.h"

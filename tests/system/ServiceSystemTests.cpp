@@ -1,10 +1,12 @@
 #include <gtest/gtest.h>
-#include <grpcpp/grpcpp.h>
+#include <gmock/gmock.h>
 /* Add your project include files here */
 #include <chrono>
 #include <memory>
-/* Add your project include files here */
+#include <grpcpp/grpcpp.h>
+
 #include "api/ControllerFactory.h"
+#include "api/Controller.h"
 #include "api/proto/camera_service.grpc.pb.h"
 #include "api/proto/camera_service.pb.h"
 #include "core/CoreFactory.h"
@@ -94,19 +96,19 @@ protected:
         EXPECT_NO_THROW(core = core::CoreFactory::createCore(camera_config, std::move(camera)));
         ASSERT_NE(nullptr, core);
 
-        EXPECT_NO_THROW(controller = camera_service::api::ControllerFactory::createController(api_config, port_config,
+        EXPECT_NO_THROW(service = camera_service::api::ControllerFactory::createController(api_config, port_config,
             std::move(core)));
-        ASSERT_NE(nullptr, controller);
+        ASSERT_NE(nullptr, service);
 
-        EXPECT_TRUE(controller->startAsync().isSuccess());
+        EXPECT_TRUE(service->startAsync().isSuccess());
         std::this_thread::sleep_for(1s);
-        EXPECT_TRUE(controller->isRunning());
+        EXPECT_TRUE(service->isRunning());
     }
 
     std::unique_ptr<Config> config;
     std::unique_ptr<data::ICamera> camera;
     std::unique_ptr<core::ICore> core;
-    std::unique_ptr<api::Controller> controller;
+    std::unique_ptr<api::Controller> service;
     std::string api_config;
     std::string port_config;
     std::string camera_config;

@@ -3,22 +3,18 @@
 #include <future>
 #include <grpcpp/grpcpp.h>
 
-#include "api/Controller.h"
+#include "api/RequestHandler.h"
 #include "common/Logger/Logger.h"
 
 namespace camera_service::api {
-    GrpcTransport::GrpcTransport() : controller_(nullptr) {
+    GrpcTransport::GrpcTransport(std::shared_ptr<RequestHandler> request_handler) : request_handler_(request_handler) {
+        if (!request_handler_) {
+            throw std::invalid_argument("Controller cannot be null");
+        }
     }
 
     GrpcTransport::~GrpcTransport() {
         stop();
-    }
-
-    void GrpcTransport::setController(Controller* controller) {
-        if (!controller) {
-            throw std::invalid_argument("Controller cannot be null");
-        }
-        controller_ = controller;
     }
 
     Result<void> GrpcTransport::start(const std::string& port) {
@@ -98,7 +94,7 @@ namespace camera_service::api {
         return handleGrpcRequest(context, request, response,
             [this](const camera::SetZoomRequest* req, camera::SetZoomResponse* resp) {
                 LOG_INFO("Request: SetZoom to {}", req->zoom());
-                return controller_->setZoom(req->zoom());
+                return request_handler_->setZoom(req->zoom());
             });
     }
 
@@ -109,7 +105,7 @@ namespace camera_service::api {
         return handleGrpcRequest(context, request, response,
             [this](const camera::SetFocusRequest* req, camera::SetFocusResponse* resp) {
                 LOG_INFO("Request: SetFocus to {}", req->focus());
-                return controller_->setFocus(req->focus());
+                return request_handler_->setFocus(req->focus());
             });
     }
 
@@ -120,7 +116,7 @@ namespace camera_service::api {
         return handleGrpcRequest(context, request, response,
             [this](const camera::GetZoomRequest* req, camera::GetZoomResponse* resp) {
                 LOG_INFO("Request: GetZoom");
-                const auto result = controller_->getZoom();
+                const auto result = request_handler_->getZoom();
                 if (result.isSuccess()) {
                     resp->set_zoom(result.value());
                     return Result<void>::success();
@@ -136,7 +132,7 @@ namespace camera_service::api {
         return handleGrpcRequest(context, request, response,
             [this](const camera::GetFocusRequest* req, camera::GetFocusResponse* resp) {
                 LOG_INFO("Request: GetFocus");
-                const auto result = controller_->getFocus();
+                const auto result = request_handler_->getFocus();
                 if (result.isSuccess()) {
                     resp->set_focus(result.value());
                     return Result<void>::success();
