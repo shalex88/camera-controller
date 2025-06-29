@@ -1,0 +1,178 @@
+@startuml Camera Service Class Diagram
+
+skinparam linetype ortho
+
+package camera_service {
+
+  package api {
+    class Controller {
+      - request_handler_: std::shared_ptr<RequestHandler>
+      - transport_: std::unique_ptr<ITransport>
+      - port_: std::string
+      - running_: std::atomic<bool>
+      - service_thread_: std::thread
+      + Controller(std::shared_ptr<RequestHandler>, std::unique_ptr<ITransport>, const std::string&)
+      + ~Controller()
+      + startAsync(): Result<void>
+      + stop(): Result<void>
+      + isRunning(): bool
+    }
+
+    class ControllerFactory {
+      + {static} createController(controller_type: std::string, port: std::string, core: std::unique_ptr<ICore>): std::unique_ptr<Controller>
+    }
+
+    class RequestHandler {
+      - core_: std::unique_ptr<core::ICore>
+      - running_: std::atomic<bool>
+      + RequestHandler(std::unique_ptr<core::ICore>)
+      + ~RequestHandler()
+      + startAsync(): Result<void>
+      + stop(): Result<void>
+      + isRunning(): bool
+      + setZoom(zoom_level: types::zoom): Result<void>
+      + getZoom(): Result<types::zoom>
+      + setFocus(focus_value: types::focus): Result<void>
+      + getFocus(): Result<types::focus>
+    }
+
+    interface ITransport {
+      + ~ITransport()
+      + start(port: std::string): Result<void>
+      + stop(): Result<void>
+      + runLoop(): Result<void>
+    }
+
+    class GrpcTransport {
+      - request_handler_: std::shared_ptr<RequestHandler>
+      - server_: std::unique_ptr<grpc::Server>
+      + GrpcTransport(request_handler: std::shared_ptr<RequestHandler>)
+      + ~GrpcTransport()
+      + start(port: std::string): Result<void>
+      + stop(): Result<void>
+      + runLoop(): Result<void>
+      + SetZoom(context: grpc::CallbackServerContext*, request: camera::SetZoomRequest*, response: camera::SetZoomResponse*): grpc::ServerUnaryReactor*
+      + SetFocus(context: grpc::CallbackServerContext*, request: camera::SetFocusRequest*, response: camera::SetFocusResponse*): grpc::ServerUnaryReactor*
+      + GetZoom(context: grpc::CallbackServerContext*, request: camera::GetZoomRequest*, response: camera::GetZoomResponse*): grpc::ServerUnaryReactor*
+      + GetFocus(context: grpc::CallbackServerContext*, request: camera::GetFocusRequest*, response: camera::GetFocusResponse*): grpc::ServerUnaryReactor*
+    }
+  }
+
+  package core {
+    interface ICore {
+      + ~ICore()
+      + initialize(): Result<void>
+      + shutdown(): Result<void>
+      + setZoom(zoom_level: types::zoom): Result<void>
+      + getZoom(): Result<types::zoom>
+      + setFocus(focus_value: types::focus): Result<void>
+      + getFocus(): Result<types::focus>
+    }
+
+    class Core {
+      - camera_: std::unique_ptr<data::ICamera>
+      + Core(std::unique_ptr<data::ICamera>)
+      + ~Core()
+      + initialize(): Result<void>
+      + shutdown(): Result<void>
+      + setZoom(zoom_level: types::zoom): Result<void>
+      + getZoom(): Result<types::zoom>
+      + setFocus(focus_value: types::focus): Result<void>
+      + getFocus(): Result<types::focus>
+    }
+
+    class CoreFactory {
+      + {static} createCore(camera_type: std::string): std::unique_ptr<ICore>
+    }
+
+    class CoreException {
+      + CoreException(message: std::string)
+    }
+  }
+
+  package data {
+    interface ICamera {
+      + ~ICamera()
+      + setZoom(zoom_level: types::zoom): Result<void>
+      + getZoom(): Result<types::zoom>
+      + setFocus(focus_value: types::focus): Result<void>
+      + getFocus(): Result<types::focus>
+      + connect(): Result<void>
+      + disconnect(): Result<void>
+      + isConnected(): bool
+    }
+
+    class NfovCamera {
+      - zoom_level_: types::zoom
+      - focus_value_: types::focus
+      - connected_: bool
+      + NfovCamera()
+      + ~NfovCamera()
+      + setZoom(zoom_level: types::zoom): Result<void>
+      + getZoom(): Result<types::zoom>
+      + setFocus(focus_value: types::focus): Result<void>
+      + getFocus(): Result<types::focus>
+      + connect(): Result<void>
+      + disconnect(): Result<void>
+      + isConnected(): bool
+    }
+
+    class CameraFactory {
+      + {static} createCamera(camera_type: std::string): std::unique_ptr<ICamera>
+    }
+  }
+
+  package common.types {
+    class Result<T> {
+      + isError(): bool
+      + error(): std::string
+      + {static} success(): Result<T>
+      + {static} error(message: std::string): Result<T>
+    }
+
+    class "types::zoom" as Zoom {
+      // Type definition for zoom level
+    }
+
+    class "types::focus" as Focus {
+      // Type definition for focus value
+    }
+  }
+
+  package common.Logger {
+    class Logger {
+      + {static} LOG_INFO(message: std::string)
+      + {static} LOG_ERROR(message: std::string, args...)
+    }
+  }
+}
+
+' Relationships
+Controller o-- RequestHandler
+Controller o-- ITransport
+ControllerFactory ..> Controller: creates >
+ControllerFactory ..> ICore: uses >
+GrpcTransport --|> ITransport
+GrpcTransport o-- RequestHandler
+RequestHandler o-- ICore
+
+Core --|> ICore
+Core o-- ICamera
+CoreFactory ..> Core: creates >
+CoreFactory ..> ICamera: uses >
+
+NfovCamera --|> ICamera
+CameraFactory ..> NfovCamera: creates >
+
+ICore ..> Zoom: uses >
+ICore ..> Focus: uses >
+ICamera ..> Zoom: uses >
+ICamera ..> Focus: uses >
+
+Controller ..> Result
+RequestHandler ..> Result
+ITransport ..> Result
+ICore ..> Result
+ICamera ..> Result
+
+@enduml

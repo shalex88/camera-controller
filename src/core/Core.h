@@ -25,7 +25,8 @@ namespace camera_service::core {
         Result<types::focus> getFocus() const override;
 
     private:
+        bool isInitialized() const;
         std::unique_ptr<data::ICamera> camera_;
-        bool initialized_;
+        bool is_initialized_;
     };
 }

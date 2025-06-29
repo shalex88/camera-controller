@@ -5,14 +5,13 @@
 #include <atomic>
 
 #include "common/types/Result.h"
+#include "api/IRequestHandler.h"
+#include "api/ITransport.h"
 
 namespace camera_service::api {
-    class RequestHandler;
-    class ITransport;
-
     class Controller final {
     public:
-        explicit Controller(std::shared_ptr<RequestHandler> controller, std::unique_ptr<ITransport> transport, const std::string& port);
+        explicit Controller(std::shared_ptr<IRequestHandler> request_handler, std::unique_ptr<ITransport> transport, const std::string& port);
         ~Controller();
 
         Result<void> startAsync();
@@ -20,7 +19,7 @@ namespace camera_service::api {
         bool isRunning() const;
 
     private:
-        std::shared_ptr<RequestHandler> request_handler_;
+        std::shared_ptr<IRequestHandler> request_handler_;
         std::unique_ptr<ITransport> transport_;
         std::string port_;
         std::atomic<bool> running_;

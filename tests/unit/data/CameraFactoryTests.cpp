@@ -1,5 +1,5 @@
-#include "gtest/gtest.h"
-#include "gmock/gmock.h"
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 /* Add your project include files here */
 #include "data/CameraFactory.h"
 
@@ -8,12 +8,6 @@ using namespace testing;
 
 TEST(CameraFactoryTests, CreateNfovCameraSuccess) {
     const auto camera = data::CameraFactory::createCamera("nfov");
-    ASSERT_NE(nullptr, camera);
-    EXPECT_TRUE(camera.get() != nullptr);
-}
-
-TEST(CameraFactoryTests, CreateWfovCameraSuccess) {
-    const auto camera = data::CameraFactory::createCamera("wfov");
     ASSERT_NE(nullptr, camera);
     EXPECT_TRUE(camera.get() != nullptr);
 }

@@ -1,5 +1,6 @@
-#include "gtest/gtest.h"
-#include "gmock/gmock.h"
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
+/* Add your project include files here */
 #include "data/NfovCamera.h"
 #include "common/types/Result.h"
 
@@ -26,12 +27,21 @@ TEST_F(NfovCameraTests, InitiallyNotConnected) {
 
 TEST_F(NfovCameraTests, ConnectDisconnect) {
     const auto connect_result = camera->connect();
-    EXPECT_TRUE(connect_result.isSuccess()) << "Failed to connect: " << connect_result.error();
+    EXPECT_TRUE(connect_result.isSuccess());
     EXPECT_TRUE(camera->isConnected());
 
     const auto disconnect_result = camera->disconnect();
-    EXPECT_TRUE(disconnect_result.isSuccess()) << "Failed to disconnect: " << disconnect_result.error();
+    EXPECT_TRUE(disconnect_result.isSuccess());
     EXPECT_FALSE(camera->isConnected());
+}
+
+TEST_F(NfovCameraTests, ConnectWhenConnectedFails) {
+    const auto connect_result = camera->connect();
+    ASSERT_TRUE(connect_result.isSuccess());
+
+    const auto second_connect_result = camera->connect();
+    EXPECT_TRUE(second_connect_result.isError());
+    EXPECT_TRUE(second_connect_result.error().find("connected") != std::string::npos);
 }
 
 TEST_F(NfovCameraTests, DisconnectWhenNotConnected) {
@@ -66,31 +76,31 @@ TEST_F(NfovCameraTests, GetFocusWhenNotConnected) {
 
 TEST_F(NfovCameraTests, ZoomOperations) {
     const auto connect_result = camera->connect();
-    ASSERT_TRUE(connect_result.isSuccess()) << "Failed to connect: " << connect_result.error();
+    ASSERT_TRUE(connect_result.isSuccess());
 
     const auto set_result = camera->setZoom(2.0);
-    EXPECT_TRUE(set_result.isSuccess()) << "Failed to set zoom: " << set_result.error();
+    EXPECT_TRUE(set_result.isSuccess());
 
     const auto get_result = camera->getZoom();
-    ASSERT_TRUE(get_result.isSuccess()) << "Failed to get zoom: " << get_result.error();
+    ASSERT_TRUE(get_result.isSuccess());
     EXPECT_DOUBLE_EQ(2.0, get_result.value());
 }
 
 TEST_F(NfovCameraTests, FocusOperations) {
     const auto connect_result = camera->connect();
-    ASSERT_TRUE(connect_result.isSuccess()) << "Failed to connect: " << connect_result.error();
+    ASSERT_TRUE(connect_result.isSuccess());
 
     const auto set_result = camera->setFocus(1.5);
-    EXPECT_TRUE(set_result.isSuccess()) << "Failed to set focus: " << set_result.error();
+    EXPECT_TRUE(set_result.isSuccess());
 
     const auto get_result = camera->getFocus();
-    ASSERT_TRUE(get_result.isSuccess()) << "Failed to get focus: " << get_result.error();
+    ASSERT_TRUE(get_result.isSuccess());
     EXPECT_DOUBLE_EQ(1.5, get_result.value());
 }
 
 TEST_F(NfovCameraTests, InvalidZoomValue) {
     const auto connect_result = camera->connect();
-    ASSERT_TRUE(connect_result.isSuccess()) << "Failed to connect: " << connect_result.error();
+    ASSERT_TRUE(connect_result.isSuccess());
 
     const auto result = camera->setZoom(-1.0);
     EXPECT_TRUE(result.isError());

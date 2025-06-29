@@ -9,7 +9,7 @@
 namespace camera_service::api {
     GrpcTransport::GrpcTransport(std::shared_ptr<RequestHandler> request_handler) : request_handler_(request_handler) {
         if (!request_handler_) {
-            throw std::invalid_argument("Controller cannot be null");
+            throw std::invalid_argument("Request Handler cannot be null");
         }
     }
 

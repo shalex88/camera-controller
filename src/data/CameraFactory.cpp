@@ -1,7 +1,6 @@
 #include "CameraFactory.h"
 
-#include "NfovCamera.h"
-#include "WfovCamera.h"
+#include "data/NfovCamera.h"
 
 namespace camera_service::data {
     std::unique_ptr<ICamera> CameraFactory::createCamera(const std::string& camera_type) {
@@ -9,9 +8,6 @@ namespace camera_service::data {
             return std::make_unique<NfovCamera>();
         }
 
-        if (camera_type == "wfov") {
-            return std::make_unique<WfovCamera>();
-        }
         throw std::invalid_argument("Unknown camera type");
     }
 }

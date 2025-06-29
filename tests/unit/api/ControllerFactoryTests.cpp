@@ -9,7 +9,7 @@
 using namespace camera_service;
 using namespace testing;
 
-class MockCore final: public core::ICore {
+class CoreMock final: public core::ICore {
 public:
     MOCK_METHOD(Result<void>, initialize, (), (override));
     MOCK_METHOD(Result<void>, shutdown, (), (override));
@@ -21,8 +21,8 @@ public:
 
 class ControllerFactoryTests : public Test {
 protected:
-    static std::unique_ptr<MockCore> createMockCore() {
-        return std::make_unique<MockCore>();
+    static std::unique_ptr<CoreMock> createMockCore() {
+        return std::make_unique<CoreMock>();
     }
     std::string port = "50051";
 };

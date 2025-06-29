@@ -5,14 +5,14 @@
 
 namespace camera_service::core {
     Core::Core(std::unique_ptr<data::ICamera> camera)
-        : camera_(std::move(camera)), initialized_(false) {
+        : camera_(std::move(camera)), is_initialized_(false) {
         if (!camera_) {
             throw std::invalid_argument("Cannot initialize Core with null camera");
         }
     }
 
     Core::~Core() {
-        if (initialized_) {
+        if (isInitialized()) {
             shutdown();
         }
     }
@@ -26,15 +26,17 @@ namespace camera_service::core {
             }
         }
 
-        initialized_ = true;
+        is_initialized_ = true;
         LOG_INFO("Core initialized successfully.");
         return Result<void>::success();
     }
 
     Result<void> Core::shutdown() {
-        if (!initialized_) {
+        if (!isInitialized()) {
             return Result<void>::success();
         }
+
+        is_initialized_ = false;
 
         LOG_INFO("Shutting down Core...");
 
@@ -44,13 +46,16 @@ namespace camera_service::core {
             }
         }
 
-        initialized_ = false;
         LOG_INFO("Core shut down successfully.");
         return Result<void>::success();
     }
 
+    bool Core::isInitialized() const {
+        return is_initialized_;
+    }
+
     Result<void> Core::setZoom(const types::zoom zoom_level) {
-        if (!initialized_) {
+        if (!isInitialized()) {
             return Result<void>::error("Core not initialized");
         }
 
@@ -58,7 +63,7 @@ namespace camera_service::core {
     }
 
     Result<types::zoom> Core::getZoom() const {
-        if (!initialized_) {
+        if (!isInitialized()) {
             return Result<types::zoom>::error("Core not initialized");
         }
 
@@ -66,7 +71,7 @@ namespace camera_service::core {
     }
 
     Result<void> Core::setFocus(const types::focus focus_value) {
-        if (!initialized_) {
+        if (!isInitialized()) {
             return Result<void>::error("Core not initialized");
         }
 
@@ -74,7 +79,7 @@ namespace camera_service::core {
     }
 
     Result<types::focus> Core::getFocus() const {
-        if (!initialized_) {
+        if (!isInitialized()) {
             return Result<types::focus>::error("Core not initialized");
         }
 

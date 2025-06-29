@@ -8,7 +8,7 @@
 using namespace camera_service;
 using namespace testing;
 
-class MockCore final: public core::ICore {
+class CoreMock final: public core::ICore {
 public:
     MOCK_METHOD(Result<void>, initialize, (), (override));
     MOCK_METHOD(Result<void>, shutdown, (), (override));
@@ -21,14 +21,16 @@ public:
 class RequestHandlerTests : public Test {
 protected:
     void SetUp() override {
-        mock_core = std::make_unique<MockCore>();
+        core = new CoreMock();
+        auto core_obj = std::unique_ptr<core::ICore>(core);
+        request_handler = std::make_unique<api::RequestHandler>(std::move(core_obj));
     }
-
-    std::unique_ptr<MockCore> mock_core;
+    std::unique_ptr<api::IRequestHandler> request_handler;
+    CoreMock* core {};
 };
 
 TEST_F(RequestHandlerTests, CreationSuccess) {
-    ASSERT_NE(nullptr, std::make_unique<api::RequestHandler>(std::make_unique<MockCore>()));
+    ASSERT_NE(nullptr, request_handler);
 }
 
 TEST_F(RequestHandlerTests, CreationFailNoCore) {
@@ -36,60 +38,65 @@ TEST_F(RequestHandlerTests, CreationFailNoCore) {
 }
 
 TEST_F(RequestHandlerTests, StartSuccess) {
-    EXPECT_CALL(*mock_core, initialize())
-        .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*mock_core, shutdown())
-        .WillOnce(Return(Result<void>::success()));
-
-    const auto request_handler = std::make_unique<api::RequestHandler>(std::move(mock_core));
-    const auto result = request_handler->startAsync();
-    EXPECT_TRUE(result.isSuccess()) << "Failed to start: " << result.error();
+    const auto result = request_handler->start();
+    EXPECT_TRUE(result.isSuccess());
 }
 
 TEST_F(RequestHandlerTests, StartFailOnInitialize) {
-    EXPECT_CALL(*mock_core, initialize())
+    EXPECT_CALL(*core, initialize())
         .WillOnce(Return(Result<void>::error("Initialize failed")));
 
-    const auto request_handler = std::make_unique<api::RequestHandler>(std::move(mock_core));
-    const auto result = request_handler->startAsync();
+    const auto result = request_handler->start();
     EXPECT_TRUE(result.isError());
-    EXPECT_EQ(result.error(), "Core initialization failed: Initialize failed");
 }
 
-TEST_F(RequestHandlerTests, StopSuccess) {
-    const Sequence s;
-    EXPECT_CALL(*mock_core, initialize())
-        .InSequence(s)
+TEST_F(RequestHandlerTests, StopSuccessIfRunning) {
+    EXPECT_CALL(*core, initialize())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*mock_core, shutdown())
-        .InSequence(s)
+    EXPECT_CALL(*core, shutdown())
         .WillOnce(Return(Result<void>::success()));
 
-    const auto request_handler = std::make_unique<api::RequestHandler>(std::move(mock_core));
-    const auto start_result = request_handler->startAsync();
-    ASSERT_TRUE(start_result.isSuccess()) << "Failed to start: " << start_result.error();
+    const auto start_result = request_handler->start();
+    ASSERT_TRUE(start_result.isSuccess());
 
     const auto stop_result = request_handler->stop();
-    EXPECT_TRUE(stop_result.isSuccess()) << "Failed to stop: " << stop_result.error();
+    EXPECT_TRUE(stop_result.isSuccess());
+}
+
+TEST_F(RequestHandlerTests, StopSuccessIfNotRunning) {
+    const auto result = request_handler->stop();
+    EXPECT_TRUE(result.isSuccess());
+}
+
+TEST_F(RequestHandlerTests, StopFailsIfCoreShutdownFails) {
+    EXPECT_CALL(*core, initialize())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, shutdown())
+        .WillOnce(Return(Result<void>::error("Shutdown failed")));
+
+    const auto start_result = request_handler->start();
+    ASSERT_TRUE(start_result.isSuccess());
+
+    const auto stop_result = request_handler->stop();
+    EXPECT_TRUE(stop_result.isError());
 }
 
 TEST_F(RequestHandlerTests, ZoomOperations) {
     Sequence s;
-    EXPECT_CALL(*mock_core, initialize())
+    EXPECT_CALL(*core, initialize())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*mock_core, setZoom(2.0))
+    EXPECT_CALL(*core, setZoom(2.0))
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*mock_core, getZoom())
+    EXPECT_CALL(*core, getZoom())
         .InSequence(s)
         .WillOnce(Return(Result<types::zoom>::success(2.0)));
-    EXPECT_CALL(*mock_core, shutdown())
+    EXPECT_CALL(*core, shutdown())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
 
-    const auto request_handler = std::make_unique<api::RequestHandler>(std::move(mock_core));
-    const auto start_result = request_handler->startAsync();
+    const auto start_result = request_handler->start();
     ASSERT_TRUE(start_result.isSuccess()) << "Failed to start: " << start_result.error();
 
     const auto set_result = request_handler->setZoom(2.0);
@@ -103,23 +110,30 @@ TEST_F(RequestHandlerTests, ZoomOperations) {
     EXPECT_TRUE(stop_result.isSuccess()) << "Failed to stop: " << stop_result.error();
 }
 
+TEST_F(RequestHandlerTests, ZoomOperationsFailIfNotRunning) {
+    const auto set_result = request_handler->setZoom(2.0);
+    EXPECT_TRUE(set_result.isError());
+
+    const auto get_result = request_handler->getZoom();
+    EXPECT_TRUE(get_result.isError());
+}
+
 TEST_F(RequestHandlerTests, FocusOperations) {
     Sequence s;
-    EXPECT_CALL(*mock_core, initialize())
+    EXPECT_CALL(*core, initialize())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*mock_core, setFocus(1.5))
+    EXPECT_CALL(*core, setFocus(1.5))
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*mock_core, getFocus())
+    EXPECT_CALL(*core, getFocus())
         .InSequence(s)
         .WillOnce(Return(Result<types::focus>::success(1.5)));
-    EXPECT_CALL(*mock_core, shutdown())
+    EXPECT_CALL(*core, shutdown())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
 
-    const auto request_handler = std::make_unique<api::RequestHandler>(std::move(mock_core));
-    const auto start_result = request_handler->startAsync();
+    const auto start_result = request_handler->start();
     ASSERT_TRUE(start_result.isSuccess()) << "Failed to start: " << start_result.error();
 
     const auto set_result = request_handler->setFocus(1.5);
@@ -131,4 +145,12 @@ TEST_F(RequestHandlerTests, FocusOperations) {
 
     const auto stop_result = request_handler->stop();
     EXPECT_TRUE(stop_result.isSuccess()) << "Failed to stop: " << stop_result.error();
+}
+
+TEST_F(RequestHandlerTests, FocusOperationsFailIfNotRunning) {
+    const auto set_result = request_handler->setFocus(2.0);
+    EXPECT_TRUE(set_result.isError());
+
+    const auto get_result = request_handler->getFocus();
+    EXPECT_TRUE(get_result.isError());
 }

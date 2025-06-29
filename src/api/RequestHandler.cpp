@@ -17,7 +17,7 @@ namespace camera_service::api {
         }
     }
 
-    Result<void> RequestHandler::startAsync() {
+    Result<void> RequestHandler::start() {
         LOG_INFO("Starting Request Handler...");
 
         if (const auto init_result = core_->initialize(); init_result.isError()) {
@@ -29,7 +29,7 @@ namespace camera_service::api {
     }
 
     Result<void> RequestHandler::stop() {
-        if (!running_) {
+        if (!isRunning()) {
             return Result<void>::success();
         }
 
@@ -50,7 +50,7 @@ namespace camera_service::api {
     }
 
     Result<void> RequestHandler::setZoom(const types::zoom zoom_level) const {
-        if (!running_) {
+        if (!isRunning()) {
             return Result<void>::error("Request Handler is not running");
         }
 
@@ -58,7 +58,7 @@ namespace camera_service::api {
     }
 
     Result<types::zoom> RequestHandler::getZoom() const {
-        if (!running_) {
+        if (!isRunning()) {
             return Result<types::zoom>::error("Request Handler is not running");
         }
 
@@ -66,7 +66,7 @@ namespace camera_service::api {
     }
 
     Result<void> RequestHandler::setFocus(const types::focus focus_value) const {
-        if (!running_) {
+        if (!isRunning()) {
             return Result<void>::error("Request Handler is not running");
         }
 
@@ -74,7 +74,7 @@ namespace camera_service::api {
     }
 
     Result<types::focus> RequestHandler::getFocus() const {
-        if (!running_) {
+        if (!isRunning()) {
             return Result<types::focus>::error("Request Handler is not running");
         }
 

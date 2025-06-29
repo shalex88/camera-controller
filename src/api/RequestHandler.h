@@ -5,21 +5,22 @@
 #include "core/ICore.h"
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
+#include "api/IRequestHandler.h"
 
 namespace camera_service::api {
-    class RequestHandler final {
+    class RequestHandler : public IRequestHandler {
     public:
         explicit RequestHandler(std::unique_ptr<core::ICore> core);
-        ~RequestHandler();
+        ~RequestHandler() override;
 
-        Result<void> startAsync();
-        Result<void> stop();
-        bool isRunning() const;
+        Result<void> start() override;
+        Result<void> stop() override;
+        bool isRunning() const override;
 
-        Result<void> setZoom(types::zoom zoom_level) const;
-        Result<types::zoom> getZoom() const;
-        Result<void> setFocus(types::focus focus_value) const;
-        Result<types::focus> getFocus() const;
+        Result<void> setZoom(types::zoom zoom_level) const override;
+        Result<types::zoom> getZoom() const override;
+        Result<void> setFocus(types::focus focus_value) const override;
+        Result<types::focus> getFocus() const override;
 
     private:
         std::unique_ptr<core::ICore> core_;
