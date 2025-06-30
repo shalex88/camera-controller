@@ -3,6 +3,7 @@ find_package(gRPC CONFIG REQUIRED)
 
 set(PROTO_SRC_DIR "${CMAKE_SOURCE_DIR}/proto")
 set(PROTO_OUT_DIR "${CMAKE_BINARY_DIR}/api/proto")
+file(MAKE_DIRECTORY "${PROTO_OUT_DIR}")
 file(GLOB_RECURSE PROTO_FILES CONFIGURE_DEPENDS "${PROTO_SRC_DIR}/*.proto")
 
 add_library(proto ${PROTO_FILES})
