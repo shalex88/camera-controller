@@ -1,7 +1,6 @@
 set(PROJECT_NAME camera-service)
 include(cmake/SetVersion.cmake)
 include(cmake/EnableVcpkg.cmake)
-set(CMAKE_PROJECT_TOP_LEVEL_INCLUDES "${CMAKE_CURRENT_SOURCE_DIR}/cmake/conan_provider.cmake" CACHE STRING "Conan cmake provider")
 cmake_minimum_required(VERSION 3.28)
 project(${PROJECT_NAME} LANGUAGES CXX VERSION ${VERSION})
 
