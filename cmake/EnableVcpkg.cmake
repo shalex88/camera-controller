@@ -1,4 +1,7 @@
 # Should be included only from the top level cmake and before project()
+set(VCPKG_TARGET_TRIPLET x64-linux-release CACHE STRING "")
+set(VCPKG_HOST_TRIPLET x64-linux-release CACHE STRING "")
+
 configure_file(
         ${CMAKE_SOURCE_DIR}/vcpkg.json.in
         ${CMAKE_SOURCE_DIR}/vcpkg.json
@@ -12,7 +15,5 @@ FetchContent_Declare(
         GIT_TAG 2025.04.09
 )
 FetchContent_MakeAvailable(vcpkg)
-
-set(VCPKG_BUILD_TYPE release)
 
 set(CMAKE_TOOLCHAIN_FILE "${vcpkg_SOURCE_DIR}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")

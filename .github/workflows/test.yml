@@ -22,7 +22,6 @@ jobs:
 
       - name: Configure
         run: |
-          pip install conan
           cmake -B build -G "Ninja" -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
       - name: Build
