@@ -27,7 +27,6 @@ namespace camera_service::api {
 
         server_ = std::unique_ptr(builder.BuildAndStart());
         if (!server_) {
-            LOG_ERROR("Failed to start the gRPC server");
             return Result<void>::error("Failed to start the gRPC server");
         }
 
@@ -62,14 +61,10 @@ namespace camera_service::api {
 
         // Launch the processing task asynchronously
         std::future<grpc::Status> future = std::async(std::launch::async, [request, response, process_function]() {
-            try {
-                if (auto result = process_function(request, response); result.isError()) {
-                    return grpc::Status(grpc::StatusCode::INTERNAL, result.error());
-                }
-                return grpc::Status::OK;
-            } catch (const std::exception& e) {
-                return grpc::Status(grpc::StatusCode::INTERNAL, e.what());
+            if (auto result = process_function(request, response); result.isError()) {
+                return grpc::Status(grpc::StatusCode::INTERNAL, result.error());
             }
+            return grpc::Status::OK;
         });
 
         // Calculate the remaining time before the deadline

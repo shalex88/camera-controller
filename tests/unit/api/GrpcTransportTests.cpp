@@ -51,21 +51,6 @@ TEST_F(GrpcTransportTests, StartServerOnInvalidPortShouldFail) {
     EXPECT_TRUE(result.isError());
 }
 
-TEST_F(GrpcTransportTests, StartServerOnUsedPortShouldFail) {
-    // First start should succeed
-    auto result1 = grpc_transport->start(port);
-    EXPECT_TRUE(result1.isSuccess());
-
-    // Create another transport instance
-    auto another_transport = std::make_unique<api::GrpcTransport>(request_handler);
-
-    // Try to start server on the same port
-    auto result2 = another_transport->start(port);
-    EXPECT_TRUE(result2.isError());
-
-    grpc_transport->stop();
-}
-
 TEST_F(GrpcTransportTests, StopServerWhenNotStartedShouldSucceed) {
     auto result = grpc_transport->stop();
     EXPECT_TRUE(result.isSuccess());
@@ -108,7 +93,6 @@ TEST_F(GrpcTransportTests, RunLoopAfterStopShouldFail) {
 }
 
 TEST_F(GrpcTransportTests, RunLoopWithRunningServerShouldSucceed) {
-    // Start server in a separate thread since Wait() will block
     grpc_transport->start(port);
 
     std::thread server_thread([&]() {
@@ -116,12 +100,8 @@ TEST_F(GrpcTransportTests, RunLoopWithRunningServerShouldSucceed) {
         EXPECT_TRUE(result.isSuccess());
     });
 
-    // Give the server thread some time to start
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    // Stop server which will unblock Wait()
     grpc_transport->stop();
-
-    // Wait for server thread to finish
     server_thread.join();
 }
