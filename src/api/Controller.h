@@ -5,7 +5,7 @@
 #include <atomic>
 
 #include "common/types/Result.h"
-#include "api/IRequestHandler.h"
+#include "api/RequestHandler.h"
 #include "api/ITransport.h"
 
 namespace camera_service::api {
