@@ -12,6 +12,12 @@
 
 ## Test
 
+### Unit tests
+
+```bash
+./camera-service-unit-tests
+```
+
 ### Integration tests
 
 ```bash
@@ -31,7 +37,5 @@
 - [ ] Add DTO support
 - [ ] Add limits check for type aliases
 - [ ] Add thread safety
-- [ ] Add result pattern
-- [ ] Improve error handling
 - [ ] Add health status
 - [ ] Add a state pattern
