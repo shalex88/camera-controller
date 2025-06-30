@@ -16,14 +16,14 @@ public:
     MOCK_METHOD(Result<void>, runLoop, (), (override));
 };
 
-class RequestHandlerMock final: public api::IRequestHandler {
+class RequestHandlerMock final: public api::IRequestHandler, api::ICameraOperations {
 public:
     MOCK_METHOD(Result<void>, start, (), (override));
     MOCK_METHOD(Result<void>, stop, (), (override));
     MOCK_METHOD(bool, isRunning, (), (const, override));
-    MOCK_METHOD(Result<void>, setZoom, (types::zoom), (const, override));
+    MOCK_METHOD(Result<void>, setZoom, (types::zoom), (override));
     MOCK_METHOD(Result<types::zoom>, getZoom, (), (const, override));
-    MOCK_METHOD(Result<void>, setFocus, (types::focus), (const, override));
+    MOCK_METHOD(Result<void>, setFocus, (types::focus), (override));
     MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
 };
 

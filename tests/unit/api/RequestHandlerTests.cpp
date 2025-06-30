@@ -25,7 +25,7 @@ protected:
         auto core_obj = std::unique_ptr<core::ICore>(core);
         request_handler = std::make_unique<api::RequestHandler>(std::move(core_obj));
     }
-    std::unique_ptr<api::IRequestHandler> request_handler;
+    std::unique_ptr<api::RequestHandler> request_handler;
     CoreMock* core {};
 };
 
