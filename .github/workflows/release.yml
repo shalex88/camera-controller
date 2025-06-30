@@ -34,7 +34,7 @@ jobs:
 
       - name: Configure
         run: |
-          cmake -G "Unix Makefiles" -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DVERSION=${{ steps.tag_version.outputs.new_version }}
+          cmake -G "Ninja" -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DVERSION=${{ steps.tag_version.outputs.new_version }}
 
       - name: Build
         run: |
