@@ -22,7 +22,11 @@ jobs:
 
       - name: Configure
         run: |
-          cmake -B build -G "Ninja" -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+          cmake -B build \
+            -G "Ninja" \
+            -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+            -DVCPKG_TARGET_TRIPLET=x64-linux-release \
+            -DVCPKG_HOST_TRIPLET=x64-linux-release
 
       - name: Build
         run: |
