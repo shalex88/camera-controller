@@ -13,7 +13,7 @@ namespace camera_service::api {
         explicit GrpcTransport(std::shared_ptr<RequestHandler> request_handler);
         ~GrpcTransport() override;
 
-        Result<void> start(const std::string& port) override;
+        Result<void> start(const std::string& server_address) override;
         Result<void> stop() override;
         Result<void> runLoop() override;
 

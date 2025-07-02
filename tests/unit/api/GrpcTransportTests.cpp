@@ -29,7 +29,7 @@ protected:
 
     std::shared_ptr<api::RequestHandler> request_handler;
     std::unique_ptr<api::GrpcTransport> grpc_transport;
-    std::string port = "50051";
+    std::string server_address = "0.0.0.0:50051";
 };
 
 TEST_F(GrpcTransportTests, CreationSuccess) {
@@ -41,7 +41,7 @@ TEST_F(GrpcTransportTests, CreationFailIfNoRequestHandler) {
 }
 
 TEST_F(GrpcTransportTests, StartServerSuccess) {
-    auto result = grpc_transport->start(port);
+    auto result = grpc_transport->start(server_address);
     EXPECT_TRUE(result.isSuccess());
     grpc_transport->stop();
 }
@@ -58,7 +58,7 @@ TEST_F(GrpcTransportTests, StopServerWhenNotStartedShouldSucceed) {
 
 TEST_F(GrpcTransportTests, StopRunningServerShouldSucceed) {
     // Start server first
-    auto start_result = grpc_transport->start(port);
+    auto start_result = grpc_transport->start(server_address);
     EXPECT_TRUE(start_result.isSuccess());
 
     // Then stop it
@@ -68,7 +68,7 @@ TEST_F(GrpcTransportTests, StopRunningServerShouldSucceed) {
 
 TEST_F(GrpcTransportTests, StopServerMultipleTimesShouldSucceed) {
     // Start and stop once
-    grpc_transport->start(port);
+    grpc_transport->start(server_address);
     auto first_stop = grpc_transport->stop();
     EXPECT_TRUE(first_stop.isSuccess());
 
@@ -84,7 +84,7 @@ TEST_F(GrpcTransportTests, RunLoopWithoutStartShouldFail) {
 
 TEST_F(GrpcTransportTests, RunLoopAfterStopShouldFail) {
     // Start and stop the server
-    grpc_transport->start(port);
+    grpc_transport->start(server_address);
     grpc_transport->stop();
 
     // Try to run loop after stop
@@ -93,7 +93,7 @@ TEST_F(GrpcTransportTests, RunLoopAfterStopShouldFail) {
 }
 
 TEST_F(GrpcTransportTests, RunLoopWithRunningServerShouldSucceed) {
-    grpc_transport->start(port);
+    grpc_transport->start(server_address);
 
     std::thread server_thread([&]() {
         auto result = grpc_transport->runLoop();

@@ -5,11 +5,11 @@
 
 namespace camera_service::api {
     std::unique_ptr<Controller> ControllerFactory::createController(
-        const std::string& controller_type, const std::string& port, std::unique_ptr<core::ICore> core) {
+        const std::string& controller_type, const std::string& server_address, std::unique_ptr<core::ICore> core) {
         if (controller_type == "grpc") {
             auto request_handler = std::make_shared<RequestHandler>(std::move(core));
             auto transport = std::make_unique<GrpcTransport>(request_handler);
-            return std::make_unique<Controller>(request_handler, std::move(transport), port);
+            return std::make_unique<Controller>(request_handler, std::move(transport), server_address);
         }
         throw std::invalid_argument("Unknown controller type");
     }

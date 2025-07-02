@@ -18,9 +18,7 @@ namespace camera_service::api {
         stop();
     }
 
-    Result<void> GrpcTransport::start(const std::string& port) {
-        const std::string server_address("localhost:" + port);
-
+    Result<void> GrpcTransport::start(const std::string& server_address) {
         grpc::EnableDefaultHealthCheckService(true);
         grpc::ServerBuilder builder;
         builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());

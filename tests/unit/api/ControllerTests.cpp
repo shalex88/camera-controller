@@ -33,13 +33,13 @@ protected:
         request_handler = std::make_shared<RequestHandlerMock>();
         transport = new TransportMock();
         auto transport_obj = std::unique_ptr<api::ITransport>(transport);
-        controller = std::make_unique<api::Controller>(request_handler, std::move(transport_obj), port);
+        controller = std::make_unique<api::Controller>(request_handler, std::move(transport_obj), server_address);
     }
 
     std::shared_ptr<RequestHandlerMock> request_handler;
     TransportMock* transport {};
     std::unique_ptr<api::Controller> controller;
-    std::string port = "50051";
+    std::string server_address = "50051";
 };
 
 TEST_F(ControllerTests, CreationSuccess) {
@@ -50,14 +50,14 @@ TEST_F(ControllerTests, CreationFailNoController) {
     EXPECT_THROW(api::Controller controller(
         nullptr,
         std::make_unique<TransportMock>(),
-        port), std::invalid_argument);
+        server_address), std::invalid_argument);
 }
 
 TEST_F(ControllerTests, CreationFailNoTransport) {
     EXPECT_THROW(api::Controller controller(
         request_handler,
         nullptr,
-        port), std::invalid_argument);
+        server_address), std::invalid_argument);
 }
 
 TEST_F(ControllerTests, CreationFailEmptyPort) {
@@ -89,7 +89,7 @@ TEST_F(ControllerTests, StartFailOnRequestHandlerStartFail) {
 }
 
 TEST_F(ControllerTests, StartFailOnTransportStartFail) {
-    EXPECT_CALL(*transport, start(port))
+    EXPECT_CALL(*transport, start(server_address))
         .WillOnce(Return(Result<void>::error("Transport start failed")));
 
     const auto result = controller->startAsync();

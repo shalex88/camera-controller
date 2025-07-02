@@ -24,18 +24,18 @@ protected:
     static std::unique_ptr<CoreMock> createMockCore() {
         return std::make_unique<CoreMock>();
     }
-    std::string port = "50051";
+    std::string server_address = "50051";
 };
 
 TEST_F(ControllerFactoryTests, CreateGrpcServiceSuccess) {
-    const auto service = api::ControllerFactory::createController("grpc", port, createMockCore());
+    const auto service = api::ControllerFactory::createController("grpc", server_address, createMockCore());
     ASSERT_NE(nullptr, service);
     EXPECT_TRUE(service.get() != nullptr);
 }
 
 TEST_F(ControllerFactoryTests, ThrowsOnUnknownType) {
     EXPECT_THROW(
-        api::ControllerFactory::createController("unknown", port, createMockCore()),
+        api::ControllerFactory::createController("unknown", server_address, createMockCore()),
         std::invalid_argument
     );
 }

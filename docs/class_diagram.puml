@@ -8,7 +8,7 @@ package camera_service {
     class Controller {
       - request_handler_: std::shared_ptr<RequestHandler>
       - transport_: std::unique_ptr<ITransport>
-      - port_: std::string
+      - server_address_: std::string
       - running_: std::atomic<bool>
       - service_thread_: std::thread
       + Controller(std::shared_ptr<RequestHandler>, std::unique_ptr<ITransport>, const std::string&)
@@ -19,7 +19,7 @@ package camera_service {
     }
 
     class ControllerFactory {
-      + {static} createController(controller_type: std::string, port: std::string, core: std::unique_ptr<ICore>): std::unique_ptr<Controller>
+      + {static} createController(controller_type: std::string, server_address: std::string, core: std::unique_ptr<ICore>): std::unique_ptr<Controller>
     }
 
     class RequestHandler {
@@ -38,7 +38,7 @@ package camera_service {
 
     interface ITransport {
       + ~ITransport()
-      + start(port: std::string): Result<void>
+      + start(server_address: std::string): Result<void>
       + stop(): Result<void>
       + runLoop(): Result<void>
     }
@@ -48,7 +48,7 @@ package camera_service {
       - server_: std::unique_ptr<grpc::Server>
       + GrpcTransport(request_handler: std::shared_ptr<RequestHandler>)
       + ~GrpcTransport()
-      + start(port: std::string): Result<void>
+      + start(server_address: std::string): Result<void>
       + stop(): Result<void>
       + runLoop(): Result<void>
       + SetZoom(context: grpc::CallbackServerContext*, request: camera::SetZoomRequest*, response: camera::SetZoomResponse*): grpc::ServerUnaryReactor*

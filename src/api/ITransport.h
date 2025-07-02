@@ -7,7 +7,7 @@ namespace camera_service::api {
     public:
         virtual ~ITransport() = default;
 
-        virtual Result<void> start(const std::string& port) = 0;
+        virtual Result<void> start(const std::string& server_address) = 0;
         virtual Result<void> stop() = 0;
         virtual Result<void> runLoop() = 0;
     };

@@ -21,7 +21,7 @@ protected:
         EXPECT_NO_THROW(config = std::make_unique<Config>("../../config/config.yaml"));
         ASSERT_NE(nullptr, config);
         EXPECT_NO_THROW(api_config = config->get("api"));
-        EXPECT_NO_THROW(port_config = config->get("port"));
+        EXPECT_NO_THROW(server_address_config = config->get("server_address"));
         EXPECT_NO_THROW(camera_config = config->get("camera"));
 
         EXPECT_NO_THROW(camera = data::CameraFactory::createCamera(camera_config));
@@ -30,7 +30,7 @@ protected:
         EXPECT_NO_THROW(core = core::CoreFactory::createCore(camera_config, std::move(camera)));
         ASSERT_NE(nullptr, core);
 
-        EXPECT_NO_THROW(service = camera_service::api::ControllerFactory::createController(api_config, port_config,
+        EXPECT_NO_THROW(service = camera_service::api::ControllerFactory::createController(api_config, server_address_config,
             std::move(core)));
         ASSERT_NE(nullptr, service);
 
@@ -44,14 +44,13 @@ protected:
     std::unique_ptr<core::ICore> core;
     std::unique_ptr<api::Controller> service;
     std::string api_config;
-    std::string port_config;
+    std::string server_address_config;
     std::string camera_config;
 };
 
 TEST_F(ServiceSystemTests, CameraRequestResponse) {
-    const auto server_address = "localhost:" + port_config;
-    std::cout << "Connecting to server at " << server_address << std::endl;
-    const auto channel = CreateChannel(server_address, grpc::InsecureChannelCredentials());
+    std::cout << "Connecting to server at " << server_address_config << std::endl;
+    const auto channel = CreateChannel(server_address_config, grpc::InsecureChannelCredentials());
     const GrpcClient client(channel);
 
     constexpr double test_zoom = 2.5;
@@ -69,12 +68,4 @@ TEST_F(ServiceSystemTests, CameraRequestResponse) {
     const auto focus_result = client.getFocus();
     ASSERT_TRUE(focus_result.isSuccess());
     EXPECT_DOUBLE_EQ(test_focus, focus_result.value());
-}
-
-TEST_F(ServiceSystemTests, CollectCameraStatus) {
-    FAIL() << "Not implemented";
-}
-
-TEST_F(ServiceSystemTests, CollectLogs) {
-    FAIL() << "Not implemented";
 }

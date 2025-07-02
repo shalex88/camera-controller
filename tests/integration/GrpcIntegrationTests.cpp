@@ -34,7 +34,7 @@ protected:
         grpc_transport = std::make_unique<api::GrpcTransport>(request_handler);
 
         EXPECT_TRUE(request_handler->start().isSuccess());
-        EXPECT_TRUE(grpc_transport->start(port).isSuccess());
+        EXPECT_TRUE(grpc_transport->start(server_address).isSuccess());
 
         // Run the server loop in a separate thread
         server_thread = std::thread([this]() {
@@ -42,7 +42,6 @@ protected:
         });
 
         // Give the server a moment to start listening
-        const auto server_address = "localhost:" + port;
         std::cout << "Connecting to server at " << server_address << std::endl;
         const auto channel = grpc::CreateChannel(server_address, grpc::InsecureChannelCredentials());
         client = std::make_unique<GrpcClient>(channel);
@@ -64,7 +63,7 @@ protected:
     CoreMock* core {}; // Raw pointer to access the mock
     std::shared_ptr<api::RequestHandler> request_handler;
     std::unique_ptr<api::GrpcTransport> grpc_transport;
-    std::string port = "50051";
+    std::string server_address = "0.0.0.0:50051";
     std::unique_ptr<GrpcClient> client;
     std::thread server_thread;
     Result<void> server_result;

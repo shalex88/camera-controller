@@ -15,7 +15,7 @@ int main() {
         // Cross-cutting concerns (common)
         const auto config = std::make_unique<Config>("../config/config.yaml");
         const auto api_config = config->get("api");
-        const auto port_config = config->get("port");
+        const auto port_config = config->get("server_address");
         const auto camera_config = config->get("camera");
 
         // Data access layer

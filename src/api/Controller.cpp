@@ -5,16 +5,16 @@
 #include "common/Logger/Logger.h"
 
 namespace camera_service::api {
-    Controller::Controller(std::shared_ptr<IRequestHandler> request_handler, std::unique_ptr<ITransport> transport, const std::string& port)
-        : request_handler_(std::move(request_handler)), transport_(std::move(transport)), port_(port), running_(false) {
+    Controller::Controller(std::shared_ptr<IRequestHandler> request_handler, std::unique_ptr<ITransport> transport, const std::string& server_address)
+        : request_handler_(std::move(request_handler)), transport_(std::move(transport)), server_address_(server_address), running_(false) {
         if (!request_handler_) {
             throw std::invalid_argument("Request Handler cannot be null");
         }
         if (!transport_) {
             throw std::invalid_argument("Transport cannot be null");
         }
-        if (port_.empty()) {
-            throw std::invalid_argument("Port cannot be empty");
+        if (server_address_.empty()) {
+            throw std::invalid_argument("server_address cannot be empty");
         }
     }
 
@@ -31,7 +31,7 @@ namespace camera_service::api {
             return Result<void>::error("Failed to start request handler: " + requst_handler_start_result.error());
         }
 
-        if (const auto transport_result = transport_->start(port_); transport_result.isError()) {
+        if (const auto transport_result = transport_->start(server_address_); transport_result.isError()) {
             request_handler_->stop();
             return Result<void>::error("Failed to start transport: " + transport_result.error());
         }
