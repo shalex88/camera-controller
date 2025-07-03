@@ -1,23 +1,15 @@
 #pragma once
-#include <stdexcept>
+#include "common/types/Result.h"
+#include "common/types/CameraTypes.h"
+#include "common/types/ICameraOperations.h"
 
 namespace camera_service::data {
-    class CameraException final : public std::runtime_error {
+    class ICamera : public api::ICameraOperations {
     public:
-        explicit CameraException(const char* message) : std::runtime_error(message) {
-        }
-    };
+        ~ICamera() override = default;
 
-    class ICamera {
-    public:
-        virtual ~ICamera() = default;
-
-        virtual void setZoom(double zoom_level) = 0;
-        virtual double getZoom() const = 0;
-        virtual void setFocus(double focus_value) = 0;
-        virtual double getFocus() const = 0;
-        virtual bool connect() = 0;
-        virtual void disconnect() = 0;
+        virtual Result<void> connect() = 0;
+        virtual Result<void> disconnect() = 0;
         virtual bool isConnected() const = 0;
     };
 }

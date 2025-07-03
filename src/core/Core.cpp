@@ -1,98 +1,88 @@
 #include "Core.h"
-
 #include <iostream>
-
 #include "common/Logger/Logger.h"
 #include "data/ICamera.h"
 
 namespace camera_service::core {
     Core::Core(std::unique_ptr<data::ICamera> camera)
-        : camera_(std::move(camera)), initialized_(false) {
+        : camera_(std::move(camera)), is_initialized_(false) {
         if (!camera_) {
-            throw CoreException("Cannot initialize Core with null camera");
+            throw std::invalid_argument("Cannot initialize Core with null camera");
         }
     }
 
     Core::~Core() {
-        if (initialized_) {
+        if (isInitialized()) {
             shutdown();
         }
     }
 
-    bool Core::initialize() {
+    Result<void> Core::initialize() {
         LOG_INFO("Initializing Core...");
 
         if (!camera_->isConnected()) {
-            if (!camera_->connect()) {
-                throw CoreException("Failed to connect to camera");
+            if (const auto connect_result = camera_->connect(); connect_result.isError()) {
+                return Result<void>::error(connect_result.error());
             }
         }
 
-        initialized_ = true;
-        LOG_INFO("NFOV Core initialized successfully.");
-        return true;
+        is_initialized_ = true;
+        LOG_INFO("Core initialized successfully.");
+        return Result<void>::success();
     }
 
-    void Core::shutdown() {
-        if (!initialized_) {
-            return;
+    Result<void> Core::shutdown() {
+        if (!isInitialized()) {
+            return Result<void>::success();
         }
+
+        is_initialized_ = false;
 
         LOG_INFO("Shutting down Core...");
 
         if (camera_ && camera_->isConnected()) {
-            camera_->disconnect();
+            if (const auto disconnect_result = camera_->disconnect(); disconnect_result.isError()) {
+                return Result<void>::error(disconnect_result.error());
+            }
         }
 
-        initialized_ = false;
         LOG_INFO("Core shut down successfully.");
+        return Result<void>::success();
     }
 
-    void Core::setZoom(const double zoom_level) {
-        if (!initialized_) {
-            throw CoreException("Core not initialized");
-        }
-
-        try {
-            camera_->setZoom(zoom_level);
-        } catch (const data::CameraException& e) {
-            throw CoreException(std::string("Camera error during zoom operation: ") + e.what());
-        }
+    bool Core::isInitialized() const {
+        return is_initialized_;
     }
 
-    double Core::getZoom() const {
-        if (!initialized_) {
-            throw CoreException("Core not initialized");
+    Result<void> Core::setZoom(const types::zoom zoom_level) {
+        if (!isInitialized()) {
+            return Result<void>::error("Core not initialized");
         }
 
-        try {
-            return camera_->getZoom();
-        } catch (const data::CameraException& e) {
-            throw CoreException(std::string("Camera error retrieving zoom: ") + e.what());
-        }
+        return camera_->setZoom(zoom_level);
     }
 
-    void Core::setFocus(const double focus_value) {
-        if (!initialized_) {
-            throw CoreException("Core not initialized");
+    Result<types::zoom> Core::getZoom() const {
+        if (!isInitialized()) {
+            return Result<types::zoom>::error("Core not initialized");
         }
 
-        try {
-            camera_->setFocus(focus_value);
-        } catch (const data::CameraException& e) {
-            throw CoreException(std::string("Camera error during focus operation: ") + e.what());
-        }
+        return camera_->getZoom();
     }
 
-    double Core::getFocus() const {
-        if (!initialized_) {
-            throw CoreException("Core not initialized");
+    Result<void> Core::setFocus(const types::focus focus_value) {
+        if (!isInitialized()) {
+            return Result<void>::error("Core not initialized");
         }
 
-        try {
-            return camera_->getFocus();
-        } catch (const data::CameraException& e) {
-            throw CoreException(std::string("Camera error retrieving focus: ") + e.what());
+        return camera_->setFocus(focus_value);
+    }
+
+    Result<types::focus> Core::getFocus() const {
+        if (!isInitialized()) {
+            return Result<types::focus>::error("Core not initialized");
         }
+
+        return camera_->getFocus();
     }
 }

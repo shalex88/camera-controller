@@ -2,6 +2,7 @@
 #include <string>
 #include <unordered_map>
 #include <stdexcept>
+#include <filesystem>
 
 class ConfigException final : public std::runtime_error {
 public:
@@ -12,7 +13,7 @@ class Config {
 public:
     Config() = delete;
     explicit Config(const std::string& filename);
-    void loadFromFile(const std::string& filename);
+    void loadFromFile(const std::filesystem::path& filename);
     std::string get(const std::string& key) const;
     bool has(const std::string& key) const;
     void set(const std::string& key, const std::string& value);

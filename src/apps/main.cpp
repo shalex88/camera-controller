@@ -3,6 +3,7 @@
 
 #include "data/CameraFactory.h"
 #include "api/ControllerFactory.h"
+#include "api/Controller.h"
 #include "core/CoreFactory.h"
 #include "common/Logger/Logger.h"
 #include "common/Config/Config.h"
@@ -13,19 +14,22 @@ int main() {
     try {
         // Cross-cutting concerns (common)
         const auto config = std::make_unique<Config>("../config/config.yaml");
+        const auto api_config = config->get("api");
+        const auto port_config = config->get("server_address");
+        const auto camera_config = config->get("camera");
 
         // Data access layer
-        auto camera = camera_service::data::CameraFactory::createCamera(config->get("camera"));
+        auto camera = camera_service::data::CameraFactory::createCamera(camera_config);
 
         // Business logic layer
-        auto core = camera_service::core::CoreFactory::createCore(config->get("camera"), std::move(camera));
+        auto core = camera_service::core::CoreFactory::createCore(camera_config, std::move(camera));
 
         // Presentation layer
-        const auto controller = camera_service::api::ControllerFactory::createController(config->get("api"), std::move(core));
+        const auto service = camera_service::api::ControllerFactory::createController(api_config, port_config, std::move(core));
 
-        if (!controller->start()) {
-            LOG_ERROR("Controller failed");
-            return EXIT_FAILURE;
+        service->startAsync();
+        while (service->isRunning()) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     } catch (const std::exception& e) {
         LOG_ERROR("Error during startup: {}", e.what());

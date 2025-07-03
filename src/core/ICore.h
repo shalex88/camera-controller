@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
-#include <stdexcept>
+#include "common/types/Result.h"
+#include "common/types/ICameraOperations.h"
 
 namespace camera_service::core {
     class CoreException final : public std::runtime_error {
@@ -9,17 +10,11 @@ namespace camera_service::core {
         }
     };
 
-    class ICore {
+    class ICore : public api::ICameraOperations {
     public:
-        virtual ~ICore() = default;
+        ~ICore() override = default;
 
-        virtual bool initialize() = 0;
-        virtual void shutdown() = 0;
-
-        virtual void setZoom(double zoom_level) = 0;
-        virtual double getZoom() const = 0;
-
-        virtual void setFocus(double focus_value) = 0;
-        virtual double getFocus() const = 0;
+        virtual Result<void> initialize() = 0;
+        virtual Result<void> shutdown() = 0;
     };
 }

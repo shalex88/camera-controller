@@ -8,6 +8,6 @@ namespace camera_service::core {
         if (core_type == "nfov" || core_type == "wfov") {
             return std::make_unique<Core>(std::move(camera));
         }
-        throw CoreException("Unknown core type");
+        throw std::invalid_argument("Unknown core type");
     }
 }

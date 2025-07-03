@@ -1,7 +1,8 @@
-#include "gtest/gtest.h"
-#include "gmock/gmock.h"
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 /* Add your project include files here */
 #include "data/NfovCamera.h"
+#include "common/types/Result.h"
 
 using namespace camera_service;
 using namespace testing;
@@ -16,7 +17,7 @@ protected:
 };
 
 TEST_F(NfovCameraTests, CanBeConstructed) {
-    auto camera = std::make_unique<data::NfovCamera>();
+    const auto camera = std::make_unique<data::NfovCamera>();
     ASSERT_NE(nullptr, camera);
 }
 
@@ -25,55 +26,83 @@ TEST_F(NfovCameraTests, InitiallyNotConnected) {
 }
 
 TEST_F(NfovCameraTests, ConnectDisconnect) {
-    EXPECT_TRUE(camera->connect());
+    const auto connect_result = camera->connect();
+    EXPECT_TRUE(connect_result.isSuccess());
     EXPECT_TRUE(camera->isConnected());
 
-    camera->disconnect();
+    const auto disconnect_result = camera->disconnect();
+    EXPECT_TRUE(disconnect_result.isSuccess());
     EXPECT_FALSE(camera->isConnected());
 }
 
+TEST_F(NfovCameraTests, ConnectWhenConnectedFails) {
+    const auto connect_result = camera->connect();
+    ASSERT_TRUE(connect_result.isSuccess());
+
+    const auto second_connect_result = camera->connect();
+    EXPECT_TRUE(second_connect_result.isError());
+    EXPECT_TRUE(second_connect_result.error().find("connected") != std::string::npos);
+}
+
 TEST_F(NfovCameraTests, DisconnectWhenNotConnected) {
-    EXPECT_NO_THROW(camera->disconnect());
+    const auto result = camera->disconnect();
+    EXPECT_TRUE(result.isError());
+    EXPECT_FALSE(camera->isConnected());
 }
 
 TEST_F(NfovCameraTests, SetZoomWhenNotConnected) {
-    EXPECT_THROW(camera->setZoom(2.0), data::CameraException);
+    const auto result = camera->setZoom(2.0);
+    EXPECT_TRUE(result.isError());
+    EXPECT_EQ(result.error(), "Cannot set zoom: NFOV Camera not connected");
 }
 
 TEST_F(NfovCameraTests, GetZoomWhenNotConnected) {
-    EXPECT_THROW(camera->getZoom(), data::CameraException);
+    const auto result = camera->getZoom();
+    EXPECT_TRUE(result.isError());
+    EXPECT_EQ(result.error(), "Cannot get zoom: NFOV Camera not connected");
 }
 
 TEST_F(NfovCameraTests, SetFocusWhenNotConnected) {
-    EXPECT_THROW(camera->setFocus(1.0), data::CameraException);
+    const auto result = camera->setFocus(1.0);
+    EXPECT_TRUE(result.isError());
+    EXPECT_EQ(result.error(), "Cannot set focus: NFOV Camera not connected");
 }
 
 TEST_F(NfovCameraTests, GetFocusWhenNotConnected) {
-    EXPECT_THROW(camera->getFocus(), data::CameraException);
+    const auto result = camera->getFocus();
+    EXPECT_TRUE(result.isError());
+    EXPECT_EQ(result.error(), "Cannot get focus: NFOV Camera not connected");
 }
 
-TEST_F(NfovCameraTests, SetAndGetZoom) {
-    camera->connect();
+TEST_F(NfovCameraTests, ZoomOperations) {
+    const auto connect_result = camera->connect();
+    ASSERT_TRUE(connect_result.isSuccess());
 
-    camera->setZoom(2.0);
-    EXPECT_DOUBLE_EQ(camera->getZoom(), 2.0);
+    const auto set_result = camera->setZoom(2.0);
+    EXPECT_TRUE(set_result.isSuccess());
 
-    camera->setZoom(3.5);
-    EXPECT_DOUBLE_EQ(camera->getZoom(), 3.5);
+    const auto get_result = camera->getZoom();
+    ASSERT_TRUE(get_result.isSuccess());
+    EXPECT_DOUBLE_EQ(2.0, get_result.value());
 }
 
-TEST_F(NfovCameraTests, SetInvalidZoom) {
-    camera->connect();
-    EXPECT_THROW(camera->setZoom(0.0), data::CameraException);
-    EXPECT_THROW(camera->setZoom(-1.0), data::CameraException);
+TEST_F(NfovCameraTests, FocusOperations) {
+    const auto connect_result = camera->connect();
+    ASSERT_TRUE(connect_result.isSuccess());
+
+    const auto set_result = camera->setFocus(1.5);
+    EXPECT_TRUE(set_result.isSuccess());
+
+    const auto get_result = camera->getFocus();
+    ASSERT_TRUE(get_result.isSuccess());
+    EXPECT_DOUBLE_EQ(1.5, get_result.value());
 }
 
-TEST_F(NfovCameraTests, SetAndGetFocus) {
-    camera->connect();
+TEST_F(NfovCameraTests, InvalidZoomValue) {
+    const auto connect_result = camera->connect();
+    ASSERT_TRUE(connect_result.isSuccess());
 
-    camera->setFocus(1.5);
-    EXPECT_DOUBLE_EQ(camera->getFocus(), 1.5);
-
-    camera->setFocus(-0.5);
-    EXPECT_DOUBLE_EQ(camera->getFocus(), -0.5);
+    const auto result = camera->setZoom(-1.0);
+    EXPECT_TRUE(result.isError());
+    EXPECT_EQ(result.error(), "Invalid zoom level: Value must be greater than zero");
 }

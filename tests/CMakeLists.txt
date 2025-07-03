@@ -2,11 +2,16 @@ project(${PROJECT_NAME})
 
 enable_testing()
 
+if(CMAKE_CROSSCOMPILING)
+    set(gtest_force_shared_crt OFF CACHE BOOL "Use shared (DLL) run-time lib even when Google Test is built as static lib" FORCE)
+    set(INSTALL_GTEST OFF CACHE BOOL "Enable installation of googletest" FORCE)
+endif()
+
 include(FetchContent)
 FetchContent_Declare(
-   GoogleTest
-   GIT_REPOSITORY https://github.com/google/googletest.git
-   GIT_TAG v1.17.0
+        GoogleTest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG v1.17.0
 )
 
 FetchContent_MakeAvailable(GoogleTest)
@@ -31,10 +36,16 @@ foreach(TEST_DIR ${TEST_DIRS})
             link_common_libraries(${TARGET_NAME})
 
             include(GoogleTest)
-            gtest_discover_tests(${TARGET_NAME})
 
-            target_compile_options(${TARGET_NAME} PRIVATE --coverage)
-            target_link_options(${TARGET_NAME} PRIVATE --coverage)
+            if(CMAKE_CROSSCOMPILING)
+                gtest_add_tests(TARGET ${TARGET_NAME}
+                        SOURCES ${TEST_FILES}
+                        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+            else()
+                gtest_discover_tests(${TARGET_NAME})
+                target_compile_options(${TARGET_NAME} PRIVATE --coverage)
+                target_link_options(${TARGET_NAME} PRIVATE --coverage)
+            endif()
 
             message(STATUS "Created test target: ${TARGET_NAME}")
         endif()

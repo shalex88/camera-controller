@@ -12,6 +12,12 @@
 
 ## Test
 
+### Unit tests
+
+```bash
+./camera-service-unit-tests
+```
+
 ### Integration tests
 
 ```bash
@@ -23,3 +29,13 @@
 ```bash
 ./camera-service-system-tests
 ```
+
+## TODO
+
+- [ ] Add a configuration object
+- [ ] Add concurrency support
+- [ ] Add DTO support
+- [ ] Add limits check for type aliases
+- [ ] Add thread safety
+- [ ] Add health status
+- [ ] Add a state pattern

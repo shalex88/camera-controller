@@ -1,47 +1,41 @@
-#include "gtest/gtest.h"
-#include "gmock/gmock.h"
+#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 /* Add your project include files here */
 #include "api/ControllerFactory.h"
-
-#include "api/GrpcController.h"
-#include "api/TcpController.h"
+#include "api/Controller.h"
 #include "core/ICore.h"
+#include "common/types/Result.h"
 
 using namespace camera_service;
 using namespace testing;
 
-class MockCore final: public core::ICore {
+class CoreMock final: public core::ICore {
 public:
-    MOCK_METHOD(bool, initialize, (), (override));
-    MOCK_METHOD(void, shutdown, (), (override));
-    MOCK_METHOD(void, setZoom, (double), (override));
-    MOCK_METHOD(double, getZoom, (), (const, override));
-    MOCK_METHOD(void, setFocus, (double), (override));
-    MOCK_METHOD(double, getFocus, (), (const, override));
+    MOCK_METHOD(Result<void>, initialize, (), (override));
+    MOCK_METHOD(Result<void>, shutdown, (), (override));
+    MOCK_METHOD(Result<void>, setZoom, (types::zoom), (override));
+    MOCK_METHOD(Result<types::zoom>, getZoom, (), (const, override));
+    MOCK_METHOD(Result<void>, setFocus, (types::focus), (override));
+    MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
 };
 
 class ControllerFactoryTests : public Test {
 protected:
-    static std::unique_ptr<MockCore> createMockCore() {
-        return std::make_unique<MockCore>();
+    static std::unique_ptr<CoreMock> createMockCore() {
+        return std::make_unique<CoreMock>();
     }
+    std::string server_address = "50051";
 };
 
-TEST_F(ControllerFactoryTests, CreateGrpcControllerSuccess) {
-    auto controller = api::ControllerFactory::createController("grpc", createMockCore());
-    ASSERT_NE(nullptr, controller);
-    EXPECT_TRUE(dynamic_cast<api::GrpcController*>(controller.get()) != nullptr);
-}
-
-TEST_F(ControllerFactoryTests, CreateTcpControllerSuccess) {
-    auto controller = api::ControllerFactory::createController("tcp", createMockCore());
-    ASSERT_NE(nullptr, controller);
-    EXPECT_TRUE(dynamic_cast<api::TcpController*>(controller.get()) != nullptr);
+TEST_F(ControllerFactoryTests, CreateGrpcServiceSuccess) {
+    const auto service = api::ControllerFactory::createController("grpc", server_address, createMockCore());
+    ASSERT_NE(nullptr, service);
+    EXPECT_TRUE(service.get() != nullptr);
 }
 
 TEST_F(ControllerFactoryTests, ThrowsOnUnknownType) {
     EXPECT_THROW(
-        api::ControllerFactory::createController("unknown", createMockCore()),
-        api::ControllerException
+        api::ControllerFactory::createController("unknown", server_address, createMockCore()),
+        std::invalid_argument
     );
 }

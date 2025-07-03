@@ -22,7 +22,11 @@ jobs:
 
       - name: Configure
         run: |
-          cmake -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+          cmake -B build \
+            -G "Ninja" \
+            -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
+            -DVCPKG_TARGET_TRIPLET=x64-linux-release \
+            -DVCPKG_HOST_TRIPLET=x64-linux-release
 
       - name: Build
         run: |
@@ -37,17 +41,16 @@ jobs:
       - name: Create coverage reports
         if: github.event_name == 'push'
         run: |
-          cd ./build
-          sudo apt-get install lcov
-          lcov --capture --directory . --output-file coverage.info --ignore-errors mismatch --rc geninfo_unexecuted_blocks=1
-          lcov --remove coverage.info '/usr/*' --output-file coverage.info
-          lcov --remove coverage.info '*/tests/*' --output-file coverage.info
-          lcov --remove coverage.info '*/build/*' --output-file coverage.info
-          lcov --list coverage.info
-          rm -rf tests
+          pip install gcovr
+          gcovr --xml coverage_report.xml --exclude '.*tests.*' --exclude '.*build.*' 
+          gcovr --exclude '.*tests.*' --exclude '.*build.*'
+          rm -rf ./build/tests
 
       - name: Upload coverage reports to Codecov
         if: github.event_name == 'push'
         uses: codecov/codecov-action@v5
+        with:
+          fail_ci_if_error: false
+          verbose: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

@@ -1,7 +1,5 @@
 #include "Config.h"
 
-#include <filesystem>
-
 #include <yaml-cpp/yaml.h>
 
 Config::Config(const std::string& filename) {
@@ -11,9 +9,8 @@ Config::Config(const std::string& filename) {
     loadFromFile(filename);
 }
 
-void Config::loadFromFile(const std::string& filename) {
+void Config::loadFromFile(const std::filesystem::path& filename) {
     try {
-        // Convert YAML nodes to string key-value pairs
         for (YAML::Node config = YAML::LoadFile(filename); const auto& it : config) {
             auto key = it.first.as<std::string>();
             const auto value = it.second.as<std::string>();
