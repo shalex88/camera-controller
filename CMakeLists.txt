@@ -41,6 +41,9 @@ endif()
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
+include(resources/registers/GenerateRegistersMap.cmake)
+add_dependencies(${PROJECT_NAME} registers)
+
 function(link_common_libraries target)
     target_link_libraries(${target}
             PUBLIC
@@ -48,6 +51,7 @@ function(link_common_libraries target)
             proto
             spdlog::spdlog_header_only
             ${YAML_CPP_TARGET}
+            registers
     )
 endfunction(link_common_libraries)
 
