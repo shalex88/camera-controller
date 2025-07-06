@@ -52,14 +52,14 @@ TEST_F(ConfigTests, GetNonexistentKey) {
 
 TEST_F(ConfigTests, HasKey) {
     const Config config(test_config_path_);
-    EXPECT_TRUE(config.has("camera"));
+    ASSERT_TRUE(config.has("camera"));
     EXPECT_FALSE(config.has("nonexistent"));
 }
 
 TEST_F(ConfigTests, SetAndGetValue) {
     Config config(test_config_path_);
     config.set("new_key", "new_value");
-    EXPECT_TRUE(config.has("new_key"));
+    ASSERT_TRUE(config.has("new_key"));
     EXPECT_EQ(config.get("new_key"), "new_value");
 }
 

@@ -31,7 +31,7 @@ protected:
 TEST_F(CoreFactoryTests, CreateCameraCoreSuccess) {
     const auto core = core::CoreFactory::createCore("nfov", createMockCamera());
     ASSERT_NE(nullptr, core);
-    EXPECT_TRUE(dynamic_cast<core::Core*>(core.get()) != nullptr);
+    ASSERT_TRUE(dynamic_cast<core::Core*>(core.get()) != nullptr);
 }
 
 TEST_F(CoreFactoryTests, ThrowsOnUnknownType) {

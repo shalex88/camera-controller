@@ -30,7 +30,7 @@ protected:
 TEST_F(ControllerFactoryTests, CreateGrpcServiceSuccess) {
     const auto service = api::ControllerFactory::createController("grpc", server_address, createMockCore());
     ASSERT_NE(nullptr, service);
-    EXPECT_TRUE(service.get() != nullptr);
+    ASSERT_TRUE(service.get() != nullptr);
 }
 
 TEST_F(ControllerFactoryTests, ThrowsOnUnknownType) {

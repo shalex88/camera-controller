@@ -28,7 +28,7 @@ protected:
     void TearDown() override {
         if (core) {
             const auto shutdown_result = core->shutdown();
-            EXPECT_TRUE(shutdown_result.isSuccess()) << "Failed to shut down core: " << shutdown_result.error();
+            ASSERT_TRUE(shutdown_result.isSuccess()) << "Failed to shut down core: " << shutdown_result.error();
         }
     }
 
@@ -39,14 +39,14 @@ protected:
 
 TEST_F(CameraIntegrationTests, CameraOperation) {
     const auto set_zoom_result = core->setZoom(1.5);
-    EXPECT_TRUE(set_zoom_result.isSuccess()) << "Failed to set zoom: " << set_zoom_result.error();
+    ASSERT_TRUE(set_zoom_result.isSuccess()) << "Failed to set zoom: " << set_zoom_result.error();
 
     const auto get_zoom_result = core->getZoom();
     ASSERT_TRUE(get_zoom_result.isSuccess()) << "Failed to get zoom: " << get_zoom_result.error();
     EXPECT_EQ(get_zoom_result.value(), 1.5);
 
     const auto set_focus_result = core->setFocus(1.5);
-    EXPECT_TRUE(set_focus_result.isSuccess()) << "Failed to set focus: " << set_focus_result.error();
+    ASSERT_TRUE(set_focus_result.isSuccess()) << "Failed to set focus: " << set_focus_result.error();
 
     const auto get_focus_result = core->getFocus();
     ASSERT_TRUE(get_focus_result.isSuccess()) << "Failed to get focus: " << get_focus_result.error();
@@ -55,8 +55,8 @@ TEST_F(CameraIntegrationTests, CameraOperation) {
 
 TEST_F(CameraIntegrationTests, CameraReconnection) {
     const auto shutdown_result = core->shutdown();
-    EXPECT_TRUE(shutdown_result.isSuccess()) << "Failed to shut down: " << shutdown_result.error();
+    ASSERT_TRUE(shutdown_result.isSuccess()) << "Failed to shut down: " << shutdown_result.error();
 
     const auto init_result = core->initialize();
-    EXPECT_TRUE(init_result.isSuccess()) << "Failed to initialize: " << init_result.error();
+    ASSERT_TRUE(init_result.isSuccess()) << "Failed to initialize: " << init_result.error();
 }

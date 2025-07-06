@@ -69,7 +69,7 @@ TEST_F(ControllerTests, CreationFailEmptyPort) {
 
 TEST_F(ControllerTests, StartStopSuccess) {
     const auto start_result = controller->startAsync();
-    EXPECT_TRUE(start_result.isSuccess());
+    ASSERT_TRUE(start_result.isSuccess());
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -85,7 +85,7 @@ TEST_F(ControllerTests, StartFailOnRequestHandlerStartFail) {
         .WillOnce(Return(Result<void>::error("Request Handler start failed")));
 
     const auto result = controller->startAsync();
-    EXPECT_TRUE(result.isError());
+    ASSERT_TRUE(result.isError());
 }
 
 TEST_F(ControllerTests, StartFailOnTransportStartFail) {
@@ -93,22 +93,22 @@ TEST_F(ControllerTests, StartFailOnTransportStartFail) {
         .WillOnce(Return(Result<void>::error("Transport start failed")));
 
     const auto result = controller->startAsync();
-    EXPECT_TRUE(result.isError());
+    ASSERT_TRUE(result.isError());
 }
 
 TEST_F(ControllerTests, StopSuccessIfNotRunning) {
     const auto result = controller->stop();
-    EXPECT_TRUE(result.isSuccess()) << "Stop should succeed if not running";
+    ASSERT_TRUE(result.isSuccess()) << "Stop should succeed if not running";
 }
 
 TEST_F(ControllerTests, StopSuccessIfRunning) {
     const auto result = controller->stop();
-    EXPECT_TRUE(result.isSuccess()) << "Stop should succeed if not running";
+    ASSERT_TRUE(result.isSuccess()) << "Stop should succeed if not running";
 }
 
 TEST_F(ControllerTests, StopFailsIfTransportStopFails) {
     const auto start_result = controller->startAsync();
-    EXPECT_TRUE(start_result.isSuccess());
+    ASSERT_TRUE(start_result.isSuccess());
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -116,12 +116,12 @@ TEST_F(ControllerTests, StopFailsIfTransportStopFails) {
         .WillOnce(Return(Result<void>::error("Transport stop failed")));
 
     const auto stop_result = controller->stop();
-    EXPECT_TRUE(stop_result.isError());
+    ASSERT_TRUE(stop_result.isError());
 }
 
 TEST_F(ControllerTests, StopFailsIfRequestHandlerStopFails) {
     const auto start_result = controller->startAsync();
-    EXPECT_TRUE(start_result.isSuccess());
+    ASSERT_TRUE(start_result.isSuccess());
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
@@ -129,6 +129,6 @@ TEST_F(ControllerTests, StopFailsIfRequestHandlerStopFails) {
         .WillOnce(Return(Result<void>::error("Request Handler stop failed")));
 
     const auto stop_result = controller->stop();
-    EXPECT_TRUE(stop_result.isError());
+    ASSERT_TRUE(stop_result.isError());
 }
 

@@ -6,7 +6,7 @@
 #include <thread>
 
 #include "api/GrpcTransport.h"
-#include "utils/GrpcClient.h"
+#include "../../utils/GrpcClient.h"
 
 using namespace camera_service;
 using namespace testing;
@@ -33,8 +33,8 @@ protected:
         request_handler = std::make_shared<api::RequestHandler>(std::move(core_obj));
         grpc_transport = std::make_unique<api::GrpcTransport>(request_handler);
 
-        EXPECT_TRUE(request_handler->start().isSuccess());
-        EXPECT_TRUE(grpc_transport->start(server_address).isSuccess());
+        ASSERT_TRUE(request_handler->start().isSuccess());
+        ASSERT_TRUE(grpc_transport->start(server_address).isSuccess());
 
         // Run the server loop in a separate thread
         server_thread = std::thread([this]() {
@@ -78,9 +78,9 @@ TEST_F(GrpcIntegrationTests, SetZoomAndGetZoomSuccess) {
         .WillOnce(Return(Result<types::zoom>::success(test_zoom)));
 
     std::cout << "Test SetZoom " << test_zoom << " getZoom" << std::endl;
-    EXPECT_TRUE(client->setZoom(test_zoom).isSuccess());
+    ASSERT_TRUE(client->setZoom(test_zoom).isSuccess());
     auto get_zoom_result = client->getZoom();
-    EXPECT_TRUE(get_zoom_result.isSuccess());
+    ASSERT_TRUE(get_zoom_result.isSuccess());
     EXPECT_EQ(get_zoom_result.value(), test_zoom);
 }
 
@@ -90,7 +90,7 @@ TEST_F(GrpcIntegrationTests, RequestFailOnCoreFail) {
     EXPECT_CALL(*core, setZoom(test_zoom))
         .WillOnce(Return(Result<void>::error("Fail")));
 
-    EXPECT_TRUE(client->setZoom(test_zoom).isError());
+    ASSERT_TRUE(client->setZoom(test_zoom).isError());
 }
 
 TEST_F(GrpcIntegrationTests, RequestFailOnTimeout) {
@@ -104,6 +104,6 @@ TEST_F(GrpcIntegrationTests, RequestFailOnTimeout) {
         }));
 
     auto result = client->setZoom(test_zoom);
-    EXPECT_TRUE(result.isError());
-    EXPECT_TRUE(result.error().find("Deadline") != std::string::npos);
+    ASSERT_TRUE(result.isError());
+    ASSERT_TRUE(result.error().find("Deadline") != std::string::npos);
 }

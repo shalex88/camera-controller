@@ -10,7 +10,7 @@
 #include "data/CameraFactory.h"
 #include "common/Config/Config.h"
 #include "common/types/Result.h"
-#include "utils/GrpcClient.h"
+#include "../../utils/GrpcClient.h"
 
 using namespace camera_service;
 using namespace testing;
@@ -34,9 +34,9 @@ protected:
             std::move(core)));
         ASSERT_NE(nullptr, service);
 
-        EXPECT_TRUE(service->startAsync().isSuccess());
+        ASSERT_TRUE(service->startAsync().isSuccess());
         std::this_thread::sleep_for(1s);
-        EXPECT_TRUE(service->isRunning());
+        ASSERT_TRUE(service->isRunning());
     }
 
     std::unique_ptr<Config> config;
@@ -55,7 +55,7 @@ TEST_F(ServiceSystemTests, CameraRequestResponse) {
 
     constexpr double test_zoom = 2.5;
     std::cout << "Test SetZoom " << test_zoom <<" and GetZoom" << std::endl;
-    EXPECT_TRUE(client.setZoom(test_zoom).isSuccess());
+    ASSERT_TRUE(client.setZoom(test_zoom).isSuccess());
 
     const auto zoom_result = client.getZoom();
     ASSERT_TRUE(zoom_result.isSuccess());
@@ -63,7 +63,7 @@ TEST_F(ServiceSystemTests, CameraRequestResponse) {
 
     constexpr double test_focus = 1.8;
     std::cout << "Test SetFocus " << test_focus <<" and GetFocus" << std::endl;
-    EXPECT_TRUE(client.setFocus(test_focus).isSuccess());
+    ASSERT_TRUE(client.setFocus(test_focus).isSuccess());
 
     const auto focus_result = client.getFocus();
     ASSERT_TRUE(focus_result.isSuccess());

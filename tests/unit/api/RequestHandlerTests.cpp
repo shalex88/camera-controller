@@ -39,7 +39,7 @@ TEST_F(RequestHandlerTests, CreationFailNoCore) {
 
 TEST_F(RequestHandlerTests, StartSuccess) {
     const auto result = request_handler->start();
-    EXPECT_TRUE(result.isSuccess());
+    ASSERT_TRUE(result.isSuccess());
 }
 
 TEST_F(RequestHandlerTests, StartFailOnInitialize) {
@@ -47,7 +47,7 @@ TEST_F(RequestHandlerTests, StartFailOnInitialize) {
         .WillOnce(Return(Result<void>::error("Initialize failed")));
 
     const auto result = request_handler->start();
-    EXPECT_TRUE(result.isError());
+    ASSERT_TRUE(result.isError());
 }
 
 TEST_F(RequestHandlerTests, StopSuccessIfRunning) {
@@ -60,12 +60,12 @@ TEST_F(RequestHandlerTests, StopSuccessIfRunning) {
     ASSERT_TRUE(start_result.isSuccess());
 
     const auto stop_result = request_handler->stop();
-    EXPECT_TRUE(stop_result.isSuccess());
+    ASSERT_TRUE(stop_result.isSuccess());
 }
 
 TEST_F(RequestHandlerTests, StopSuccessIfNotRunning) {
     const auto result = request_handler->stop();
-    EXPECT_TRUE(result.isSuccess());
+    ASSERT_TRUE(result.isSuccess());
 }
 
 TEST_F(RequestHandlerTests, StopFailsIfCoreShutdownFails) {
@@ -78,7 +78,7 @@ TEST_F(RequestHandlerTests, StopFailsIfCoreShutdownFails) {
     ASSERT_TRUE(start_result.isSuccess());
 
     const auto stop_result = request_handler->stop();
-    EXPECT_TRUE(stop_result.isError());
+    ASSERT_TRUE(stop_result.isError());
 }
 
 TEST_F(RequestHandlerTests, ZoomOperations) {
@@ -100,22 +100,22 @@ TEST_F(RequestHandlerTests, ZoomOperations) {
     ASSERT_TRUE(start_result.isSuccess()) << "Failed to start: " << start_result.error();
 
     const auto set_result = request_handler->setZoom(2.0);
-    EXPECT_TRUE(set_result.isSuccess()) << "Failed to set zoom: " << set_result.error();
+    ASSERT_TRUE(set_result.isSuccess()) << "Failed to set zoom: " << set_result.error();
 
     const auto get_result = request_handler->getZoom();
     ASSERT_TRUE(get_result.isSuccess()) << "Failed to get zoom: " << get_result.error();
     EXPECT_DOUBLE_EQ(2.0, get_result.value());
 
     const auto stop_result = request_handler->stop();
-    EXPECT_TRUE(stop_result.isSuccess()) << "Failed to stop: " << stop_result.error();
+    ASSERT_TRUE(stop_result.isSuccess()) << "Failed to stop: " << stop_result.error();
 }
 
 TEST_F(RequestHandlerTests, ZoomOperationsFailIfNotRunning) {
     const auto set_result = request_handler->setZoom(2.0);
-    EXPECT_TRUE(set_result.isError());
+    ASSERT_TRUE(set_result.isError());
 
     const auto get_result = request_handler->getZoom();
-    EXPECT_TRUE(get_result.isError());
+    ASSERT_TRUE(get_result.isError());
 }
 
 TEST_F(RequestHandlerTests, FocusOperations) {
@@ -137,20 +137,20 @@ TEST_F(RequestHandlerTests, FocusOperations) {
     ASSERT_TRUE(start_result.isSuccess()) << "Failed to start: " << start_result.error();
 
     const auto set_result = request_handler->setFocus(1.5);
-    EXPECT_TRUE(set_result.isSuccess()) << "Failed to set focus: " << set_result.error();
+    ASSERT_TRUE(set_result.isSuccess()) << "Failed to set focus: " << set_result.error();
 
     const auto get_result = request_handler->getFocus();
     ASSERT_TRUE(get_result.isSuccess()) << "Failed to get focus: " << get_result.error();
     EXPECT_DOUBLE_EQ(1.5, get_result.value());
 
     const auto stop_result = request_handler->stop();
-    EXPECT_TRUE(stop_result.isSuccess()) << "Failed to stop: " << stop_result.error();
+    ASSERT_TRUE(stop_result.isSuccess()) << "Failed to stop: " << stop_result.error();
 }
 
 TEST_F(RequestHandlerTests, FocusOperationsFailIfNotRunning) {
     const auto set_result = request_handler->setFocus(2.0);
-    EXPECT_TRUE(set_result.isError());
+    ASSERT_TRUE(set_result.isError());
 
     const auto get_result = request_handler->getFocus();
-    EXPECT_TRUE(get_result.isError());
+    ASSERT_TRUE(get_result.isError());
 }

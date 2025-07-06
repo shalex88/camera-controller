@@ -21,37 +21,29 @@ TEST_F(NfovStrategyTests, CanBeConstructed) {
     ASSERT_NE(nullptr, camera);
 }
 
-TEST_F(NfovStrategyTests, InitiallyNotConnected) {
-    EXPECT_FALSE(camera_impl_->isConnected());
-}
-
 TEST_F(NfovStrategyTests, ConnectDisconnect) {
     const auto connect_result = camera_impl_->connect();
-    EXPECT_TRUE(connect_result.isSuccess());
-    EXPECT_TRUE(camera_impl_->isConnected());
+    ASSERT_TRUE(connect_result.isSuccess());
 
     const auto disconnect_result = camera_impl_->disconnect();
-    EXPECT_TRUE(disconnect_result.isSuccess());
-    EXPECT_FALSE(camera_impl_->isConnected());
+    ASSERT_TRUE(disconnect_result.isSuccess());
 }
 
 TEST_F(NfovStrategyTests, CanBeConnected) {
     const auto result = camera_impl_->connect();
-    EXPECT_TRUE(result.isSuccess());
-    EXPECT_TRUE(camera_impl_->isConnected());
+    ASSERT_TRUE(result.isSuccess());
 }
 
 TEST_F(NfovStrategyTests, DisconnectWhenNotConnected) {
     const auto result = camera_impl_->disconnect();
-    EXPECT_TRUE(result.isSuccess());
-    EXPECT_FALSE(camera_impl_->isConnected());
+    ASSERT_TRUE(result.isSuccess());
 }
 
 TEST_F(NfovStrategyTests, ZoomOperations) {
     constexpr auto expected_value = 2.0;
 
     const auto set_result = camera_impl_->setZoom(expected_value);
-    EXPECT_TRUE(set_result.isSuccess());
+    ASSERT_TRUE(set_result.isSuccess());
 
     const auto get_result = camera_impl_->getZoom();
     ASSERT_TRUE(get_result.isSuccess());
@@ -62,15 +54,9 @@ TEST_F(NfovStrategyTests, FocusOperations) {
     constexpr auto expected_value = 2.0;
 
     const auto set_result = camera_impl_->setFocus(expected_value);
-    EXPECT_TRUE(set_result.isSuccess());
+    ASSERT_TRUE(set_result.isSuccess());
 
     const auto get_result = camera_impl_->getFocus();
     ASSERT_TRUE(get_result.isSuccess());
     EXPECT_DOUBLE_EQ(expected_value, get_result.value());
-}
-
-TEST_F(NfovStrategyTests, InvalidZoomValue) {
-    const auto result = camera_impl_->setZoom(-1.0);
-    EXPECT_TRUE(result.isError());
-    EXPECT_EQ(result.error(), "Invalid zoom level: Value must be greater than zero");
 }

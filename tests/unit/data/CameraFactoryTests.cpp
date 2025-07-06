@@ -9,7 +9,7 @@ using namespace testing;
 TEST(CameraFactoryTests, CreateNfovCameraSuccess) {
     const auto camera = data::CameraFactory::createCamera("nfov");
     ASSERT_NE(nullptr, camera);
-    EXPECT_TRUE(camera.get() != nullptr);
+    ASSERT_TRUE(camera.get() != nullptr);
 }
 
 TEST(CameraFactoryTests, ThrowsOnUnknownType) {

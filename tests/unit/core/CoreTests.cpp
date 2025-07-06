@@ -48,7 +48,7 @@ TEST_F(CoreTests, InitializeSuccessWhenDisconnected) {
 
     core::Core core(std::move(camera));
     const auto result = core.initialize();
-    EXPECT_TRUE(result.isSuccess()) << "Failed to initialize: " << result.error();
+    ASSERT_TRUE(result.isSuccess()) << "Failed to initialize: " << result.error();
 }
 
 TEST_F(CoreTests, InitializeSuccessWhenAlreadyConnected) {
@@ -60,7 +60,7 @@ TEST_F(CoreTests, InitializeSuccessWhenAlreadyConnected) {
 
     core::Core core(std::move(camera));
     const auto result = core.initialize();
-    EXPECT_TRUE(result.isSuccess()) << "Failed to initialize: " << result.error();
+    ASSERT_TRUE(result.isSuccess()) << "Failed to initialize: " << result.error();
 }
 
 TEST_F(CoreTests, InitializeFailsOnConnectError) {
@@ -71,7 +71,7 @@ TEST_F(CoreTests, InitializeFailsOnConnectError) {
 
     core::Core core(std::move(camera));
     const auto result = core.initialize();
-    EXPECT_TRUE(result.isError());
+    ASSERT_TRUE(result.isError());
     EXPECT_EQ(result.error(), "Failed to connect");
 }
 
@@ -96,7 +96,7 @@ TEST_F(CoreTests, ZoomOperationsSuccess) {
     ASSERT_TRUE(init_result.isSuccess()) << "Failed to initialize: " << init_result.error();
 
     const auto set_result = core.setZoom(2.0);
-    EXPECT_TRUE(set_result.isSuccess());
+    ASSERT_TRUE(set_result.isSuccess());
 
     const auto get_result = core.getZoom();
     ASSERT_TRUE(get_result.isSuccess());
@@ -107,10 +107,10 @@ TEST_F(CoreTests, ZoomOperationsFailWhenNotInitialized) {
     core::Core core(std::move(camera));
 
     const auto set_result = core.setZoom(2.0);
-    EXPECT_TRUE(set_result.isError());
+    ASSERT_TRUE(set_result.isError());
 
     const auto get_result = core.getZoom();
-    EXPECT_TRUE(get_result.isError());
+    ASSERT_TRUE(get_result.isError());
 }
 
 TEST_F(CoreTests, FocusOperations) {
@@ -133,7 +133,7 @@ TEST_F(CoreTests, FocusOperations) {
     ASSERT_TRUE(init_result.isSuccess());
 
     const auto set_result = core.setFocus(1.5);
-    EXPECT_TRUE(set_result.isSuccess());
+    ASSERT_TRUE(set_result.isSuccess());
 
     const auto get_result = core.getFocus();
     ASSERT_TRUE(get_result.isSuccess());
@@ -144,10 +144,10 @@ TEST_F(CoreTests, FocusOperationsFailWhenNotInitialized) {
     core::Core core(std::move(camera));
 
     const auto set_result = core.setFocus(2.0);
-    EXPECT_TRUE(set_result.isError());
+    ASSERT_TRUE(set_result.isError());
 
     const auto get_result = core.getFocus();
-    EXPECT_TRUE(get_result.isError());
+    ASSERT_TRUE(get_result.isError());
 }
 
 TEST_F(CoreTests, ShutdownSuccess) {
@@ -164,13 +164,13 @@ TEST_F(CoreTests, ShutdownSuccess) {
     ASSERT_TRUE(init_result.isSuccess()) << "Failed to initialize: " << init_result.error();
 
     const auto shutdown_result = core.shutdown();
-    EXPECT_TRUE(shutdown_result.isSuccess()) << "Failed to shut down: " << shutdown_result.error();
+    ASSERT_TRUE(shutdown_result.isSuccess()) << "Failed to shut down: " << shutdown_result.error();
 }
 
 TEST_F(CoreTests, ShutdownWhenNotInitializedSuccess) {
     core::Core core(std::move(camera));
     const auto shutdown_result = core.shutdown();
-    EXPECT_TRUE(shutdown_result.isSuccess());
+    ASSERT_TRUE(shutdown_result.isSuccess());
 }
 
 TEST_F(CoreTests, ShutdownWhenCameraDisconnectFailsFails) {
@@ -187,6 +187,6 @@ TEST_F(CoreTests, ShutdownWhenCameraDisconnectFailsFails) {
     ASSERT_TRUE(init_result.isSuccess());
 
     const auto shutdown_result = core.shutdown();
-    EXPECT_TRUE(shutdown_result.isError());
+    ASSERT_TRUE(shutdown_result.isError());
     EXPECT_EQ(shutdown_result.error(), "Failed to disconnect");
 }
