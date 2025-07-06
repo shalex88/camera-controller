@@ -1,6 +1,5 @@
 #pragma once
 #include "common/types/Result.h"
-#include "common/types/CameraTypes.h"
 #include "common/types/ICameraOperations.h"
 
 namespace camera_service::data {
