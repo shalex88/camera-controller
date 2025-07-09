@@ -1,6 +1,5 @@
 #pragma once
 
-#include "api/proto/camera_service.pb.h"
 #include "api/proto/camera_service.grpc.pb.h"
 #include "api/ITransport.h"
 #include "api/IRequestHandler.h"

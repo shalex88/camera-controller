@@ -1,20 +1,20 @@
-#include "Camera.h"
+#include "CameraHal.h"
 
 #include <iostream>
 
 #include "common/Logger/Logger.h"
 
 namespace camera_service::data {
-    Camera::Camera(std::unique_ptr<ICameraStrategy> camera_strategy) : camera_impl_(std::move(camera_strategy)), limits_(camera_impl_->getLimits()) {
+    CameraHal::CameraHal(std::unique_ptr<ICameraHw> camera_strategy) : camera_hw_(std::move(camera_strategy)), limits_(camera_hw_->getLimits()) {
     }
 
-    Camera::~Camera() {
+    CameraHal::~CameraHal() {
         if (connected_) {
             disconnect();
         }
     }
 
-    Result<void> Camera::setZoom(const types::zoom zoom) {
+    Result<void> CameraHal::setZoom(const types::zoom zoom) {
         if (!connected_) {
             return Result<void>::error("Cannot set zoom: NFOV Camera not connected");
         }
@@ -24,16 +24,16 @@ namespace camera_service::data {
         }
 
         LOG_INFO("Setting camera zoom to: {}", zoom);
-        return camera_impl_->setZoom(zoom);
+        return camera_hw_->setZoom(zoom);
     }
 
-    Result<types::zoom> Camera::getZoom() const {
+    Result<types::zoom> CameraHal::getZoom() const {
         if (!connected_) {
             return Result<types::zoom>::error("Cannot get zoom: NFOV Camera not connected");
         }
 
         LOG_INFO("Getting camera zoom");
-        auto zoom_result = camera_impl_->getZoom();
+        auto zoom_result = camera_hw_->getZoom();
 
         if (zoom_result.isError()) {
             return Result<types::zoom>::error("Failed to get zoom: " + zoom_result.error());
@@ -46,7 +46,7 @@ namespace camera_service::data {
         return zoom_result;
     }
 
-    Result<void> Camera::setFocus(const types::focus focus) {
+    Result<void> CameraHal::setFocus(const types::focus focus) {
         if (!connected_) {
             return Result<void>::error("Cannot set focus: NFOV Camera not connected");
         }
@@ -56,15 +56,15 @@ namespace camera_service::data {
         }
 
         LOG_INFO("Setting camera focus to: {}", focus);
-        return camera_impl_->setFocus(focus);
+        return camera_hw_->setFocus(focus);
     }
 
-    Result<types::focus> Camera::getFocus() const {
+    Result<types::focus> CameraHal::getFocus() const {
         if (!connected_) {
             return Result<types::focus>::error("Cannot get focus: NFOV Camera not connected");
         }
         LOG_INFO("Getting camera focus");
-        auto focus_result = camera_impl_->getFocus();
+        auto focus_result = camera_hw_->getFocus();
 
         if (focus_result.isError()) {
             return Result<types::zoom>::error("Failed to get focus: " + focus_result.error());
@@ -77,13 +77,13 @@ namespace camera_service::data {
         return focus_result;
     }
 
-    Result<void> Camera::connect() {
+    Result<void> CameraHal::connect() {
         if (connected_) {
             return Result<void>::error("NFOV Camera already connected");
         }
 
         LOG_INFO("Connecting to NFOV camera");
-        if (camera_impl_->connect().isError()) {
+        if (camera_hw_->connect().isError()) {
             return Result<void>::error("Connecting to NFOV camera failed");
         }
 
@@ -92,13 +92,13 @@ namespace camera_service::data {
         return Result<void>::success();
     }
 
-    Result<void> Camera::disconnect() {
+    Result<void> CameraHal::disconnect() {
         if (!connected_) {
             return Result<void>::error("NFOV Camera not connected");
         }
 
         LOG_INFO("Disconnecting from NFOV camera");
-        if (camera_impl_->disconnect().isError()) {
+        if (camera_hw_->disconnect().isError()) {
             return Result<void>::error("Connecting to NFOV camera failed");
         }
 
@@ -107,15 +107,15 @@ namespace camera_service::data {
         return Result<void>::success();
     }
 
-    bool Camera::isConnected() const {
+    bool CameraHal::isConnected() const {
         return connected_;
     }
 
-    bool Camera::isValidZoom(types::zoom value) const {
+    bool CameraHal::isValidZoom(const types::zoom value) const {
         return value >= limits_.min_zoom && value <= limits_.max_zoom;
     }
 
-    bool Camera::isValidFocus(types::focus value) const {
+    bool CameraHal::isValidFocus(const types::focus value) const {
         return value >= limits_.min_focus && value <= limits_.max_focus;
     }
 }

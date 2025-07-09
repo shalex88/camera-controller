@@ -1,10 +1,10 @@
 #include "Core.h"
 #include <iostream>
 #include "common/Logger/Logger.h"
-#include "data/ICamera.h"
+#include "data/ICameraHal.h"
 
 namespace camera_service::core {
-    Core::Core(std::unique_ptr<data::ICamera> camera)
+    Core::Core(std::unique_ptr<data::ICameraHal> camera)
         : camera_(std::move(camera)), is_initialized_(false) {
         if (!camera_) {
             throw std::invalid_argument("Cannot initialize Core with null camera");

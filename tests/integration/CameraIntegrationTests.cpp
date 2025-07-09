@@ -33,7 +33,7 @@ protected:
     }
 
     std::unique_ptr<Config> config;
-    std::unique_ptr<data::ICamera> camera;
+    std::unique_ptr<data::ICameraHal> camera;
     std::shared_ptr<core::ICore> core;
 };
 

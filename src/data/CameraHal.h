@@ -1,15 +1,15 @@
 #pragma once
-#include "ICamera.h"
+#include "ICameraHal.h"
 
 #include <memory>
 
-#include "ICameraStrategy.h"
+#include "ICameraHw.h"
 
 namespace camera_service::data {
-    class Camera final : public ICamera {
+    class CameraHal final : public ICameraHal {
     public:
-        explicit Camera(std::unique_ptr<ICameraStrategy> camera_strategy);
-        ~Camera() override;
+        explicit CameraHal(std::unique_ptr<ICameraHw> camera_strategy);
+        ~CameraHal() override;
 
         Result<void> setZoom(types::zoom zoom) override;
         Result<types::zoom> getZoom() const override;
@@ -20,10 +20,10 @@ namespace camera_service::data {
         bool isConnected() const override;
 
     private:
-        std::unique_ptr<ICameraStrategy> camera_impl_;
+        std::unique_ptr<ICameraHw> camera_hw_;
         bool connected_ {false};
-        bool isValidZoom(types::zoom value) const;
-        bool isValidFocus(types::focus value) const;
+        bool isValidZoom(const types::zoom value) const;
+        bool isValidFocus(const types::focus value) const;
         types::CameraLimits limits_;
     };
 }

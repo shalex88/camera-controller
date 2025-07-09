@@ -4,8 +4,8 @@
 #include <chrono>
 #include <memory>
 
-#include "api/ControllerFactory.h"
-#include "api/Controller.h"
+#include "api/ApiControllerFactory.h"
+#include "api/ApiController.h"
 #include "core/CoreFactory.h"
 #include "data/CameraFactory.h"
 #include "common/Config/Config.h"
@@ -30,7 +30,7 @@ protected:
         EXPECT_NO_THROW(core = core::CoreFactory::createCore(camera_config, std::move(camera)));
         ASSERT_NE(nullptr, core);
 
-        EXPECT_NO_THROW(service = camera_service::api::ControllerFactory::createController(api_config, server_address_config,
+        EXPECT_NO_THROW(service = camera_service::api::ApiControllerFactory::createController(api_config, server_address_config,
             std::move(core)));
         ASSERT_NE(nullptr, service);
 
@@ -40,9 +40,9 @@ protected:
     }
 
     std::unique_ptr<Config> config;
-    std::unique_ptr<data::ICamera> camera;
+    std::unique_ptr<data::ICameraHal> camera;
     std::unique_ptr<core::ICore> core;
-    std::unique_ptr<api::Controller> service;
+    std::unique_ptr<api::ApiController> service;
     std::string api_config;
     std::string server_address_config;
     std::string camera_config;

@@ -1,11 +1,11 @@
 #pragma once
 #include "common/types/Result.h"
-#include "common/types/ICameraOperations.h"
+#include "common/types/ICameraCapabilities.h"
 
 namespace camera_service::data {
-    class ICameraStrategy : public api::ICameraOperations {
+    class ICameraHw : public api::ICameraCapabilities {
     public:
-        ~ICameraStrategy() override = default;
+        ~ICameraHw() override = default;
 
         virtual Result<void> connect() = 0;
         virtual Result<void> disconnect() = 0;

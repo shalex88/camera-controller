@@ -1,16 +1,16 @@
-#include "ControllerFactory.h"
+#include "ApiControllerFactory.h"
 #include "api/RequestHandler.h"
 #include "api/GrpcTransport.h"
-#include "api/Controller.h"
+#include "api/ApiController.h"
 
 namespace camera_service::api {
-    std::unique_ptr<Controller> ControllerFactory::createController(
+    std::unique_ptr<ApiController> ApiControllerFactory::createController(
         const std::string& controller_type, const std::string& server_address, std::unique_ptr<core::ICore> core) {
         if (controller_type == "grpc") {
             auto request_handler = std::make_shared<RequestHandler>(std::move(core));
             auto transport = std::make_unique<GrpcTransport>(request_handler);
-            return std::make_unique<Controller>(request_handler, std::move(transport), server_address);
+            return std::make_unique<ApiController>(request_handler, std::move(transport), server_address);
         }
-        throw std::invalid_argument("Unknown controller type");
+        throw std::invalid_argument("Unknown API controller type");
     }
 }

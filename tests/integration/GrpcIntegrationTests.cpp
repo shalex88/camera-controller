@@ -6,12 +6,14 @@
 #include <thread>
 
 #include "api/GrpcTransport.h"
+#include "core/ICore.h"
+#include "api/RequestHandler.h"
 #include "../../utils/GrpcClient.h"
 
 using namespace camera_service;
 using namespace testing;
 
-class CoreMock: public core::ICore {
+class CoreMock final : public core::ICore {
 public:
     MOCK_METHOD(Result<void>, initialize, (), (override));
     MOCK_METHOD(Result<void>, shutdown, (), (override));
@@ -37,13 +39,13 @@ protected:
         ASSERT_TRUE(grpc_transport->start(server_address).isSuccess());
 
         // Run the server loop in a separate thread
-        server_thread = std::thread([this]() {
+        server_thread = std::thread([this] {
             server_result = grpc_transport->runLoop();
         });
 
         // Give the server a moment to start listening
         std::cout << "Connecting to server at " << server_address << std::endl;
-        const auto channel = grpc::CreateChannel(server_address, grpc::InsecureChannelCredentials());
+        const auto channel = CreateChannel(server_address, grpc::InsecureChannelCredentials());
         client = std::make_unique<GrpcClient>(channel);
     }
 
@@ -61,7 +63,7 @@ protected:
     }
 
     CoreMock* core {}; // Raw pointer to access the mock
-    std::shared_ptr<api::RequestHandler> request_handler;
+    std::shared_ptr<api::IRequestHandler> request_handler;
     std::unique_ptr<api::GrpcTransport> grpc_transport;
     std::string server_address = "0.0.0.0:50051";
     std::unique_ptr<GrpcClient> client;
@@ -79,7 +81,7 @@ TEST_F(GrpcIntegrationTests, SetZoomAndGetZoomSuccess) {
 
     std::cout << "Test SetZoom " << test_zoom << " getZoom" << std::endl;
     ASSERT_TRUE(client->setZoom(test_zoom).isSuccess());
-    auto get_zoom_result = client->getZoom();
+    const auto get_zoom_result = client->getZoom();
     ASSERT_TRUE(get_zoom_result.isSuccess());
     EXPECT_EQ(get_zoom_result.value(), test_zoom);
 }
@@ -98,12 +100,12 @@ TEST_F(GrpcIntegrationTests, RequestFailOnTimeout) {
 
     // Simulate a timeout by not responding
     EXPECT_CALL(*core, setZoom(test_zoom))
-        .WillOnce(Invoke([]() {
+        .WillOnce(Invoke([] {
             std::this_thread::sleep_for(std::chrono::seconds(1));
             return Result<void>::success();
         }));
 
-    auto result = client->setZoom(test_zoom);
+    const auto result = client->setZoom(test_zoom);
     ASSERT_TRUE(result.isError());
     ASSERT_TRUE(result.error().find("Deadline") != std::string::npos);
 }

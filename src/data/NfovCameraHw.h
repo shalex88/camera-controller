@@ -1,15 +1,15 @@
 #pragma once
-#include "ICameraStrategy.h"
+#include "ICameraHw.h"
 
 namespace camera_service::data {
-    class NfovCamera final : public ICameraStrategy {
+    class NfovCameraHw final : public ICameraHw {
     public:
-        NfovCamera() = default;
-        ~NfovCamera() override;
+        NfovCameraHw() = default;
+        ~NfovCameraHw() override;
 
-        Result<void> setZoom(types::zoom zoom) override;
+        Result<void> setZoom(types::zoom value) override;
         Result<types::zoom> getZoom() const override;
-        Result<void> setFocus(types::focus focus) override;
+        Result<void> setFocus(types::focus value) override;
         Result<types::focus> getFocus() const override;
         Result<void> connect() override;
         Result<void> disconnect() override;

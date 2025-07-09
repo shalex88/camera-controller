@@ -4,13 +4,13 @@
 #include "core/CoreFactory.h"
 
 #include "core/Core.h"
-#include "data/ICamera.h"
+#include "data/ICameraHal.h"
 #include "common/types/Result.h"
 
 using namespace camera_service;
 using namespace testing;
 
-class MockCamera final : public data::ICamera {
+class MockCamera final : public data::ICameraHal {
 public:
     MOCK_METHOD(Result<void>, connect, (), (override));
     MOCK_METHOD(Result<void>, disconnect, (), (override));

@@ -1,16 +1,16 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 /* Add your project include files here */
-#include "data/NfovCamera.h"
-#include "data/ICamera.h"
-#include "data/ICameraStrategy.h"
+#include "data/NfovCameraHw.h"
+#include "data/ICameraHal.h"
+#include "data/ICameraHw.h"
 #include "common/types/Result.h"
-#include "data/Camera.h"
+#include "data/CameraHal.h"
 
 using namespace camera_service;
 using namespace testing;
 
-class MockCameraStrategy : public data::ICameraStrategy {
+class MockCameraStrategy final : public data::ICameraHw {
 public:
     MOCK_METHOD(Result<void>, connect, (), (override));
     MOCK_METHOD(Result<void>, disconnect, (), (override));
@@ -34,15 +34,15 @@ protected:
         camera_strategy = camera_strategy_obj.get();
         EXPECT_CALL(*camera_strategy, getLimits())
             .WillOnce(Return(camera_strategy->limits));
-        camera = std::make_unique<data::Camera>(std::move(camera_strategy_obj));
+        camera = std::make_unique<data::CameraHal>(std::move(camera_strategy_obj));
     }
 
     MockCameraStrategy* camera_strategy {};
-    std::unique_ptr<data::ICamera> camera;
+    std::unique_ptr<data::ICameraHal> camera;
 };
 
 TEST_F(CameraTests, CanBeConstructed) {
-    const auto camera = std::make_unique<data::NfovCamera>();
+    const auto camera = std::make_unique<data::NfovCameraHw>();
     ASSERT_NE(nullptr, camera);
 }
 

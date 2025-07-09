@@ -9,10 +9,10 @@
 #include "api/ITransport.h"
 
 namespace camera_service::api {
-    class Controller final {
+    class ApiController final {
     public:
-        explicit Controller(std::shared_ptr<IRequestHandler> request_handler, std::unique_ptr<ITransport> transport, const std::string& server_address);
-        ~Controller();
+        explicit ApiController(std::shared_ptr<IRequestHandler> request_handler, std::unique_ptr<ITransport> transport, const std::string& server_address);
+        ~ApiController();
 
         Result<void> startAsync();
         Result<void> stop();

@@ -2,8 +2,8 @@
 #include <memory>
 
 #include "data/CameraFactory.h"
-#include "api/ControllerFactory.h"
-#include "api/Controller.h"
+#include "api/ApiControllerFactory.h"
+#include "api/ApiController.h"
 #include "core/CoreFactory.h"
 #include "common/Logger/Logger.h"
 #include "common/Config/Config.h"
@@ -25,10 +25,10 @@ int main() {
         auto core = camera_service::core::CoreFactory::createCore(camera_config, std::move(camera));
 
         // Presentation layer
-        const auto service = camera_service::api::ControllerFactory::createController(api_config, port_config, std::move(core));
+        const auto api_controller = camera_service::api::ApiControllerFactory::createController(api_config, port_config, std::move(core));
 
-        service->startAsync();
-        while (service->isRunning()) {
+        api_controller->startAsync();
+        while (api_controller->isRunning()) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     } catch (const std::exception& e) {

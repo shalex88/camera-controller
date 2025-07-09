@@ -3,9 +3,9 @@
 #include "common/types/Result.h"
 
 namespace camera_service::api {
-    class ICameraOperations {
+    class ICameraCapabilities {
     public:
-        virtual ~ICameraOperations() = default;
+        virtual ~ICameraCapabilities() = default;
 
         virtual Result<void> setZoom(types::zoom zoom_level) = 0; //FIXME: make const when camera is stateless
         virtual Result<types::zoom> getZoom() const = 0;

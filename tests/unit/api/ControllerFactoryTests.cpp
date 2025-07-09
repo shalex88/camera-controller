@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 /* Add your project include files here */
-#include "api/ControllerFactory.h"
-#include "api/Controller.h"
+#include "api/ApiControllerFactory.h"
+#include "api/ApiController.h"
 #include "core/ICore.h"
 #include "common/types/Result.h"
 
@@ -28,14 +28,14 @@ protected:
 };
 
 TEST_F(ControllerFactoryTests, CreateGrpcServiceSuccess) {
-    const auto service = api::ControllerFactory::createController("grpc", server_address, createMockCore());
+    const auto service = api::ApiControllerFactory::createController("grpc", server_address, createMockCore());
     ASSERT_NE(nullptr, service);
     ASSERT_TRUE(service.get() != nullptr);
 }
 
 TEST_F(ControllerFactoryTests, ThrowsOnUnknownType) {
     EXPECT_THROW(
-        api::ControllerFactory::createController("unknown", server_address, createMockCore()),
+        api::ApiControllerFactory::createController("unknown", server_address, createMockCore()),
         std::invalid_argument
     );
 }

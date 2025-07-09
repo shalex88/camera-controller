@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 /* Add your project include files here */
-#include "data/NfovCamera.h"
+#include "data/NfovCameraHw.h"
 #include "common/types/Result.h"
 
 using namespace camera_service;
@@ -10,14 +10,14 @@ using namespace testing;
 class NfovStrategyTests : public Test {
 protected:
     void SetUp() override {
-        camera_impl_ = std::make_unique<data::NfovCamera>();
+        camera_impl_ = std::make_unique<data::NfovCameraHw>();
     }
 
-    std::unique_ptr<data::NfovCamera> camera_impl_;
+    std::unique_ptr<data::NfovCameraHw> camera_impl_;
 };
 
 TEST_F(NfovStrategyTests, CanBeConstructed) {
-    const auto camera = std::make_unique<data::NfovCamera>();
+    const auto camera = std::make_unique<data::NfovCameraHw>();
     ASSERT_NE(nullptr, camera);
 }
 

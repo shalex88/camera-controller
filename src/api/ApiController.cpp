@@ -1,11 +1,11 @@
-#include "Controller.h"
+#include "ApiController.h"
 
 #include "api/RequestHandler.h"
 #include "api/ITransport.h"
 #include "common/Logger/Logger.h"
 
 namespace camera_service::api {
-    Controller::Controller(std::shared_ptr<IRequestHandler> request_handler, std::unique_ptr<ITransport> transport, const std::string& server_address)
+    ApiController::ApiController(std::shared_ptr<IRequestHandler> request_handler, std::unique_ptr<ITransport> transport, const std::string& server_address)
         : request_handler_(std::move(request_handler)), transport_(std::move(transport)), server_address_(server_address), running_(false) {
         if (!request_handler_) {
             throw std::invalid_argument("Request Handler cannot be null");
@@ -14,18 +14,18 @@ namespace camera_service::api {
             throw std::invalid_argument("Transport cannot be null");
         }
         if (server_address_.empty()) {
-            throw std::invalid_argument("server_address cannot be empty");
+            throw std::invalid_argument("Server address cannot be empty");
         }
     }
 
-    Controller::~Controller() {
+    ApiController::~ApiController() {
         if (isRunning()) {
             stop();
         }
     }
 
-    Result<void> Controller::startAsync() {
-        LOG_INFO("Starting API Controller...");
+    Result<void> ApiController::startAsync() {
+        LOG_INFO("Starting API ApiController...");
 
         if (const auto requst_handler_start_result = request_handler_->start(); requst_handler_start_result.isError()) {
             return Result<void>::error("Failed to start request handler: " + requst_handler_start_result.error());
@@ -38,19 +38,19 @@ namespace camera_service::api {
 
         running_ = true;
 
-        service_thread_ = std::thread([this]() {
+        service_thread_ = std::thread([this] {
             transport_->runLoop();
         });
 
         return Result<void>::success();
     }
 
-    Result<void> Controller::stop() {
+    Result<void> ApiController::stop() {
         if (!isRunning()) {
             return Result<void>::success();
         }
 
-        LOG_INFO("Stopping API Controller...");
+        LOG_INFO("Stopping API ApiController...");
         running_ = false;
 
         if (const auto transport_result = transport_->stop(); transport_result.isError()) {
@@ -69,7 +69,7 @@ namespace camera_service::api {
         return Result<void>::success();
     }
 
-    bool Controller::isRunning() const {
+    bool ApiController::isRunning() const {
         return running_;
     }
 }

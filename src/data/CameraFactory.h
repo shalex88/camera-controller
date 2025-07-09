@@ -2,11 +2,11 @@
 #include <memory>
 #include <string>
 
-#include "ICamera.h"
+#include "ICameraHal.h"
 
 namespace camera_service::data {
     class CameraFactory {
     public:
-        static std::unique_ptr<ICamera> createCamera(const std::string& camera_type);
+        static std::unique_ptr<ICameraHal> createCamera(const std::string& camera_type);
     };
 }

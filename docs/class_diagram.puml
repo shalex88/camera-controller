@@ -1,13 +1,10 @@
-@startuml Camera Service Class Diagram
+@startuml Camera Service Main Classes Diagram
 
 skinparam linetype ortho
-skinparam classAttributeIconSize 0
-skinparam classFontSize 10
-skinparam packageFontSize 12
 
 package camera_service {
   package common {
-    interface ICameraOperations {
+    interface ICameraCapabilities {
       + setZoom(zoom_level: types::zoom): Result<void>
       + getZoom(): Result<types::zoom>
       + setFocus(focus_value: types::focus): Result<void>
@@ -16,13 +13,13 @@ package camera_service {
   }
 
   package api {
-    class Controller {
+    class ApiController {
       - request_handler_: std::shared_ptr<IRequestHandler>
       - transport_: std::unique_ptr<ITransport>
       - server_address_: std::string
       - running_: std::atomic<bool>
       - service_thread_: std::thread
-      + Controller(std::shared_ptr<IRequestHandler>, std::unique_ptr<ITransport>, const std::string&)
+      + ApiController(std::shared_ptr<IRequestHandler>, std::unique_ptr<ITransport>, const std::string&)
       + startAsync(): Result<void>
       + stop(): Result<void>
       + isRunning(): bool
@@ -71,8 +68,8 @@ package camera_service {
       + GetFocus(context: grpc::CallbackServerContext*, request: camera::GetFocusRequest*, response: camera::GetFocusResponse*): grpc::ServerUnaryReactor*
     }
 
-    class ControllerFactory {
-      + {static} createController(controller_type: std::string, server_address: std::string, core: std::unique_ptr<ICore>): std::unique_ptr<Controller>
+    class ApiControllerFactory {
+      + {static} createApiController(controller_type: std::string, server_address: std::string, core: std::unique_ptr<ICore>): std::unique_ptr<ApiController>
     }
   }
 
@@ -83,8 +80,8 @@ package camera_service {
     }
 
     class Core {
-      - camera_: std::unique_ptr<data::ICamera>
-      + Core(std::unique_ptr<data::ICamera>)
+      - camera_: std::unique_ptr<data::ICameraHal>
+      + Core(std::unique_ptr<data::ICameraHal>)
       + initialize(): Result<void>
       + shutdown(): Result<void>
       + setZoom(zoom_level: types::zoom): Result<void>
@@ -94,21 +91,21 @@ package camera_service {
     }
 
     class CoreFactory {
-      + {static} createCore(camera_type: std::string, std::unique_ptr<data::ICamera> camera): std::unique_ptr<ICore>
+      + {static} createCore(camera_type: std::string, std::unique_ptr<data::ICameraHal> camera): std::unique_ptr<ICore>
     }
   }
 
   package data {
-    interface ICamera {
+    interface ICameraHal {
       + connect(): Result<void>
       + disconnect(): Result<void>
     }
 
-    class Camera {
-      - camera_impl_: std::unique_ptr<ICameraStrategy>
+    class CameraHal  {
+      - camera_hw_: std::unique_ptr<ICameraHw>
       - limits_: CameraLimits
       - connected_: bool
-      + Camera(std::unique_ptr<ICameraStrategy>)
+      + CameraHal (std::unique_ptr<ICameraHw>)
       + setZoom(zoom_level: types::zoom): Result<void>
       + getZoom(): Result<types::zoom>
       + setFocus(focus_value: types::focus): Result<void>
@@ -120,15 +117,15 @@ package camera_service {
       - isValidFocus(value: types::focus): bool
     }
 
-    interface ICameraStrategy {
+    interface ICameraHw {
       + connect(): Result<void>
       + disconnect(): Result<void>
       + getLimits(): CameraLimits
     }
 
-    class NfovCamera {
+    class NfovCameraHw {
       - limits_: CameraLimits
-      + NfovCamera()
+      + NfovCameraHw()
       + setZoom(zoom_level: types::zoom): Result<void>
       + getZoom(): Result<types::zoom>
       + setFocus(focus_value: types::focus): Result<void>
@@ -138,113 +135,10 @@ package camera_service {
       + getLimits(): CameraLimits
     }
 
-'    package registers_map_manager {
-'      class RegistersMapManager {
-'        - register_interface_: std::shared_ptr<IRegister>
-'        - mtx_: std::mutex
-'        + RegistersMapManager(std::shared_ptr<IRegister>)
-'        + getValue(reg: REG): uint32_t
-'        + setValue(reg: REG, value: uint32_t): uint8_t
-'        + resetValue(reg: REG): uint8_t
-'        + clearValue(reg: REG): uint8_t
-'        + setBit(reg: REG, bit_index: uint8_t): uint8_t
-'        + clearBit(reg: REG, bit_index: uint8_t): uint8_t
-'        + getNibble(reg: REG, nibble_index: uint8_t): uint8_t
-'        + setNibble(reg: REG, nibble_index: uint8_t, nibble_value: uint8_t): uint8_t
-'        + resetAll(): uint8_t
-'        + clearAll(): uint8_t
-'      }
-'
-'      interface IRegister {
-'        + getValue(reg: REG): uint32_t
-'        + setValue(reg: REG, value: uint32_t): uint8_t
-'        + resetValue(reg: REG): uint8_t
-'        + clearValue(reg: REG): uint8_t
-'        + setBit(reg: REG, bit_index: uint8_t): uint8_t
-'        + clearBit(reg: REG, bit_index: uint8_t): uint8_t
-'        + getNibble(reg: REG, nibble_index: uint8_t): uint8_t
-'        + setNibble(reg: REG, nibble_index: uint8_t, nibble_value: uint8_t): uint8_t
-'        + resetAll(): uint8_t
-'        + clearAll(): uint8_t
-'      }
-'
-'      class RegistersMap {
-'        // Register definitions and mappings
-'      }
-'
-'      enum REG {
-'        // Register enumeration values
-'      }
-'    }
-
     class CameraFactory {
-      + {static} createCamera(camera_type: std::string): std::unique_ptr<ICamera>
+      + {static} createCamera(camera_type: std::string): std::unique_ptr<ICameraHal>
     }
   }
-
-'  package common {
-'    package Config {
-'      class Config {
-'        - config_data_: std::map<std::string, std::string>
-'        - config_path_: std::string
-'        + Config(config_path: std::string)
-'        + get(key: std::string): std::string
-'        + set(key: std::string, value: std::string): void
-'        + has(key: std::string): bool
-'        + save(): void
-'        + load(): void
-'      }
-'
-'      class ConfigException {
-'        - message_: std::string
-'        + ConfigException(message: std::string)
-'        + what(): const char*
-'      }
-'    }
-'
-'    package types {
-'      class "Result<T>" as Result {
-'        - has_error_: bool
-'        - error_message_: std::string
-'        - value_: T
-'        + Result()
-'        + Result(T value)
-'        + Result(std::string error)
-'        + isError(): bool
-'        + error(): std::string
-'        + value(): T
-'        + {static} success(): Result<T>
-'        + {static} success(T value): Result<T>
-'        + {static} error(message: std::string): Result<T>
-'      }
-'
-'      class "types::zoom" as Zoom {
-'        // Type definition for zoom level (likely using statement or typedef)
-'      }
-'
-'      class "types::focus" as Focus {
-'        // Type definition for focus value (likely using statement or typedef)
-'      }
-'
-'      struct CameraLimits {
-'        min_zoom: types::zoom
-'        max_zoom: types::zoom
-'        min_focus: types::focus
-'        max_focus: types::focus
-'      }
-'    }
-'
-'    package Logger {
-'      class Logger {
-'        + {static} LOG_INFO(message: std::string)
-'        + {static} LOG_INFO(format: std::string, args...): void
-'        + {static} LOG_ERROR(message: std::string)
-'        + {static} LOG_ERROR(format: std::string, args...): void
-'        + {static} LOG_DEBUG(message: std::string)
-'        + {static} LOG_WARN(message: std::string)
-'      }
-'    }
-'  }
 
   package apps {
     class main {
@@ -254,12 +148,12 @@ package camera_service {
 }
 
 ' Relationships
-Controller o-- IRequestHandler
-Controller o-- ITransport
-ControllerFactory ..> Controller: creates >
-ControllerFactory ..> GrpcTransport: creates >
-ControllerFactory ..> RequestHandler: creates >
-ControllerFactory ..> ICore: uses >
+ApiController o-- IRequestHandler
+ApiController o-- ITransport
+ApiControllerFactory ..> ApiController: creates >
+ApiControllerFactory ..> GrpcTransport: creates >
+ApiControllerFactory ..> RequestHandler: creates >
+ApiControllerFactory ..> ICore: uses >
 
 RequestHandler --|> IRequestHandler
 RequestHandler o-- ICore
@@ -271,26 +165,26 @@ GrpcTransport o-- GrpcCallbackHandler
 GrpcCallbackHandler o-- IRequestHandler
 
 Core --|> ICore
-Core o-- ICamera
+Core o-- ICameraHal
 
-ICamera --|> ICameraOperations
-ICameraStrategy --|> ICameraOperations
-ICore --|> ICameraOperations
-IRequestHandler --|> ICameraOperations
+ICameraHal --|> ICameraCapabilities
+ICameraHw --|> ICameraCapabilities
+ICore --|> ICameraCapabilities
+IRequestHandler --|> ICameraCapabilities
 
-Camera --|> ICamera
-Camera o-- ICameraStrategy
+CameraHal  --|> ICameraHal
+CameraHal  o-- ICameraHw
 
-NfovCamera --|> ICameraStrategy
+NfovCameraHw --|> ICameraHw
 
 CoreFactory ..> Core: creates >
-CoreFactory ..> ICamera: uses >
+CoreFactory ..> ICameraHal: uses >
 
-CameraFactory ..> Camera: creates >
-CameraFactory ..> NfovCamera: creates >
+CameraFactory ..> CameraHal : creates >
+CameraFactory ..> NfovCameraHw: creates >
 
 main ..> CameraFactory: creates >
 main ..> CoreFactory: creates >
-main ..> ControllerFactory: creates >
+main ..> ApiControllerFactory: creates >
 
 @enduml

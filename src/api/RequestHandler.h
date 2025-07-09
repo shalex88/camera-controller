@@ -6,10 +6,9 @@
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
 #include "api/IRequestHandler.h"
-#include "../common/types/ICameraOperations.h"
 
 namespace camera_service::api {
-    class RequestHandler : public IRequestHandler {
+    class RequestHandler final : public IRequestHandler {
     public:
         explicit RequestHandler(std::unique_ptr<core::ICore> core);
         ~RequestHandler() override;

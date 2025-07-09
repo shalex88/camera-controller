@@ -6,13 +6,13 @@
 #include "common/types/Result.h"
 
 namespace camera_service::data {
-    class ICamera;
+    class ICameraHal;
 }
 
 namespace camera_service::core {
     class Core final : public ICore {
     public:
-        explicit Core(std::unique_ptr<data::ICamera> camera);
+        explicit Core(std::unique_ptr<data::ICameraHal> camera);
         ~Core() override;
 
         Result<void> initialize() override;
@@ -26,7 +26,7 @@ namespace camera_service::core {
 
     private:
         bool isInitialized() const;
-        std::unique_ptr<data::ICamera> camera_;
+        std::unique_ptr<data::ICameraHal> camera_;
         bool is_initialized_;
     };
 }

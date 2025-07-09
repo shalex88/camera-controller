@@ -1,10 +1,10 @@
 #pragma once
 
 #include "common/types/Result.h"
-#include "common/types/ICameraOperations.h"
+#include "common/types/ICameraCapabilities.h"
 
 namespace camera_service::api {
-    class IRequestHandler : public ICameraOperations {
+    class IRequestHandler : public ICameraCapabilities {
     public:
         ~IRequestHandler() override = default;
 

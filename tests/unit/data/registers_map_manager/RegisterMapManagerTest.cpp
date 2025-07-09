@@ -6,8 +6,8 @@
 
 class RegisterMock : public IRegister {
 public:
-    MOCK_METHOD1(get, uint32_t(uint32_t address));
-    MOCK_METHOD2(set, uint8_t(uint32_t address, uint32_t value));
+    MOCK_METHOD(uint32_t, get, (uint32_t), (override));
+    MOCK_METHOD(uint8_t, set, (uint32_t, uint32_t), (override));
 };
 
 class RegisterMapManagerTest : public testing::Test {
@@ -152,9 +152,9 @@ TEST_F(RegisterMapManagerTest, SetRegisterValueThreadSafety) {
                 return 0;
             });
 
-    std::atomic<bool> error_flag(false);
+    std::atomic error_flag(false);
 
-    std::thread thread1([&]() {
+    std::thread thread1([&] {
         for (int i = 0; i < 1000; ++i) {
             if (register_map->setValue(REG::SET_ZOOM, 0xFFFF'FFFF)) {
                 error_flag.store(true);
@@ -162,7 +162,7 @@ TEST_F(RegisterMapManagerTest, SetRegisterValueThreadSafety) {
         }
     });
 
-    std::thread thread2([&]() {
+    std::thread thread2([&] {
         for (int i = 0; i < 1000; ++i) {
             if (register_map->setValue(REG::SET_ZOOM, 0x0000'0000)) {
                 error_flag.store(true);

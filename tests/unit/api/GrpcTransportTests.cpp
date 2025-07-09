@@ -41,44 +41,44 @@ TEST_F(GrpcTransportTests, CreationFailIfNoRequestHandler) {
 }
 
 TEST_F(GrpcTransportTests, StartServerSuccess) {
-    auto result = grpc_transport->start(server_address);
+    const auto result = grpc_transport->start(server_address);
     ASSERT_TRUE(result.isSuccess());
     grpc_transport->stop();
 }
 
 TEST_F(GrpcTransportTests, StartServerOnInvalidPortShouldFail) {
-    auto result = grpc_transport->start("invalid_port");
+    const auto result = grpc_transport->start("invalid_port");
     ASSERT_TRUE(result.isError());
 }
 
 TEST_F(GrpcTransportTests, StopServerWhenNotStartedShouldSucceed) {
-    auto result = grpc_transport->stop();
+    const auto result = grpc_transport->stop();
     ASSERT_TRUE(result.isSuccess());
 }
 
 TEST_F(GrpcTransportTests, StopRunningServerShouldSucceed) {
     // Start server first
-    auto start_result = grpc_transport->start(server_address);
+    const auto start_result = grpc_transport->start(server_address);
     ASSERT_TRUE(start_result.isSuccess());
 
     // Then stop it
-    auto stop_result = grpc_transport->stop();
+    const auto stop_result = grpc_transport->stop();
     ASSERT_TRUE(stop_result.isSuccess());
 }
 
 TEST_F(GrpcTransportTests, StopServerMultipleTimesShouldSucceed) {
     // Start and stop once
     grpc_transport->start(server_address);
-    auto first_stop = grpc_transport->stop();
+    const auto first_stop = grpc_transport->stop();
     ASSERT_TRUE(first_stop.isSuccess());
 
     // Stop again when already stopped
-    auto second_stop = grpc_transport->stop();
+    const auto second_stop = grpc_transport->stop();
     ASSERT_TRUE(second_stop.isSuccess());
 }
 
 TEST_F(GrpcTransportTests, RunLoopWithoutStartShouldFail) {
-    auto result = grpc_transport->runLoop();
+    const auto result = grpc_transport->runLoop();
     ASSERT_TRUE(result.isError());
 }
 
@@ -88,15 +88,15 @@ TEST_F(GrpcTransportTests, RunLoopAfterStopShouldFail) {
     grpc_transport->stop();
 
     // Try to run loop after stop
-    auto result = grpc_transport->runLoop();
+    const auto result = grpc_transport->runLoop();
     ASSERT_TRUE(result.isError());
 }
 
 TEST_F(GrpcTransportTests, RunLoopWithRunningServerShouldSucceed) {
     grpc_transport->start(server_address);
 
-    std::thread server_thread([&]() {
-        auto result = grpc_transport->runLoop();
+    std::thread server_thread([&] {
+        const auto result = grpc_transport->runLoop();
         ASSERT_TRUE(result.isSuccess());
     });
 

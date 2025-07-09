@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 /* Add your project include files here */
-#include "api/Controller.h"
+#include "api/ApiController.h"
 #include "api/RequestHandler.h"
 #include "api/ITransport.h"
 #include "common/types/Result.h"
@@ -33,12 +33,12 @@ protected:
         request_handler = std::make_shared<RequestHandlerMock>();
         transport = new TransportMock();
         auto transport_obj = std::unique_ptr<api::ITransport>(transport);
-        controller = std::make_unique<api::Controller>(request_handler, std::move(transport_obj), server_address);
+        controller = std::make_unique<api::ApiController>(request_handler, std::move(transport_obj), server_address);
     }
 
     std::shared_ptr<RequestHandlerMock> request_handler;
     TransportMock* transport {};
-    std::unique_ptr<api::Controller> controller;
+    std::unique_ptr<api::ApiController> controller;
     std::string server_address = "50051";
 };
 
@@ -47,21 +47,21 @@ TEST_F(ControllerTests, CreationSuccess) {
 }
 
 TEST_F(ControllerTests, CreationFailNoController) {
-    EXPECT_THROW(api::Controller controller(
+    EXPECT_THROW(api::ApiController controller(
         nullptr,
         std::make_unique<TransportMock>(),
         server_address), std::invalid_argument);
 }
 
 TEST_F(ControllerTests, CreationFailNoTransport) {
-    EXPECT_THROW(api::Controller controller(
+    EXPECT_THROW(api::ApiController controller(
         request_handler,
         nullptr,
         server_address), std::invalid_argument);
 }
 
 TEST_F(ControllerTests, CreationFailEmptyPort) {
-    EXPECT_THROW(api::Controller controller(
+    EXPECT_THROW(api::ApiController controller(
         request_handler,
         std::make_unique<TransportMock>(),
         ""), std::invalid_argument);

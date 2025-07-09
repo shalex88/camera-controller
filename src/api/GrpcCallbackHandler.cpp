@@ -23,7 +23,7 @@ namespace camera_service::api {
         const auto deadline = grpc::Timespec2Timepoint(context->raw_deadline());
 
         // Launch the processing task asynchronously
-        std::future<grpc::Status> future = std::async(std::launch::async, [request, response, process_function]() {
+        std::future<grpc::Status> future = std::async(std::launch::async, [request, response, process_function] {
             if (auto result = process_function(request, response); result.isError()) {
                 return grpc::Status(grpc::StatusCode::INTERNAL, result.error());
             }
