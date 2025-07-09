@@ -2,13 +2,12 @@
 
 #include "api/proto/camera_service.pb.h"
 #include "api/proto/camera_service.grpc.pb.h"
-#include "api/RequestHandler.h"
-#include "common/types/Result.h"
+#include "api/IRequestHandler.h"
 
 namespace camera_service::api {
     class GrpcCallbackHandler final : public camera::CameraService::CallbackService {
     public:
-        explicit GrpcCallbackHandler(std::shared_ptr<RequestHandler> request_handler);
+        explicit GrpcCallbackHandler(std::shared_ptr<IRequestHandler> request_handler);
 
         grpc::ServerUnaryReactor* SetZoom(
             grpc::CallbackServerContext* context,
@@ -31,6 +30,6 @@ namespace camera_service::api {
             camera::GetFocusResponse* response) override;
 
     private:
-        std::shared_ptr<RequestHandler> request_handler_;
+        std::shared_ptr<IRequestHandler> request_handler_;
     };
 }

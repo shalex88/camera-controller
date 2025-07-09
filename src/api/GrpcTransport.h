@@ -3,14 +3,14 @@
 #include "api/proto/camera_service.pb.h"
 #include "api/proto/camera_service.grpc.pb.h"
 #include "api/ITransport.h"
-#include "api/RequestHandler.h"
+#include "api/IRequestHandler.h"
 #include "api/GrpcCallbackHandler.h"
 #include "common/types/Result.h"
 
 namespace camera_service::api {
     class GrpcTransport final : public ITransport {
     public:
-        explicit GrpcTransport(std::shared_ptr<RequestHandler> request_handler);
+        explicit GrpcTransport(std::shared_ptr<IRequestHandler> request_handler);
         ~GrpcTransport() override;
 
         Result<void> start(const std::string& server_address) override;

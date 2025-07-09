@@ -16,7 +16,7 @@ public:
     MOCK_METHOD(Result<void>, runLoop, (), (override));
 };
 
-class RequestHandlerMock final: public api::IRequestHandler, api::ICameraOperations {
+class RequestHandlerMock final: public api::IRequestHandler {
 public:
     MOCK_METHOD(Result<void>, start, (), (override));
     MOCK_METHOD(Result<void>, stop, (), (override));

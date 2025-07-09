@@ -9,7 +9,7 @@
 #include "../common/types/ICameraOperations.h"
 
 namespace camera_service::api {
-    class RequestHandler : public IRequestHandler, ICameraOperations {
+    class RequestHandler : public IRequestHandler {
     public:
         explicit RequestHandler(std::unique_ptr<core::ICore> core);
         ~RequestHandler() override;

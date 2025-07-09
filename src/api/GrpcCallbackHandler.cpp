@@ -6,7 +6,7 @@
 #include "common/Logger/Logger.h"
 
 namespace camera_service::api {
-    GrpcCallbackHandler::GrpcCallbackHandler(std::shared_ptr<RequestHandler> request_handler)
+    GrpcCallbackHandler::GrpcCallbackHandler(std::shared_ptr<IRequestHandler> request_handler)
         : request_handler_(request_handler) {
         if (!request_handler_) {
             throw std::invalid_argument("Request Handler cannot be null");

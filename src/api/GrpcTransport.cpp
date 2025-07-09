@@ -7,7 +7,7 @@
 #include "common/Logger/Logger.h"
 
 namespace camera_service::api {
-    GrpcTransport::GrpcTransport(std::shared_ptr<RequestHandler> request_handler) {
+    GrpcTransport::GrpcTransport(std::shared_ptr<IRequestHandler> request_handler) {
         if (!request_handler) {
             throw std::invalid_argument("Request Handler cannot be null");
         }

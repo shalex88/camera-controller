@@ -1,14 +1,12 @@
 #pragma once
-#include <atomic>
-#include <memory>
 
-#include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
+#include "common/types/ICameraOperations.h"
 
 namespace camera_service::api {
-    class IRequestHandler {
+    class IRequestHandler : public ICameraOperations {
     public:
-        virtual ~IRequestHandler() = default;
+        ~IRequestHandler() override = default;
 
         virtual Result<void> start() = 0;
         virtual Result<void> stop() = 0;
