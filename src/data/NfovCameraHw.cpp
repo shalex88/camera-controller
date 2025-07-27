@@ -1,8 +1,12 @@
 #include "NfovCameraHw.h"
 
+#include "common/Logger/Logger.h"
+
 namespace camera_service::data {
     NfovCameraHw::~NfovCameraHw() {
-        disconnect();
+        if (disconnect().isError()) {
+            LOG_ERROR("Failed to disconnect NFOV camera");
+        }
     }
 
     Result<void> NfovCameraHw::setZoom(const types::zoom zoom) {

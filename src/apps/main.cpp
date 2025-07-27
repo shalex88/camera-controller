@@ -27,7 +27,10 @@ int main() {
         // Presentation layer
         const auto api_controller = camera_service::api::ApiControllerFactory::createController(api_config, port_config, std::move(core));
 
-        api_controller->startAsync();
+        if (api_controller->startAsync().isError()) {
+            LOG_ERROR("Failed to start API controller");
+            return EXIT_FAILURE;
+        }
         while (api_controller->isRunning()) {
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }

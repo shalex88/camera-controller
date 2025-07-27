@@ -54,7 +54,7 @@ protected:
             .WillOnce(Return(Result<void>::success()));
 
         if (grpc_transport) {
-            grpc_transport->stop();
+            ASSERT_TRUE(grpc_transport->stop().isSuccess());
         }
 
         if (server_thread.joinable()) {

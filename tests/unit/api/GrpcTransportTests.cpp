@@ -43,7 +43,7 @@ TEST_F(GrpcTransportTests, CreationFailIfNoRequestHandler) {
 TEST_F(GrpcTransportTests, StartServerSuccess) {
     const auto result = grpc_transport->start(server_address);
     ASSERT_TRUE(result.isSuccess());
-    grpc_transport->stop();
+    EXPECT_TRUE(grpc_transport->stop().isSuccess());
 }
 
 TEST_F(GrpcTransportTests, StartServerOnInvalidPortShouldFail) {
@@ -68,7 +68,7 @@ TEST_F(GrpcTransportTests, StopRunningServerShouldSucceed) {
 
 TEST_F(GrpcTransportTests, StopServerMultipleTimesShouldSucceed) {
     // Start and stop once
-    grpc_transport->start(server_address);
+    EXPECT_TRUE(grpc_transport->start(server_address).isSuccess());
     const auto first_stop = grpc_transport->stop();
     ASSERT_TRUE(first_stop.isSuccess());
 
@@ -84,8 +84,8 @@ TEST_F(GrpcTransportTests, RunLoopWithoutStartShouldFail) {
 
 TEST_F(GrpcTransportTests, RunLoopAfterStopShouldFail) {
     // Start and stop the server
-    grpc_transport->start(server_address);
-    grpc_transport->stop();
+    EXPECT_TRUE(grpc_transport->start(server_address).isSuccess());
+    EXPECT_TRUE(grpc_transport->stop().isSuccess());
 
     // Try to run loop after stop
     const auto result = grpc_transport->runLoop();
@@ -93,7 +93,7 @@ TEST_F(GrpcTransportTests, RunLoopAfterStopShouldFail) {
 }
 
 TEST_F(GrpcTransportTests, RunLoopWithRunningServerShouldSucceed) {
-    grpc_transport->start(server_address);
+    EXPECT_TRUE(grpc_transport->start(server_address).isSuccess());
 
     std::thread server_thread([&] {
         const auto result = grpc_transport->runLoop();
@@ -102,6 +102,6 @@ TEST_F(GrpcTransportTests, RunLoopWithRunningServerShouldSucceed) {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    grpc_transport->stop();
+    EXPECT_TRUE(grpc_transport->stop().isSuccess());
     server_thread.join();
 }

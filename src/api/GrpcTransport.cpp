@@ -15,7 +15,9 @@ namespace camera_service::api {
     }
 
     GrpcTransport::~GrpcTransport() {
-        stop();
+        if (stop().isError()) {
+            LOG_ERROR("Failed to stop the gRPC server");
+        }
     }
 
     Result<void> GrpcTransport::start(const std::string& server_address) {

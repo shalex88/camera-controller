@@ -13,7 +13,9 @@ namespace camera_service::core {
 
     Core::~Core() {
         if (isInitialized()) {
-            shutdown();
+            if (shutdown().isError()) {
+                LOG_ERROR("Failed to shut down Core properly");
+            }
         }
     }
 

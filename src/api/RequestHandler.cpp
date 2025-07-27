@@ -13,7 +13,9 @@ namespace camera_service::api {
 
     RequestHandler::~RequestHandler() {
         if (running_) {
-            stop();
+            if (stop().isError()) {
+                LOG_ERROR("RequestHandler failed to stop gracefully");
+            }
         }
     }
 

@@ -19,8 +19,10 @@ namespace camera_service::api {
     }
 
     ApiController::~ApiController() {
-        if (isRunning()) {
-            stop();
+        if (running_) {
+            if (stop().isError()) {
+                LOG_ERROR("ApiController failed to stop gracefully");
+            }
         }
     }
 
@@ -32,14 +34,21 @@ namespace camera_service::api {
         }
 
         if (const auto transport_result = transport_->start(server_address_); transport_result.isError()) {
-            request_handler_->stop();
+            if (request_handler_->stop().isError()) {
+                throw std::runtime_error("Request Handler is still running");
+            }
             return Result<void>::error("Failed to start transport: " + transport_result.error());
         }
 
         running_ = true;
 
         service_thread_ = std::thread([this] {
-            transport_->runLoop();
+            if (transport_->runLoop().isError()) {
+                LOG_ERROR("Transport run loop failed");
+                running_ = false;
+            } else {
+                LOG_INFO("Transport run loop completed successfully");
+            }
         });
 
         return Result<void>::success();

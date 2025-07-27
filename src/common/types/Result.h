@@ -9,7 +9,7 @@
 struct Empty {};
 
 template<typename T, typename E = std::string>
-class Result {
+class [[nodiscard]] Result {
 public:
     // Success constructor - for non-void types
     template<typename U = T, typename = std::enable_if_t<!std::is_void_v<U>>>

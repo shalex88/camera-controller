@@ -10,7 +10,9 @@ namespace camera_service::data {
 
     CameraHal::~CameraHal() {
         if (connected_) {
-            disconnect();
+            if (disconnect().isError()) {
+                LOG_ERROR("Failed to disconnect Camera");
+            }
         }
     }
 
