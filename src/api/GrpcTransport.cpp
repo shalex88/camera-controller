@@ -1,6 +1,7 @@
 #include "GrpcTransport.h"
 
 #include <grpcpp/grpcpp.h>
+#include <grpcpp/ext/proto_server_reflection_plugin.h>
 
 #include "api/RequestHandler.h"
 #include "api/GrpcCallbackHandler.h"
@@ -21,7 +22,11 @@ namespace camera_service::api {
     }
 
     Result<void> GrpcTransport::start(const std::string& server_address) {
-        grpc::EnableDefaultHealthCheckService(true);
+        //TODO: learn how to use health check
+        grpc::EnableDefaultHealthCheckService(false);
+        //TODO: disable in production
+        grpc::reflection::InitProtoReflectionServerBuilderPlugin();
+
         grpc::ServerBuilder builder;
         builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
         builder.RegisterService(callback_handler_.get());
@@ -31,7 +36,7 @@ namespace camera_service::api {
             return Result<void>::error("Failed to start the gRPC server");
         }
 
-        LOG_INFO("Service is listening on {}", server_address);
+        LOG_INFO("Service is listening on {} with reflection enabled", server_address);
         return Result<void>::success();
     }
 

@@ -13,6 +13,7 @@ target_link_libraries(proto
         PUBLIC
         protobuf::libprotobuf
         gRPC::grpc++
+        gRPC::grpc++_reflection
 )
 
 target_include_directories(proto
