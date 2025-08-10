@@ -12,13 +12,14 @@ using namespace testing;
 class CameraIntegrationTests : public Test {
 protected:
     void SetUp() override {
+        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "");
         EXPECT_NO_THROW(config = std::make_unique<Config>("../../config/config.yaml"));
         ASSERT_NE(nullptr, config);
 
-        EXPECT_NO_THROW(camera = data::CameraFactory::createCamera(config->get("camera")));
+        EXPECT_NO_THROW(camera = data::CameraFactory::createCamera(config->get("camera"), logger_impl_));
         ASSERT_NE(nullptr, camera);
 
-        EXPECT_NO_THROW(core = core::CoreFactory::createCore(config->get("camera"), std::move(camera)));
+        EXPECT_NO_THROW(core = core::CoreFactory::createCore(config->get("camera"), std::move(camera), logger_impl_));
         ASSERT_NE(nullptr, core);
 
         auto init_result = core->initialize();
@@ -35,6 +36,7 @@ protected:
     std::unique_ptr<Config> config;
     std::unique_ptr<data::ICameraHal> camera;
     std::shared_ptr<core::ICore> core;
+    std::shared_ptr<LayerLogger> logger_impl_;
 };
 
 TEST_F(CameraIntegrationTests, CameraOperation) {

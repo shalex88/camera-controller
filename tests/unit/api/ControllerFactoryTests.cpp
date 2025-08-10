@@ -21,21 +21,25 @@ public:
 
 class ControllerFactoryTests : public Test {
 protected:
-    static std::unique_ptr<CoreMock> createMockCore() {
-        return std::make_unique<CoreMock>();
+    ControllerFactoryTests() {
+        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "");
+        core_ = std::make_unique<CoreMock>();
     }
+
     std::string server_address = "50051";
+    std::shared_ptr<LayerLogger> logger_impl_;
+    std::unique_ptr<core::ICore> core_;
 };
 
 TEST_F(ControllerFactoryTests, CreateGrpcServiceSuccess) {
-    const auto service = api::ApiControllerFactory::createController("grpc", server_address, createMockCore());
+    const auto service = api::ApiControllerFactory::createController("grpc", server_address, std::move(core_), logger_impl_);
     ASSERT_NE(nullptr, service);
     ASSERT_TRUE(service.get() != nullptr);
 }
 
 TEST_F(ControllerFactoryTests, ThrowsOnUnknownType) {
     EXPECT_THROW(
-        api::ApiControllerFactory::createController("unknown", server_address, createMockCore()),
+        api::ApiControllerFactory::createController("unknown", server_address, std::move(core_), logger_impl_),
         std::invalid_argument
     );
 }

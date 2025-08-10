@@ -20,13 +20,15 @@ public:
 
 class RequestHandlerTests : public Test {
 protected:
-    void SetUp() override {
+    RequestHandlerTests() {
+        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "API");
         core = new CoreMock();
         auto core_obj = std::unique_ptr<core::ICore>(core);
-        request_handler = std::make_unique<api::RequestHandler>(std::move(core_obj));
+        request_handler = std::make_unique<api::RequestHandler>(std::move(core_obj), logger_impl_);
     }
     std::unique_ptr<api::RequestHandler> request_handler;
     CoreMock* core {};
+    std::shared_ptr<LayerLogger> logger_impl_;
 };
 
 TEST_F(RequestHandlerTests, CreationSuccess) {
@@ -34,7 +36,7 @@ TEST_F(RequestHandlerTests, CreationSuccess) {
 }
 
 TEST_F(RequestHandlerTests, CreationFailNoCore) {
-    EXPECT_THROW(api::RequestHandler request_handler(nullptr), std::invalid_argument);
+    EXPECT_THROW(api::RequestHandler request_handler(nullptr, logger_impl_), std::invalid_argument);
 }
 
 TEST_F(RequestHandlerTests, StartSuccess) {

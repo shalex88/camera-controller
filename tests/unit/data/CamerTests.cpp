@@ -29,16 +29,18 @@ public:
 
 class CameraTests : public Test {
 protected:
-    void SetUp() override {
+    CameraTests() {
         auto camera_strategy_obj = std::make_unique<MockCameraStrategy>();
         camera_strategy = camera_strategy_obj.get();
         EXPECT_CALL(*camera_strategy, getLimits())
             .WillOnce(Return(camera_strategy->limits));
-        camera = std::make_unique<data::CameraHal>(std::move(camera_strategy_obj));
+        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "Data");
+        camera = std::make_unique<data::CameraHal>(std::move(camera_strategy_obj), logger_impl_);
     }
 
     MockCameraStrategy* camera_strategy {};
     std::unique_ptr<data::ICameraHal> camera;
+    std::shared_ptr<LayerLogger> logger_impl_;
 };
 
 TEST_F(CameraTests, CanBeConstructed) {
@@ -102,25 +104,25 @@ TEST_F(CameraTests, DisonnectWhenCameraCantDisconnectFails) {
 TEST_F(CameraTests, SetZoomWhenNotConnectedFail) {
     const auto result = camera->setZoom(2.0);
     ASSERT_TRUE(result.isError());
-    EXPECT_EQ(result.error(), "Cannot set zoom: NFOV Camera not connected");
+    EXPECT_EQ(result.error(), "Camera not connected");
 }
 
 TEST_F(CameraTests, GetZoomWhenNotConnectedFail) {
     const auto result = camera->getZoom();
     ASSERT_TRUE(result.isError());
-    EXPECT_EQ(result.error(), "Cannot get zoom: NFOV Camera not connected");
+    EXPECT_EQ(result.error(), "Camera not connected");
 }
 
 TEST_F(CameraTests, SetFocusWhenNotConnectedFail) {
     const auto result = camera->setFocus(1.0);
     ASSERT_TRUE(result.isError());
-    EXPECT_EQ(result.error(), "Cannot set focus: NFOV Camera not connected");
+    EXPECT_EQ(result.error(), "Camera not connected");
 }
 
 TEST_F(CameraTests, GetFocusWhenNotConnectedFail) {
     const auto result = camera->getFocus();
     ASSERT_TRUE(result.isError());
-    EXPECT_EQ(result.error(), "Cannot get focus: NFOV Camera not connected");
+    EXPECT_EQ(result.error(), "Camera not connected");
 }
 
 TEST_F(CameraTests, SetValidZoomSuccess) {

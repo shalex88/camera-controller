@@ -5,11 +5,13 @@
 #include "api/IRequestHandler.h"
 #include "api/GrpcCallbackHandler.h"
 #include "common/types/Result.h"
+#include "common/Logger/Logger.h"
 
 namespace camera_service::api {
     class GrpcTransport final : public ITransport {
     public:
-        explicit GrpcTransport(std::shared_ptr<IRequestHandler> request_handler);
+        explicit GrpcTransport(std::shared_ptr<IRequestHandler> request_handler,
+                              std::shared_ptr<LayerLogger> logger);
         ~GrpcTransport() override;
 
         Result<void> start(const std::string& server_address) override;
@@ -19,5 +21,6 @@ namespace camera_service::api {
     private:
         std::unique_ptr<GrpcCallbackHandler> callback_handler_;
         std::unique_ptr<grpc::Server> server_;
+        std::shared_ptr<LayerLogger> logger_;
     };
 }

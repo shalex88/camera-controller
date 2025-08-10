@@ -4,26 +4,26 @@
 #include "common/Logger/Logger.h"
 
 namespace camera_service::api {
-    RequestHandler::RequestHandler(std::unique_ptr<core::ICore> core)
-        : core_(std::move(core)), running_(false) {
+    RequestHandler::RequestHandler(std::unique_ptr<core::ICore> core, std::shared_ptr<LayerLogger> logger)
+        : core_(std::move(core)), running_(false), logger_(std::move(logger)) {
         if (!core_) {
-            throw std::invalid_argument("[API] Core cannot be null");
+            throw std::invalid_argument("Core cannot be null");
         }
     }
 
     RequestHandler::~RequestHandler() {
         if (running_) {
             if (stop().isError()) {
-                LOG_ERROR("[API] RequestHandler failed to stop gracefully");
+                logger_->error("RequestHandler failed to stop gracefully");
             }
         }
     }
 
     Result<void> RequestHandler::start() {
-        LOG_INFO("[API] Starting Request Handler...");
+        logger_->info("Starting Request Handler...");
 
         if (const auto init_result = core_->initialize(); init_result.isError()) {
-            return Result<void>::error("[API] Core initialization failed: " + init_result.error());
+            return Result<void>::error("Core initialization failed: " + init_result.error());
         }
 
         running_ = true;
@@ -35,13 +35,13 @@ namespace camera_service::api {
             return Result<void>::success();
         }
 
-        LOG_INFO("[API] Stopping Request Handler...");
+        logger_->info("Stopping Request Handler...");
         running_ = false;
 
         if (core_) {
             if (const auto shutdown_result = core_->shutdown(); shutdown_result.isError()) {
-                LOG_ERROR("[API] Error stopping core: {}", shutdown_result.error());
-                return Result<void>::error("[API] Failed to shut down core: " + shutdown_result.error());
+                logger_->error("Error stopping core: {}", shutdown_result.error());
+                return Result<void>::error("Failed to shut down core: " + shutdown_result.error());
             }
         }
         return Result<void>::success();
@@ -53,17 +53,17 @@ namespace camera_service::api {
 
     Result<void> RequestHandler::setZoom(const types::zoom zoom_level) {
         if (!isRunning()) {
-            return Result<void>::error("[API] Request Handler is not running");
+            return Result<void>::error("Request Handler is not running");
         }
 
-        LOG_INFO("[API] Request: SetZoom to {}", zoom_level);
+        logger_->info("Request: SetZoom to {}", zoom_level);
 
         auto operation = core_->setZoom(zoom_level);
 
         if (operation.isError()) {
-            LOG_ERROR("[API] Response: {}", operation.error());
+            logger_->error("Response: {}", operation.error());
         } else {
-            LOG_INFO("[API] Response: Success");
+            logger_->info("Response: Success");
         }
 
         return operation;
@@ -71,17 +71,17 @@ namespace camera_service::api {
 
     Result<types::zoom> RequestHandler::getZoom() const {
         if (!isRunning()) {
-            return Result<types::zoom>::error("[API] Request Handler is not running");
+            return Result<types::zoom>::error("Request Handler is not running");
         }
 
-        LOG_INFO("[API] Request: GetZoom");
+        logger_->info("Request: GetZoom");
 
         auto operation = core_->getZoom();
 
         if (operation.isError()) {
-            LOG_ERROR("[API] Response: {}", operation.error());
+            logger_->error("Response: {}", operation.error());
         } else {
-            LOG_INFO("[API] Response: {}", operation.value());
+            logger_->info("Response: {}", operation.value());
         }
 
         return operation;
@@ -89,17 +89,17 @@ namespace camera_service::api {
 
     Result<void> RequestHandler::setFocus(const types::focus focus_value) {
         if (!isRunning()) {
-            return Result<void>::error("[API] Request Handler is not running");
+            return Result<void>::error("Request Handler is not running");
         }
 
-        LOG_INFO("[API] Request: SetFocus to {}", focus_value);
+        logger_->info("Request: SetFocus to {}", focus_value);
 
         auto operation = core_->setFocus(focus_value);
 
         if (operation.isError()) {
-            LOG_ERROR("[API] Response: {}", operation.error());
+            logger_->error("Response: {}", operation.error());
         } else {
-            LOG_INFO("[API] Response: Success");
+            logger_->info("Response: Success");
         }
 
         return operation;
@@ -107,17 +107,17 @@ namespace camera_service::api {
 
     Result<types::focus> RequestHandler::getFocus() const {
         if (!isRunning()) {
-            return Result<types::focus>::error("[API] Request Handler is not running");
+            return Result<types::focus>::error("Request Handler is not running");
         }
 
-        LOG_INFO("[API] Request: GetZoom");
+        logger_->info("Request: getFocus");
 
         auto operation = core_->getFocus();
 
         if (operation.isError()) {
-            LOG_ERROR("[API] Response: {}", operation.error());
+            logger_->error("Response: {}", operation.error());
         } else {
-            LOG_INFO("[API] Response: {}", operation.value());
+            logger_->info("Response: {}", operation.value());
         }
 
         return operation;

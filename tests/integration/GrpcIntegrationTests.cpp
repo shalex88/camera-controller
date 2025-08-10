@@ -32,8 +32,9 @@ protected:
         EXPECT_CALL(*core, initialize())
             .WillOnce(Return(Result<void>::success()));
 
-        request_handler = std::make_shared<api::RequestHandler>(std::move(core_obj));
-        grpc_transport = std::make_unique<api::GrpcTransport>(request_handler);
+        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "");
+        request_handler = std::make_shared<api::RequestHandler>(std::move(core_obj), logger_impl_);
+        grpc_transport = std::make_unique<api::GrpcTransport>(request_handler, logger_impl_);
 
         ASSERT_TRUE(request_handler->start().isSuccess());
         ASSERT_TRUE(grpc_transport->start(server_address).isSuccess());
@@ -69,6 +70,7 @@ protected:
     std::unique_ptr<GrpcClient> client;
     std::thread server_thread;
     Result<void> server_result;
+    std::shared_ptr<LayerLogger> logger_impl_;
 };
 
 TEST_F(GrpcIntegrationTests, SetZoomAndGetZoomSuccess) {

@@ -18,20 +18,22 @@ using namespace testing;
 class ServiceSystemTests : public Test {
 protected:
     void SetUp() override {
+        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "");
+
         EXPECT_NO_THROW(config = std::make_unique<Config>("../../config/config.yaml"));
         ASSERT_NE(nullptr, config);
         EXPECT_NO_THROW(api_config = config->get("api"));
         EXPECT_NO_THROW(server_address_config = config->get("server_address"));
         EXPECT_NO_THROW(camera_config = config->get("camera"));
 
-        EXPECT_NO_THROW(camera = data::CameraFactory::createCamera(camera_config));
+        EXPECT_NO_THROW(camera = data::CameraFactory::createCamera(camera_config, logger_impl_));
         ASSERT_NE(nullptr, camera);
 
-        EXPECT_NO_THROW(core = core::CoreFactory::createCore(camera_config, std::move(camera)));
+        EXPECT_NO_THROW(core = core::CoreFactory::createCore(camera_config, std::move(camera), logger_impl_));
         ASSERT_NE(nullptr, core);
 
         EXPECT_NO_THROW(service = camera_service::api::ApiControllerFactory::createController(api_config, server_address_config,
-            std::move(core)));
+            std::move(core), logger_impl_));
         ASSERT_NE(nullptr, service);
 
         ASSERT_TRUE(service->startAsync().isSuccess());
@@ -46,6 +48,7 @@ protected:
     std::string api_config;
     std::string server_address_config;
     std::string camera_config;
+    std::shared_ptr<LayerLogger> logger_impl_;
 };
 
 TEST_F(ServiceSystemTests, CameraRequestResponse) {
