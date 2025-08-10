@@ -5,6 +5,8 @@
 #include <type_traits>
 #include <utility>
 
+#include "common/Logger/Logger.h"
+
 // Helper type for void Results
 struct Empty {};
 
@@ -74,6 +76,7 @@ public:
 
     // Convenience function to create an error result
     static Result error(E error) {
+        LOG_ERROR("{}", error);
         return Result(std::move(error));
     }
 
