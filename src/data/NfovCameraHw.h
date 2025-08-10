@@ -24,5 +24,6 @@ namespace camera_service::data {
         };
         types::zoom current_zoom_ {limits_.min_zoom};
         types::focus current_focus_ {limits_.min_focus};
+        mutable std::mutex mutex_;
     };
 }

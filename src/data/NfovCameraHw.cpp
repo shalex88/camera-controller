@@ -10,32 +10,38 @@ namespace camera_service::data {
     }
 
     Result<void> NfovCameraHw::setZoom(const types::zoom zoom) {
+        std::lock_guard lock(mutex_);
         //TODO: implement real value setting
         current_zoom_ = zoom;
         return Result<void>::success();
     }
 
     Result<types::zoom> NfovCameraHw::getZoom() const {
+        std::lock_guard lock(mutex_);
         //TODO: implement real value retrieving
         return Result<types::zoom>::success(current_zoom_);
     }
 
     Result<void> NfovCameraHw::setFocus(const types::focus value) {
+        std::lock_guard lock(mutex_);
         //TODO: implement real value setting
-        current_zoom_ = value;
+        current_focus_ = value;
         return Result<void>::success();
     }
 
     Result<types::focus> NfovCameraHw::getFocus() const {
+        std::lock_guard lock(mutex_);
         //TODO: implement real value retrieving
-        return Result<types::focus>::success(current_zoom_);
+        return Result<types::focus>::success(current_focus_);
     }
 
     Result<void> NfovCameraHw::connect() {
+        std::lock_guard lock(mutex_);
         return Result<void>::success();
     }
 
     Result<void> NfovCameraHw::disconnect() {
+        std::lock_guard lock(mutex_);
         return Result<void>::success();
     }
 

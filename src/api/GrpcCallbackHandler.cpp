@@ -51,7 +51,6 @@ namespace camera_service::api {
         camera::SetZoomResponse* response) {
         return handleGrpcRequest(context, request, response,
             [this](const camera::SetZoomRequest* req, camera::SetZoomResponse* resp) {
-                LOG_INFO("Request: SetZoom to {}", req->zoom());
                 return request_handler_->setZoom(req->zoom());
             });
     }
@@ -62,7 +61,6 @@ namespace camera_service::api {
         camera::SetFocusResponse* response) {
         return handleGrpcRequest(context, request, response,
             [this](const camera::SetFocusRequest* req, camera::SetFocusResponse* resp) {
-                LOG_INFO("Request: SetFocus to {}", req->focus());
                 return request_handler_->setFocus(req->focus());
             });
     }
@@ -73,7 +71,6 @@ namespace camera_service::api {
         camera::GetZoomResponse* response) {
         return handleGrpcRequest(context, request, response,
             [this](const camera::GetZoomRequest* req, camera::GetZoomResponse* resp) {
-                LOG_INFO("Request: GetZoom");
                 const auto result = request_handler_->getZoom();
                 if (result.isSuccess()) {
                     resp->set_zoom(result.value());
@@ -89,7 +86,6 @@ namespace camera_service::api {
         camera::GetFocusResponse* response) {
         return handleGrpcRequest(context, request, response,
             [this](const camera::GetFocusRequest* req, camera::GetFocusResponse* resp) {
-                LOG_INFO("Request: GetFocus");
                 const auto result = request_handler_->getFocus();
                 if (result.isSuccess()) {
                     resp->set_focus(result.value());
