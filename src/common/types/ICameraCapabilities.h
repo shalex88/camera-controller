@@ -1,4 +1,5 @@
 #pragma once
+
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
 

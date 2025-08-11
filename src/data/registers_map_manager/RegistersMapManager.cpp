@@ -6,12 +6,12 @@
 
 uint32_t RegistersMapManager::getValue(const REG reg) {
     std::lock_guard lock(mtx_);
-    return register_interface_->get(g_registers_map[reg].address);
+    return register_->get(g_registers_map[reg].address);
 }
 
 uint8_t RegistersMapManager::setValue(const REG reg, const uint32_t value) {
     std::lock_guard lock(mtx_);
-    return register_interface_->set(g_registers_map[reg].address, value);
+    return register_->set(g_registers_map[reg].address, value);
 }
 
 uint8_t RegistersMapManager::resetValue(const REG reg) {

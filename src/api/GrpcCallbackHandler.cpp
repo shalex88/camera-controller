@@ -22,6 +22,10 @@ namespace camera_service::api {
         const auto reactor = context->DefaultReactor();
         const auto deadline = grpc::Timespec2Timepoint(context->raw_deadline());
 
+        // Calculate the remaining time before the deadline
+        const auto now = std::chrono::system_clock::now();
+        const auto remaining_time = deadline > now ? deadline - now : std::chrono::seconds(0);
+
         // Launch the processing task asynchronously
         std::future<grpc::Status> future = std::async(std::launch::async, [request, response, process_function] {
             if (auto result = process_function(request, response); result.isError()) {
@@ -30,9 +34,7 @@ namespace camera_service::api {
             return grpc::Status::OK;
         });
 
-        // Calculate the remaining time before the deadline
-        const auto now = std::chrono::system_clock::now();
-        const auto remaining_time = deadline > now ? deadline - now : std::chrono::seconds(0);
+        //TODO: handle task execution abort if deadline exceeds, think of a way to cancel and undo the task
 
         // Wait for the processing to complete or timeout
         if (future.wait_for(remaining_time) == std::future_status::timeout) {
