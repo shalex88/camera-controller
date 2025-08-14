@@ -4,24 +4,26 @@
 #include "data/registers_map_manager/RegistersMapManager.h"
 #include <thread>
 
-class RegisterMock : public IRegisterImpl {
+using namespace camera_service::data;
+
+class RegisterImplMock : public IRegisterImpl {
 public:
-    MOCK_METHOD(uint32_t, get, (uint32_t), (override));
-    MOCK_METHOD(uint8_t, set, (uint32_t, uint32_t), (override));
+    MOCK_METHOD(bool, get, (uint32_t, uint32_t&), (const, override));
+    MOCK_METHOD(bool, set, (uint32_t, uint32_t), (override));
 };
 
 class RegisterMapManagerTest : public testing::Test {
 public:
     RegisterMapManagerTest() :
-            register_impl_obj(std::make_unique<RegisterMock>()),
-            register_map(std::make_shared<RegistersMapManager>(register_impl)) {}
-    std::unique_ptr<RegisterMock> register_impl_obj;
-    std::unique_ptr<RegisterMock> register_impl;
+            register_impl(std::make_unique<RegisterImplMock>()),
+            register_map(std::make_unique<RegistersMapManager>(std::move(register_impl))) {}
+    std::unique_ptr<RegisterImplMock> register_impl;
+    //FIXME: register_impl is out of scope, it was moved to register_map
     std::unique_ptr<RegistersMapManager> register_map;
 };
 
 TEST_F(RegisterMapManagerTest, GetRegisterValue) {
-    EXPECT_CALL(*register_impl, get(testing::_))
+    EXPECT_CALL(*register_impl.get(), get(testing::_, testing::_))
             .WillOnce(testing::Return(0xFFFF'FFFF));
 
     EXPECT_EQ(register_map->getValue(REG::SET_ZOOM), 0xFFFF'FFFF);
@@ -42,14 +44,14 @@ TEST_F(RegisterMapManagerTest, ResetRegisterToDefault) {
 }
 
 TEST_F(RegisterMapManagerTest, ClearRegister) {
-    EXPECT_CALL(*register_impl, set(testing::_, 0))
+    EXPECT_CALL(*register_impl, set(testing::_, testing::_))
             .WillOnce(testing::Return(0));
 
     EXPECT_EQ(register_map->clearValue(REG::SET_ZOOM), 0);
 }
 
 TEST_F(RegisterMapManagerTest, SetBit) {
-    EXPECT_CALL(*register_impl, get(testing::_))
+    EXPECT_CALL(*register_impl, get(testing::_, testing::_))
             .WillOnce(testing::Return(0x0000'0000));
     EXPECT_CALL(*register_impl, set(testing::_, 0x0000'0001))
             .WillOnce(testing::Return(0));
@@ -58,7 +60,7 @@ TEST_F(RegisterMapManagerTest, SetBit) {
 }
 
 TEST_F(RegisterMapManagerTest, ClearBit) {
-    EXPECT_CALL(*register_impl, get(testing::_))
+    EXPECT_CALL(*register_impl, get(testing::_, testing::_))
             .WillOnce(testing::Return(0xFFFF'FFFF));
     EXPECT_CALL(*register_impl, set(testing::_, 0xFFFF'FFFE))
             .WillOnce(testing::Return(0));
@@ -67,7 +69,7 @@ TEST_F(RegisterMapManagerTest, ClearBit) {
 }
 
 TEST_F(RegisterMapManagerTest, GetOrSetBitLargerThan31) {
-    EXPECT_CALL(*register_impl, get(testing::_)).Times(0);
+    EXPECT_CALL(*register_impl, get(testing::_, testing::_)).Times(0);
     EXPECT_CALL(*register_impl, set(testing::_, testing::_)).Times(0);
 
     EXPECT_EQ(register_map->setBit(REG::SET_ZOOM, 32), 1);
@@ -75,14 +77,14 @@ TEST_F(RegisterMapManagerTest, GetOrSetBitLargerThan31) {
 }
 
 TEST_F(RegisterMapManagerTest, GetNibble) {
-    EXPECT_CALL(*register_impl, get(testing::_))
+    EXPECT_CALL(*register_impl, get(testing::_, testing::_))
             .WillOnce(testing::Return(0xFFFF'FFFF));
 
     EXPECT_EQ(register_map->getNibble(REG::SET_ZOOM, 0), 0xF);
 }
 
 TEST_F(RegisterMapManagerTest, SetNibble) {
-    EXPECT_CALL(*register_impl, get(testing::_))
+    EXPECT_CALL(*register_impl, get(testing::_, testing::_))
             .WillOnce(testing::Return(0x0000'0000));
     EXPECT_CALL(*register_impl, set(testing::_, 0x0000'000F))
             .WillOnce(testing::Return(0));
@@ -91,7 +93,7 @@ TEST_F(RegisterMapManagerTest, SetNibble) {
 }
 
 TEST_F(RegisterMapManagerTest, GetSetWrongNibbleIndex) {
-    EXPECT_CALL(*register_impl, get(testing::_)).Times(0);
+    EXPECT_CALL(*register_impl, get(testing::_, testing::_)).Times(0);
     EXPECT_CALL(*register_impl, set(testing::_, testing::_)).Times(0);
 
     EXPECT_EQ(register_map->getNibble(REG::SET_ZOOM, 8), 1);
@@ -99,7 +101,7 @@ TEST_F(RegisterMapManagerTest, GetSetWrongNibbleIndex) {
 }
 
 TEST_F(RegisterMapManagerTest, SetWrongNibbleValue) {
-    EXPECT_CALL(*register_impl, get(testing::_)).Times(0);
+    EXPECT_CALL(*register_impl, get(testing::_, testing::_)).Times(0);
     EXPECT_CALL(*register_impl, set(testing::_, testing::_)).Times(0);
 
     EXPECT_EQ(register_map->setNibble(REG::SET_ZOOM, 0, 0xff), 1);
@@ -133,7 +135,7 @@ TEST_F(RegisterMapManagerTest, ClearAllRegistersFails) {
     EXPECT_CALL(*register_impl, set(testing::_, testing::_))
             .WillRepeatedly(testing::Return(0));
 
-    EXPECT_CALL(*register_interface, set(testing::_, testing::_))
+    EXPECT_CALL(*register_impl, set(testing::_, testing::_))
             .WillOnce(testing::Return(1));
 
     EXPECT_EQ(register_map->clearAll(), 1);

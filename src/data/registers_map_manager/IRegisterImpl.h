@@ -2,9 +2,11 @@
 
 #include <cstdint>
 
-class IRegisterImpl {
-public:
-    virtual ~IRegisterImpl() = default;
-    virtual uint32_t get(uint32_t address) = 0;
-    virtual uint8_t set(uint32_t address, uint32_t value) = 0;
-};
+namespace camera_service::data {
+    class IRegisterImpl {
+    public:
+        virtual ~IRegisterImpl() = default;
+        virtual bool set(uint32_t address, uint32_t value) = 0;
+        virtual bool get(uint32_t address, uint32_t& value) const = 0;
+    };
+}

@@ -3,12 +3,14 @@
 #include "ICameraHw.h"
 
 #include "registers_map_manager/RegistersMapManager.h"
-#include "registers_map_manager/RegisterImplFake.h"
+#include <memory>
 
 namespace camera_service::data {
     class NfovCameraHw final : public ICameraHw {
     public:
-        NfovCameraHw() = default;
+        explicit NfovCameraHw(std::unique_ptr<RegistersMapManager> fpga_manager) :
+            fpga_(std::move(fpga_manager)) {
+        };
         ~NfovCameraHw() override;
 
         Result<void> setZoom(types::zoom zoom) override;
@@ -29,7 +31,6 @@ namespace camera_service::data {
         types::zoom current_zoom_ {limits_.min_zoom};
         types::focus current_focus_ {limits_.min_focus};
         mutable std::mutex mutex_;
+        std::unique_ptr<RegistersMapManager> fpga_;
     };
-
-    inline RegistersMapManager fpga(std::make_unique<RegisterImplFake>()); //FIXME: use dependency injection
 }

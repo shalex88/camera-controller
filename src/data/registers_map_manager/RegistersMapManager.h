@@ -1,32 +1,30 @@
 #pragma once
 
-#include <memory>
-#include <utility>
-#include <mutex>
-
-#include "data/registers_map_manager/IRegisterImpl.h"
-
+#include "IRegisterImpl.h"
 #include "RegistersMap.h"
+#include <memory>
 
-class RegistersMapManager {
-public:
-    explicit RegistersMapManager(std::unique_ptr<IRegisterImpl> register_impl)
-        : register_(std::move(register_impl)) {
-    }
-    ~RegistersMapManager() = default;
+namespace camera_service::data {
+    class RegistersMapManager {
+    public:
+        explicit RegistersMapManager(std::unique_ptr<IRegisterImpl> impl) :
+            register_(std::move(impl)) {
+        };
 
-    uint32_t getValue(REG reg);
-    uint8_t setValue(REG reg, uint32_t value);
-    uint8_t resetValue(REG reg);
-    uint8_t clearValue(REG reg);
-    uint8_t setBit(REG reg, uint8_t bit_index);
-    uint8_t clearBit(REG reg, uint8_t bit_index);
-    uint8_t getNibble(REG reg, uint8_t nibble_index);
-    uint8_t setNibble(REG reg, uint8_t nibble_index, uint8_t nibble_value);
-    uint8_t resetAll();
-    uint8_t clearAll();
+        ~RegistersMapManager() = default;
 
-private:
-    std::unique_ptr<IRegisterImpl> register_;
-    std::mutex mtx_;
-};
+        bool setValue(REG reg, uint32_t value) const;
+        uint32_t getValue(REG reg) const;
+        bool resetValue(REG reg) const;
+        bool clearValue(REG reg) const;
+        bool setBit(REG reg, uint8_t bit_index) const;
+        bool clearBit(REG reg, uint8_t bit_index) const;
+        uint8_t getNibble(REG reg, uint8_t nibble_index) const;
+        uint8_t setNibble(REG reg, uint8_t nibble_index, uint8_t nibble_value) const;
+        bool resetAll() const;
+        bool clearAll() const;
+
+    private:
+        std::unique_ptr<IRegisterImpl> register_;
+    };
+}

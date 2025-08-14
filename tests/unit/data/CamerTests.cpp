@@ -6,6 +6,7 @@
 #include "data/ICameraHw.h"
 #include "common/types/Result.h"
 #include "data/CameraHal.h"
+#include "data/registers_map_manager/RegisterImplFake.h"
 
 using namespace camera_service;
 using namespace testing;
@@ -44,7 +45,9 @@ protected:
 };
 
 TEST_F(CameraTests, CanBeConstructed) {
-    const auto camera = std::make_unique<data::NfovCameraHw>();
+    auto register_impl = std::make_unique<RegisterImplFake>(); //FIXME: use a mock
+    auto fpga_manager = std::make_unique<data::RegistersMapManager>(std::move(register_impl)); //FIXME: use a mock
+    const auto camera = std::make_unique<data::NfovCameraHw>(std::move(fpga_manager));
     ASSERT_NE(nullptr, camera);
 }
 
