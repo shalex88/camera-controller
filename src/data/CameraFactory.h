@@ -9,6 +9,6 @@ namespace camera_service::data {
     class CameraFactory {
     public:
         static std::unique_ptr<ICameraHal> createCamera(const std::string& camera_type,
-                                                       std::shared_ptr<LayerLogger> logger);
+                                                        std::shared_ptr<LayerLogger> logger, std::string device);
     };
 }

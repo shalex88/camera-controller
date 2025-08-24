@@ -19,16 +19,19 @@ int main() {
         auto core_logger = std::make_shared<LayerLogger>(logger_impl, "CORE");
         auto data_logger = std::make_shared<LayerLogger>(logger_impl, "DATA");
 
-        api_logger->setLogLevel(LoggerInterface::LogLevel::Info);
-        core_logger->setLogLevel(LoggerInterface::LogLevel::Info);
-        data_logger->setLogLevel(LoggerInterface::LogLevel::Info);
-
+        //TODO: add default values if not found in config
         const auto config = std::make_unique<Config>("../config/config.yaml");
         const auto api_config = config->get("api");
         const auto port_config = config->get("server_address");
         const auto camera_config = config->get("camera");
+        const auto device = config->get("device");
+        const auto log_level = config->get("log_level");
 
-        auto camera = camera_service::data::CameraFactory::createCamera(camera_config, data_logger);
+        api_logger->setLogLevel(log_level);
+        core_logger->setLogLevel(log_level);
+        data_logger->setLogLevel(log_level);
+
+        auto camera = camera_service::data::CameraFactory::createCamera(camera_config, data_logger, device);
 
         auto core = camera_service::core::CoreFactory::createCore(camera_config, std::move(camera), core_logger);
 

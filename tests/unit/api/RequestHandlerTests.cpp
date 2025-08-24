@@ -88,12 +88,12 @@ TEST_F(RequestHandlerTests, ZoomOperations) {
     EXPECT_CALL(*core, initialize())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*core, setZoom(2.0))
+    EXPECT_CALL(*core, setZoom(2))
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*core, getZoom())
         .InSequence(s)
-        .WillOnce(Return(Result<types::zoom>::success(2.0)));
+        .WillOnce(Return(Result<types::zoom>::success(2u)));
     EXPECT_CALL(*core, shutdown())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
@@ -101,19 +101,19 @@ TEST_F(RequestHandlerTests, ZoomOperations) {
     const auto start_result = request_handler->start();
     ASSERT_TRUE(start_result.isSuccess()) << "Failed to start: " << start_result.error();
 
-    const auto set_result = request_handler->setZoom(2.0);
+    const auto set_result = request_handler->setZoom(2);
     ASSERT_TRUE(set_result.isSuccess()) << "Failed to set zoom: " << set_result.error();
 
     const auto get_result = request_handler->getZoom();
     ASSERT_TRUE(get_result.isSuccess()) << "Failed to get zoom: " << get_result.error();
-    EXPECT_DOUBLE_EQ(2.0, get_result.value());
+    EXPECT_EQ(2, get_result.value());
 
     const auto stop_result = request_handler->stop();
     ASSERT_TRUE(stop_result.isSuccess()) << "Failed to stop: " << stop_result.error();
 }
 
 TEST_F(RequestHandlerTests, ZoomOperationsFailIfNotRunning) {
-    const auto set_result = request_handler->setZoom(2.0);
+    const auto set_result = request_handler->setZoom(2);
     ASSERT_TRUE(set_result.isError());
 
     const auto get_result = request_handler->getZoom();
@@ -125,12 +125,12 @@ TEST_F(RequestHandlerTests, FocusOperations) {
     EXPECT_CALL(*core, initialize())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*core, setFocus(1.5))
+    EXPECT_CALL(*core, setFocus(1))
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*core, getFocus())
         .InSequence(s)
-        .WillOnce(Return(Result<types::focus>::success(1.5)));
+        .WillOnce(Return(Result<types::focus>::success(1u)));
     EXPECT_CALL(*core, shutdown())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
@@ -138,19 +138,19 @@ TEST_F(RequestHandlerTests, FocusOperations) {
     const auto start_result = request_handler->start();
     ASSERT_TRUE(start_result.isSuccess()) << "Failed to start: " << start_result.error();
 
-    const auto set_result = request_handler->setFocus(1.5);
+    const auto set_result = request_handler->setFocus(1);
     ASSERT_TRUE(set_result.isSuccess()) << "Failed to set focus: " << set_result.error();
 
     const auto get_result = request_handler->getFocus();
     ASSERT_TRUE(get_result.isSuccess()) << "Failed to get focus: " << get_result.error();
-    EXPECT_DOUBLE_EQ(1.5, get_result.value());
+    EXPECT_EQ(1, get_result.value());
 
     const auto stop_result = request_handler->stop();
     ASSERT_TRUE(stop_result.isSuccess()) << "Failed to stop: " << stop_result.error();
 }
 
 TEST_F(RequestHandlerTests, FocusOperationsFailIfNotRunning) {
-    const auto set_result = request_handler->setFocus(2.0);
+    const auto set_result = request_handler->setFocus(2);
     ASSERT_TRUE(set_result.isError());
 
     const auto get_result = request_handler->getFocus();

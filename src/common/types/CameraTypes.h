@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 namespace camera_service::types {
     using zoom = uint32_t;
     using focus = uint32_t;

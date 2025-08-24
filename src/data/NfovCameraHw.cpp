@@ -15,47 +15,35 @@ namespace camera_service::data {
     }
 
     Result<void> NfovCameraHw::setZoom(const types::zoom zoom) {
-        std::lock_guard lock(mutex_);
-
         fpga_->setValue(REG::ZOOM, static_cast<uint32_t>(zoom));
         std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
-        // current_zoom_ = zoom;
         return Result<void>::success();
     }
 
     Result<types::zoom> NfovCameraHw::getZoom() const {
-        std::lock_guard lock(mutex_);
-
         const auto zoom = fpga_->getValue(REG::ZOOM);
         std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
         return Result<types::zoom>::success(static_cast<types::zoom>(zoom));
     }
 
     Result<void> NfovCameraHw::setFocus(const types::focus focus) {
-        std::lock_guard lock(mutex_);
-
         fpga_->setValue(REG::FOCUS, static_cast<uint32_t>(focus));
         std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
-        // current_focus_ = focus;
         return Result<void>::success();
     }
 
     Result<types::focus> NfovCameraHw::getFocus() const {
-        std::lock_guard lock(mutex_);
-
         const auto focus = fpga_->getValue(REG::FOCUS);
         std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
         return Result<types::focus>::success(static_cast<types::focus>(focus));
     }
 
     Result<void> NfovCameraHw::connect() {
-        std::lock_guard lock(mutex_);
         std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
         return Result<void>::success();
     }
 
     Result<void> NfovCameraHw::disconnect() {
-        std::lock_guard lock(mutex_);
         std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
         return Result<void>::success();
     }

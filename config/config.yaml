@@ -1,3 +1,5 @@
 api: grpc
 server_address: 0.0.0.0:50051
 camera: nfov
+device: fake
+log_level: debug

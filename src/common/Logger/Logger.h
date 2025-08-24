@@ -10,8 +10,27 @@ public:
     LayerLogger(std::shared_ptr<LoggerInterface> logger, const std::string& layer_name)
         : logger_(std::move(logger)), layer_name_(layer_name) {}
 
-    void setLogLevel(LoggerInterface::LogLevel level) const {
+    void setLogLevel(const LoggerInterface::LogLevel level) const {
         logger_->setLogLevel(level);
+    }
+
+    void setLogLevel(const std::string& level) const {
+        if (level == "trace")
+            logger_->setLogLevel(LoggerInterface::LogLevel::Trace);
+        else if (level == "debug")
+            logger_->setLogLevel(LoggerInterface::LogLevel::Debug);
+        else if (level == "info")
+            logger_->setLogLevel(LoggerInterface::LogLevel::Info);
+        else if (level == "warn")
+            logger_->setLogLevel(LoggerInterface::LogLevel::Warn);
+        else if (level == "error")
+            logger_->setLogLevel(LoggerInterface::LogLevel::Error);
+        else if (level == "critical")
+            logger_->setLogLevel(LoggerInterface::LogLevel::Critical);
+        else {
+            logger_->log(LoggerInterface::LogLevel::Warn, "[{}] Unknown log level: {}. Defaulting to INFO.",
+                        layer_name_, level);
+        }
     }
 
     template<typename... Args>

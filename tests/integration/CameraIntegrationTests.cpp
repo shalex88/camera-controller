@@ -16,7 +16,7 @@ protected:
         EXPECT_NO_THROW(config = std::make_unique<Config>("../../config/config.yaml"));
         ASSERT_NE(nullptr, config);
 
-        EXPECT_NO_THROW(camera = data::CameraFactory::createCamera(config->get("camera"), logger_impl_));
+        EXPECT_NO_THROW(camera = data::CameraFactory::createCamera(config->get("camera"), logger_impl_, "/dev/uio0"));
         ASSERT_NE(nullptr, camera);
 
         EXPECT_NO_THROW(core = core::CoreFactory::createCore(config->get("camera"), std::move(camera), logger_impl_));

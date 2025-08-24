@@ -20,7 +20,7 @@ namespace camera_service::api {
     }
 
     Result<void> RequestHandler::start() {
-        logger_->info("Starting Request Handler...");
+        logger_->debug("Starting Request Handler...");
 
         if (const auto init_result = core_->initialize(); init_result.isError()) {
             return Result<void>::error("Core initialization failed: " + init_result.error());
@@ -35,7 +35,7 @@ namespace camera_service::api {
             return Result<void>::success();
         }
 
-        logger_->info("Stopping Request Handler...");
+        logger_->debug("Stopping Request Handler...");
         running_ = false;
 
         if (core_) {
@@ -56,14 +56,14 @@ namespace camera_service::api {
             return Result<void>::error("Request Handler is not running");
         }
 
-        logger_->info("Request: SetZoom to {}", zoom_level);
+        logger_->debug("Request: SetZoom to {}", zoom_level);
 
         auto operation = core_->setZoom(zoom_level);
 
         if (operation.isError()) {
             logger_->error("Response: {}", operation.error());
         } else {
-            logger_->info("Response: Success");
+            logger_->debug("Response: Success");
         }
 
         return operation;
@@ -74,14 +74,14 @@ namespace camera_service::api {
             return Result<types::zoom>::error("Request Handler is not running");
         }
 
-        logger_->info("Request: GetZoom");
+        logger_->debug("Request: GetZoom");
 
         auto operation = core_->getZoom();
 
         if (operation.isError()) {
             logger_->error("Response: {}", operation.error());
         } else {
-            logger_->info("Response: {}", operation.value());
+            logger_->debug("Response: {}", operation.value());
         }
 
         return operation;
@@ -92,14 +92,14 @@ namespace camera_service::api {
             return Result<void>::error("Request Handler is not running");
         }
 
-        logger_->info("Request: SetFocus to {}", focus_value);
+        logger_->debug("Request: SetFocus to {}", focus_value);
 
         auto operation = core_->setFocus(focus_value);
 
         if (operation.isError()) {
             logger_->error("Response: {}", operation.error());
         } else {
-            logger_->info("Response: Success");
+            logger_->debug("Response: Success");
         }
 
         return operation;
@@ -110,14 +110,14 @@ namespace camera_service::api {
             return Result<types::focus>::error("Request Handler is not running");
         }
 
-        logger_->info("Request: getFocus");
+        logger_->debug("Request: getFocus");
 
         auto operation = core_->getFocus();
 
         if (operation.isError()) {
             logger_->error("Response: {}", operation.error());
         } else {
-            logger_->info("Response: {}", operation.value());
+            logger_->debug("Response: {}", operation.value());
         }
 
         return operation;

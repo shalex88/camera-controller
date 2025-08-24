@@ -15,15 +15,15 @@ protected:
 };
 
 TEST_F(CameraFactoryTests, CreateNfovCameraSuccess) {
-    const auto camera = data::CameraFactory::createCamera("nfov", logger_impl_);
+    const auto camera = data::CameraFactory::createCamera("nfov", logger_impl_, "fake");
     ASSERT_NE(nullptr, camera);
     ASSERT_TRUE(camera.get() != nullptr);
 }
 
 TEST_F(CameraFactoryTests, ThrowsOnUnknownType) {
-    EXPECT_THROW(data::CameraFactory::createCamera("unknown", logger_impl_), std::invalid_argument);
+    EXPECT_THROW(data::CameraFactory::createCamera("unknown", logger_impl_,"fake"), std::invalid_argument);
 }
 
 TEST_F(CameraFactoryTests, ThrowsOnEmptyType) {
-    EXPECT_THROW(data::CameraFactory::createCamera("", logger_impl_), std::invalid_argument);
+    EXPECT_THROW(data::CameraFactory::createCamera("", logger_impl_,"fake"), std::invalid_argument);
 }

@@ -21,10 +21,10 @@ public:
     MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
     MOCK_METHOD(types::CameraLimits, getLimits, (), (const, override));
     types::CameraLimits limits {
-        .min_zoom = 0.0,
-        .max_zoom = 10.0,
-        .min_focus = 0.0,
-        .max_focus = 10.0,
+        .min_zoom = 0,
+        .max_zoom = 100,
+        .min_focus = 0,
+        .max_focus = 100,
     };
 };
 
@@ -105,7 +105,7 @@ TEST_F(CameraTests, DisonnectWhenCameraCantDisconnectFails) {
 }
 
 TEST_F(CameraTests, SetZoomWhenNotConnectedFail) {
-    const auto result = camera->setZoom(2.0);
+    const auto result = camera->setZoom(2);
     ASSERT_TRUE(result.isError());
     EXPECT_EQ(result.error(), "Camera not connected");
 }
@@ -117,7 +117,7 @@ TEST_F(CameraTests, GetZoomWhenNotConnectedFail) {
 }
 
 TEST_F(CameraTests, SetFocusWhenNotConnectedFail) {
-    const auto result = camera->setFocus(1.0);
+    const auto result = camera->setFocus(1);
     ASSERT_TRUE(result.isError());
     EXPECT_EQ(result.error(), "Camera not connected");
 }
@@ -129,7 +129,7 @@ TEST_F(CameraTests, GetFocusWhenNotConnectedFail) {
 }
 
 TEST_F(CameraTests, SetValidZoomSuccess) {
-    constexpr auto expected_value = 2.0;
+    constexpr auto expected_value = 2;
 
     EXPECT_CALL(*camera_strategy, connect())
         .WillOnce(Return(Result<void>::success()));
@@ -144,7 +144,7 @@ TEST_F(CameraTests, SetValidZoomSuccess) {
 }
 
 TEST_F(CameraTests, SetInvalidZoomFail) {
-    constexpr auto expected_value = -2.0;
+    constexpr auto expected_value = -2;
 
     EXPECT_CALL(*camera_strategy, connect())
         .WillOnce(Return(Result<void>::success()));
@@ -157,7 +157,7 @@ TEST_F(CameraTests, SetInvalidZoomFail) {
 }
 
 TEST_F(CameraTests, SetValidZoomWhenCameraErrorFails) {
-    constexpr auto expected_value = 2.0;
+    constexpr auto expected_value = 2;
 
     EXPECT_CALL(*camera_strategy, connect())
         .WillOnce(Return(Result<void>::success()));
@@ -185,7 +185,7 @@ TEST_F(CameraTests, GetValidZoomWhenCameraErrorFails) {
 }
 
 TEST_F(CameraTests, GetValidZoomSuccess) {
-    constexpr auto expected_value = 2.0;
+    constexpr auto expected_value = 2u;
 
     EXPECT_CALL(*camera_strategy, connect())
         .WillOnce(Return(Result<void>::success()));
@@ -201,7 +201,7 @@ TEST_F(CameraTests, GetValidZoomSuccess) {
 }
 
 TEST_F(CameraTests, GetInvalidZoomFail) {
-    constexpr auto expected_value = -2.0;
+    constexpr auto expected_value = -2u;
 
     EXPECT_CALL(*camera_strategy, connect())
         .WillOnce(Return(Result<void>::success()));
@@ -216,7 +216,7 @@ TEST_F(CameraTests, GetInvalidZoomFail) {
 }
 
 TEST_F(CameraTests, SetValidFocusSuccess) {
-    constexpr auto expected_value = 2.0;
+    constexpr auto expected_value = 2u;
 
     EXPECT_CALL(*camera_strategy, connect())
         .WillOnce(Return(Result<void>::success()));
@@ -231,7 +231,7 @@ TEST_F(CameraTests, SetValidFocusSuccess) {
 }
 
 TEST_F(CameraTests, GetValidFocusSuccess) {
-    constexpr auto expected_value = 2.0;
+    constexpr auto expected_value = 2u;
 
     EXPECT_CALL(*camera_strategy, connect())
         .WillOnce(Return(Result<void>::success()));
@@ -247,7 +247,7 @@ TEST_F(CameraTests, GetValidFocusSuccess) {
 }
 
 TEST_F(CameraTests, SetValidFocusWhenCameraErrorFails) {
-    constexpr auto expected_value = 2.0;
+    constexpr auto expected_value = 2u;
 
     EXPECT_CALL(*camera_strategy, connect())
         .WillOnce(Return(Result<void>::success()));
@@ -275,7 +275,7 @@ TEST_F(CameraTests, GetValidFocusWhenCameraErrorFails) {
 }
 
 TEST_F(CameraTests, SetInvalidFocusFail) {
-    constexpr auto expected_value = -2.0;
+    constexpr auto expected_value = -2u;
 
     EXPECT_CALL(*camera_strategy, connect())
         .WillOnce(Return(Result<void>::success()));
@@ -289,7 +289,7 @@ TEST_F(CameraTests, SetInvalidFocusFail) {
 
 
 TEST_F(CameraTests, GetInvalidFocusFail) {
-    constexpr auto expected_value = -2.0;
+    constexpr auto expected_value = -2u;
 
     EXPECT_CALL(*camera_strategy, connect())
         .WillOnce(Return(Result<void>::success()));

@@ -29,7 +29,7 @@ namespace camera_service::data {
             return Result<void>::error("Invalid zoom value");
         }
 
-        logger_->info("Setting camera zoom to: {}", zoom);
+        logger_->debug("Setting camera zoom to: {}", zoom);
         return camera_hw_->setZoom(zoom);
     }
 
@@ -38,7 +38,7 @@ namespace camera_service::data {
             return Result<types::zoom>::error("Camera not connected");
         }
 
-        logger_->info("Getting camera zoom");
+        logger_->debug("Getting camera zoom");
         auto zoom_result = camera_hw_->getZoom();
 
         if (zoom_result.isError()) {
@@ -49,7 +49,7 @@ namespace camera_service::data {
             return Result<types::zoom>::error("Invalid zoom value");
         }
 
-        logger_->info("Current Zoom is: {}", zoom_result.value());
+        logger_->debug("Current Zoom is: {}", zoom_result.value());
         return zoom_result;
     }
 
@@ -62,7 +62,7 @@ namespace camera_service::data {
             return Result<void>::error("Invalid focus value");
         }
 
-        logger_->info("Setting camera focus to: {}", focus);
+        logger_->debug("Setting camera focus to: {}", focus);
         return camera_hw_->setFocus(focus);
     }
 
@@ -71,7 +71,7 @@ namespace camera_service::data {
             return Result<types::focus>::error("Camera not connected");
         }
 
-        logger_->info("Getting camera focus");
+        logger_->debug("Getting camera focus");
         auto focus_result = camera_hw_->getFocus();
 
         if (focus_result.isError()) {
@@ -82,7 +82,7 @@ namespace camera_service::data {
             return Result<types::focus>::error("Invalid focus value");
         }
 
-        logger_->info("Current Focus is: {}", focus_result.value());
+        logger_->debug("Current Focus is: {}", focus_result.value());
         return focus_result;
     }
 
@@ -91,7 +91,7 @@ namespace camera_service::data {
             return Result<void>::error("Camera already connected");
         }
 
-        logger_->info("Connecting to camera");
+        logger_->debug("Connecting to camera");
         if (camera_hw_->connect().isError()) {
             return Result<void>::error("Connecting to camera failed");
         }
@@ -105,7 +105,7 @@ namespace camera_service::data {
             return Result<void>::error("Camera not connected");
         }
 
-        logger_->info("Disconnecting from camera");
+        logger_->debug("Disconnecting from camera");
         if (camera_hw_->disconnect().isError()) {
             return Result<void>::error("Disconnecting from camera failed");
         }

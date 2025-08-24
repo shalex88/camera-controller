@@ -26,5 +26,6 @@ namespace camera_service::data {
 
     private:
         std::unique_ptr<IRegisterImpl> register_;
+        mutable std::mutex mutex_;
     };
 }

@@ -26,7 +26,7 @@ protected:
         EXPECT_NO_THROW(server_address_config = config->get("server_address"));
         EXPECT_NO_THROW(camera_config = config->get("camera"));
 
-        EXPECT_NO_THROW(camera = data::CameraFactory::createCamera(camera_config, logger_impl_));
+        EXPECT_NO_THROW(camera = data::CameraFactory::createCamera(camera_config, logger_impl_, "/dev/uio0"));
         ASSERT_NE(nullptr, camera);
 
         EXPECT_NO_THROW(core = core::CoreFactory::createCore(camera_config, std::move(camera), logger_impl_));
@@ -56,19 +56,19 @@ TEST_F(ServiceSystemTests, CameraRequestResponse) {
     const auto channel = CreateChannel(server_address_config, grpc::InsecureChannelCredentials());
     const GrpcClient client(channel);
 
-    constexpr double test_zoom = 2.5;
+    constexpr types::zoom test_zoom = 1u;
     std::cout << "Test SetZoom " << test_zoom <<" and GetZoom" << std::endl;
     ASSERT_TRUE(client.setZoom(test_zoom).isSuccess());
 
     const auto zoom_result = client.getZoom();
     ASSERT_TRUE(zoom_result.isSuccess());
-    EXPECT_DOUBLE_EQ(test_zoom, zoom_result.value());
+    EXPECT_EQ(test_zoom, zoom_result.value());
 
-    constexpr double test_focus = 1.8;
+    constexpr types::focus test_focus = 1u;
     std::cout << "Test SetFocus " << test_focus <<" and GetFocus" << std::endl;
     ASSERT_TRUE(client.setFocus(test_focus).isSuccess());
 
     const auto focus_result = client.getFocus();
     ASSERT_TRUE(focus_result.isSuccess());
-    EXPECT_DOUBLE_EQ(test_focus, focus_result.value());
+    EXPECT_EQ(test_focus, focus_result.value());
 }
