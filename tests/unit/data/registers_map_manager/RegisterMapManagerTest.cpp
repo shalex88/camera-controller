@@ -26,28 +26,28 @@ TEST_F(RegisterMapManagerTest, GetRegisterValue) {
     EXPECT_CALL(*register_impl.get(), get(testing::_, testing::_))
             .WillOnce(testing::Return(0xFFFF'FFFF));
 
-    EXPECT_EQ(register_map->getValue(REG::SET_ZOOM), 0xFFFF'FFFF);
+    EXPECT_EQ(register_map->getValue(REG::ZOOM), 0xFFFF'FFFF);
 }
 
 TEST_F(RegisterMapManagerTest, SetRegisterValue) {
     EXPECT_CALL(*register_impl, set(testing::_, 0xFFFF'FFFF))
             .WillOnce(testing::Return(0));
 
-    EXPECT_EQ(register_map->setValue(REG::SET_ZOOM, 0xFFFF'FFFF), 0);
+    EXPECT_EQ(register_map->setValue(REG::ZOOM, 0xFFFF'FFFF), 0);
 }
 
 TEST_F(RegisterMapManagerTest, ResetRegisterToDefault) {
     EXPECT_CALL(*register_impl, set(testing::_, testing::_))
             .WillOnce(testing::Return(0));
 
-    EXPECT_EQ(register_map->resetValue(REG::SET_ZOOM), 0);
+    EXPECT_EQ(register_map->resetValue(REG::ZOOM), 0);
 }
 
 TEST_F(RegisterMapManagerTest, ClearRegister) {
     EXPECT_CALL(*register_impl, set(testing::_, testing::_))
             .WillOnce(testing::Return(0));
 
-    EXPECT_EQ(register_map->clearValue(REG::SET_ZOOM), 0);
+    EXPECT_EQ(register_map->clearValue(REG::ZOOM), 0);
 }
 
 TEST_F(RegisterMapManagerTest, SetBit) {
@@ -56,7 +56,7 @@ TEST_F(RegisterMapManagerTest, SetBit) {
     EXPECT_CALL(*register_impl, set(testing::_, 0x0000'0001))
             .WillOnce(testing::Return(0));
 
-    EXPECT_EQ(register_map->setBit(REG::SET_ZOOM, 0), 0);
+    EXPECT_EQ(register_map->setBit(REG::ZOOM, 0), 0);
 }
 
 TEST_F(RegisterMapManagerTest, ClearBit) {
@@ -65,22 +65,22 @@ TEST_F(RegisterMapManagerTest, ClearBit) {
     EXPECT_CALL(*register_impl, set(testing::_, 0xFFFF'FFFE))
             .WillOnce(testing::Return(0));
 
-    EXPECT_EQ(register_map->clearBit(REG::SET_ZOOM, 0), 0);
+    EXPECT_EQ(register_map->clearBit(REG::ZOOM, 0), 0);
 }
 
 TEST_F(RegisterMapManagerTest, GetOrSetBitLargerThan31) {
     EXPECT_CALL(*register_impl, get(testing::_, testing::_)).Times(0);
     EXPECT_CALL(*register_impl, set(testing::_, testing::_)).Times(0);
 
-    EXPECT_EQ(register_map->setBit(REG::SET_ZOOM, 32), 1);
-    EXPECT_EQ(register_map->clearBit(REG::SET_ZOOM, 32), 1);
+    EXPECT_EQ(register_map->setBit(REG::ZOOM, 32), 1);
+    EXPECT_EQ(register_map->clearBit(REG::ZOOM, 32), 1);
 }
 
 TEST_F(RegisterMapManagerTest, GetNibble) {
     EXPECT_CALL(*register_impl, get(testing::_, testing::_))
             .WillOnce(testing::Return(0xFFFF'FFFF));
 
-    EXPECT_EQ(register_map->getNibble(REG::SET_ZOOM, 0), 0xF);
+    EXPECT_EQ(register_map->getNibble(REG::ZOOM, 0), 0xF);
 }
 
 TEST_F(RegisterMapManagerTest, SetNibble) {
@@ -89,22 +89,22 @@ TEST_F(RegisterMapManagerTest, SetNibble) {
     EXPECT_CALL(*register_impl, set(testing::_, 0x0000'000F))
             .WillOnce(testing::Return(0));
 
-    EXPECT_EQ(register_map->setNibble(REG::SET_ZOOM, 0, 0xf), 0);
+    EXPECT_EQ(register_map->setNibble(REG::ZOOM, 0, 0xf), 0);
 }
 
 TEST_F(RegisterMapManagerTest, GetSetWrongNibbleIndex) {
     EXPECT_CALL(*register_impl, get(testing::_, testing::_)).Times(0);
     EXPECT_CALL(*register_impl, set(testing::_, testing::_)).Times(0);
 
-    EXPECT_EQ(register_map->getNibble(REG::SET_ZOOM, 8), 1);
-    EXPECT_EQ(register_map->setNibble(REG::SET_ZOOM, 8, 0xf), 1);
+    EXPECT_EQ(register_map->getNibble(REG::ZOOM, 8), 1);
+    EXPECT_EQ(register_map->setNibble(REG::ZOOM, 8, 0xf), 1);
 }
 
 TEST_F(RegisterMapManagerTest, SetWrongNibbleValue) {
     EXPECT_CALL(*register_impl, get(testing::_, testing::_)).Times(0);
     EXPECT_CALL(*register_impl, set(testing::_, testing::_)).Times(0);
 
-    EXPECT_EQ(register_map->setNibble(REG::SET_ZOOM, 0, 0xff), 1);
+    EXPECT_EQ(register_map->setNibble(REG::ZOOM, 0, 0xff), 1);
 }
 
 TEST_F(RegisterMapManagerTest, ResetAllToDefault) {
@@ -159,7 +159,7 @@ TEST_F(RegisterMapManagerTest, SetRegisterValueThreadSafety) {
 
     std::thread thread1([&] {
         for (int i = 0; i < 1000; ++i) {
-            if (register_map->setValue(REG::SET_ZOOM, 0xFFFF'FFFF)) {
+            if (register_map->setValue(REG::ZOOM, 0xFFFF'FFFF)) {
                 error_flag.store(true);
             }
         }
@@ -167,7 +167,7 @@ TEST_F(RegisterMapManagerTest, SetRegisterValueThreadSafety) {
 
     std::thread thread2([&] {
         for (int i = 0; i < 1000; ++i) {
-            if (register_map->setValue(REG::SET_ZOOM, 0x0000'0000)) {
+            if (register_map->setValue(REG::ZOOM, 0x0000'0000)) {
                 error_flag.store(true);
             }
         }

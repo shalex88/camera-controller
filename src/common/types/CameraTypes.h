@@ -1,8 +1,8 @@
 #pragma once
 
 namespace camera_service::types {
-    using zoom = double;
-    using focus = double;
+    using zoom = uint32_t;
+    using focus = uint32_t;
 
     struct CameraLimits {
         zoom min_zoom;

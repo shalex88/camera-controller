@@ -23,10 +23,10 @@ namespace camera_service::data {
 
     private:
         types::CameraLimits limits_ {
-            .min_zoom = 0.0,
-            .max_zoom = 1.0,
-            .min_focus = 0.0,
-            .max_focus = 1.0,
+            .min_zoom = 0,
+            .max_zoom = 100,
+            .min_focus = 0,
+            .max_focus = 100,
         };
         types::zoom current_zoom_ {limits_.min_zoom};
         types::focus current_focus_ {limits_.min_focus};

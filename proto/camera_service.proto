@@ -10,31 +10,31 @@ service CameraService {
 }
 
 message SetZoomRequest {
-  double zoom = 1;
+  uint32 zoom = 1;
 }
 
 message SetZoomResponse {
-  double zoom = 1;
+  uint32 zoom = 1;
 }
 
 message GetZoomRequest {
 }
 
 message GetZoomResponse {
-  double zoom = 1;
+  uint32 zoom = 1;
 }
 
 message SetFocusRequest {
-  double focus = 1;
+  uint32 focus = 1;
 }
 
 message SetFocusResponse {
-  double focus = 1;
+  uint32 focus = 1;
 }
 
 message GetFocusRequest {
 }
 
 message GetFocusResponse {
-  double focus = 1;
+  uint32 focus = 1;
 }
