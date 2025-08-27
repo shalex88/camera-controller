@@ -24,6 +24,24 @@ public:
         logger_->set_level(toSpdLogLevel(level));
     }
 
+    void setLogLevel(const std::string& level) override {
+        if (level == "trace")
+            setLogLevel(LogLevel::Trace);
+        else if (level == "debug")
+            setLogLevel(LogLevel::Debug);
+        else if (level == "info")
+            setLogLevel(LogLevel::Info);
+        else if (level == "warn")
+            setLogLevel(LogLevel::Warn);
+        else if (level == "error")
+            setLogLevel(LogLevel::Error);
+        else if (level == "critical")
+            setLogLevel(LogLevel::Critical);
+        else {
+            throw std::invalid_argument("Invalid log severity: " + level);
+        }
+    }
+
     void logImpl(const LogLevel level, const std::string &msg) override {
         logger_->log(toSpdLogLevel(level), msg);
     }

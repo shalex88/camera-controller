@@ -15,9 +15,9 @@ int main() {
 
     try {
         auto logger_impl = std::make_shared<SpdLogAdapter>();
-        auto api_logger = std::make_shared<LayerLogger>(logger_impl, "API");
-        auto core_logger = std::make_shared<LayerLogger>(logger_impl, "CORE");
-        auto data_logger = std::make_shared<LayerLogger>(logger_impl, "DATA");
+        const auto api_logger = std::make_shared<LayerLogger>(logger_impl, "API");
+        const auto core_logger = std::make_shared<LayerLogger>(logger_impl, "CORE");
+        const auto data_logger = std::make_shared<LayerLogger>(logger_impl, "DATA");
 
         //TODO: add default values if not found in config
         const auto config = std::make_unique<Config>("../config/config.yaml");
@@ -25,11 +25,13 @@ int main() {
         const auto port_config = config->get("server_address");
         const auto camera_config = config->get("camera");
         const auto device = config->get("device");
-        const auto log_level = config->get("log_level");
 
-        api_logger->setLogLevel(log_level);
-        core_logger->setLogLevel(log_level);
-        data_logger->setLogLevel(log_level);
+        if (const auto log_level = config->get("log_level"); !log_level.empty()) {
+            api_logger->setLogLevel(log_level);
+            core_logger->setLogLevel(log_level);
+            data_logger->setLogLevel(log_level);
+            SET_LOG_LEVEL(log_level);
+        }
 
         auto camera = camera_service::data::CameraFactory::createCamera(camera_config, data_logger, device);
 
@@ -49,7 +51,7 @@ int main() {
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     } catch (const std::exception& e) {
-        LOG_ERROR("Error during startup: {}", e.what());
+        LOG_ERROR("Startup error: {}", e.what());
         return EXIT_FAILURE;
     }
 

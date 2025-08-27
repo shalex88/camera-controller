@@ -10,6 +10,7 @@ using namespace testing;
 class MockLoggerAdapter : public LoggerInterface {
 public:
     MOCK_METHOD(void, setLogLevel, (LogLevel), (override));
+    MOCK_METHOD(void, setLogLevel, (std::string), (override));
     MOCK_METHOD(void, logImpl, (LogLevel, const std::string&), (override));
 };
 
@@ -18,11 +19,11 @@ protected:
     void SetUp() override {
         auto mock = std::make_unique<NiceMock<MockLoggerAdapter>>(); // Prevent side effects caused by the singleton
         mock_logger = mock.get(); // Keep a raw pointer for expectations
-        Logger::getInstance().setLoggerAdapter(std::move(mock));
+        GlobalLogger::getInstance().setLoggerAdapter(std::move(mock));
     }
 
     void TearDown() override {
-        Logger::getInstance().setLoggerAdapter(std::make_unique<SpdLogAdapter>()); // Reset the logger adapter to avoid side effects
+        GlobalLogger::getInstance().setLoggerAdapter(std::make_unique<SpdLogAdapter>()); // Reset the logger adapter to avoid side effects
     }
 
     NiceMock<MockLoggerAdapter>* mock_logger{};

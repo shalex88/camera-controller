@@ -24,7 +24,7 @@ void Config::loadFromFile(const std::filesystem::path& filename) {
 std::string Config::get(const std::string& key) const {
     const auto it = data_.find(key);
     if (it == data_.end()) {
-        throw ConfigException("Key not found: " + key);
+        return {};
     }
     return it->second;
 }
