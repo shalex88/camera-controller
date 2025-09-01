@@ -8,37 +8,25 @@
 #include "api/ApiController.h"
 #include "core/CoreFactory.h"
 #include "common/Logger/Logger.h"
-#include "common/Config/Config.h"
+#include "common/Config/ConfigManager.h"
 
 int main() {
     LOG_INFO("{} v{}.{}.{}{}", APP_NAME, APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH, APP_VERSION_DIRTY);
 
     try {
+        const auto config = std::make_unique<ConfigManager>("../config/config.yaml");
+
+        SET_LOG_LEVEL(config->getLogLevel());
         auto logger_impl = std::make_shared<SpdLogAdapter>();
-        const auto api_logger = std::make_shared<LayerLogger>(logger_impl, "API");
-        const auto core_logger = std::make_shared<LayerLogger>(logger_impl, "CORE");
-        const auto data_logger = std::make_shared<LayerLogger>(logger_impl, "DATA");
+        const auto api_logger = std::make_shared<LayerLogger>(logger_impl, "API", config->getLogLevel());
+        const auto core_logger = std::make_shared<LayerLogger>(logger_impl, "CORE", config->getLogLevel());
+        const auto data_logger = std::make_shared<LayerLogger>(logger_impl, "DATA", config->getLogLevel());
 
-        //TODO: add default values if not found in config
-        const auto config = std::make_unique<Config>("../config/config.yaml");
-        const auto api_config = config->get("api");
-        const auto port_config = config->get("server_address");
-        const auto camera_config = config->get("camera");
-        const auto device = config->get("device");
+        auto camera = camera_service::data::CameraFactory::createCamera(data_logger, config->getDataConfig());
 
-        if (const auto log_level = config->get("log_level"); !log_level.empty()) {
-            api_logger->setLogLevel(log_level);
-            core_logger->setLogLevel(log_level);
-            data_logger->setLogLevel(log_level);
-            SET_LOG_LEVEL(log_level);
-        }
+        auto core = camera_service::core::CoreFactory::createCore(std::move(camera), core_logger, config->getCoreConfig());
 
-        auto camera = camera_service::data::CameraFactory::createCamera(camera_config, data_logger, device);
-
-        auto core = camera_service::core::CoreFactory::createCore(camera_config, std::move(camera), core_logger);
-
-        const auto api_controller = camera_service::api::ApiControllerFactory::createController(
-            api_config, port_config, std::move(core), api_logger);
+        const auto api_controller = camera_service::api::ApiControllerFactory::createController(std::move(core), api_logger, config->getApiConfig());
 
         if (api_controller->startAsync().isError()) {
             LOG_ERROR("Failed to start API controller");

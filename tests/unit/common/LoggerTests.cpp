@@ -10,7 +10,7 @@ using namespace testing;
 class MockLoggerAdapter : public LoggerInterface {
 public:
     MOCK_METHOD(void, setLogLevel, (LogLevel), (override));
-    MOCK_METHOD(void, setLogLevel, (std::string), (override));
+    MOCK_METHOD(void, setLogLevel, (const std::string&), (override));
     MOCK_METHOD(void, logImpl, (LogLevel, const std::string&), (override));
 };
 

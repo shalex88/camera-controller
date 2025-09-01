@@ -8,8 +8,10 @@
 
 class LayerLogger {
 public:
-    LayerLogger(std::shared_ptr<LoggerInterface> logger, std::string  layer_name)
-        : logger_impl_(std::move(logger)), layer_name_(std::move(layer_name)) {}
+    LayerLogger(std::shared_ptr<LoggerInterface> logger, std::string layer_name, const std::string& log_level = "info")
+        : logger_impl_(std::move(logger)), layer_name_(std::move(layer_name)) {
+        logger_impl_->setLogLevel(log_level);
+    }
 
     void setLogLevel(const auto level) const {
         logger_impl_->setLogLevel(level);

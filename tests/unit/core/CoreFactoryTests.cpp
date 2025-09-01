@@ -2,6 +2,7 @@
 #include <gmock/gmock.h>
 /* Add your project include files here */
 #include "core/CoreFactory.h"
+#include "common/Config/ConfigManager.h"
 
 #include "core/Core.h"
 #include "data/ICameraHal.h"
@@ -32,21 +33,30 @@ protected:
 };
 
 TEST_F(CoreFactoryTests, CreateCameraCoreSuccess) {
-    const auto core = core::CoreFactory::createCore("nfov", std::move(core_), logger_impl_);
+    CoreConfig config;
+    config.camera = "nfov";  // Valid camera type
+
+    const auto core = core::CoreFactory::createCore(std::move(core_), logger_impl_, config);
     ASSERT_NE(nullptr, core);
     ASSERT_TRUE(dynamic_cast<core::Core*>(core.get()) != nullptr);
 }
 
 TEST_F(CoreFactoryTests, ThrowsOnUnknownType) {
+    CoreConfig config;
+    config.camera = "invalid_camera";  // Invalid camera type to trigger exception
+
     EXPECT_THROW(
-        core::CoreFactory::createCore("unknown", std::move(core_), logger_impl_),
+        core::CoreFactory::createCore(std::move(core_), logger_impl_, config),
         std::invalid_argument
     );
 }
 
 TEST_F(CoreFactoryTests, ThrowsOnNullCamera) {
+    CoreConfig config;
+    config.camera = "nfov";  // Valid camera type
+
     EXPECT_THROW(
-        core::CoreFactory::createCore("nfov", nullptr, logger_impl_),
+        core::CoreFactory::createCore(nullptr, logger_impl_, config),
         std::invalid_argument
     );
 }

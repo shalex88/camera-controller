@@ -8,7 +8,7 @@
 #include "api/ApiController.h"
 #include "core/CoreFactory.h"
 #include "data/CameraFactory.h"
-#include "common/Config/Config.h"
+#include "common/Config/ConfigManager.h"
 #include "common/types/Result.h"
 #include "../../utils/GrpcClient.h"
 
@@ -20,20 +20,25 @@ protected:
     void SetUp() override {
         logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "");
 
-        EXPECT_NO_THROW(config = std::make_unique<Config>("../../config/config.yaml"));
+        EXPECT_NO_THROW(config = std::make_unique<ConfigManager>("../../config/config.yaml"));
         ASSERT_NE(nullptr, config);
-        EXPECT_NO_THROW(api_config = config->get("api"));
-        EXPECT_NO_THROW(server_address_config = config->get("server_address"));
-        EXPECT_NO_THROW(camera_config = config->get("camera"));
 
-        EXPECT_NO_THROW(camera = data::CameraFactory::createCamera(camera_config, logger_impl_, "/dev/uio0"));
+        // Get configuration objects using the new typed API
+        const auto& api_config_obj = config->getApiConfig();
+        const auto& data_config_obj = config->getDataConfig();
+        const auto& core_config_obj = config->getCoreConfig();
+
+        api_config = api_config_obj.api;
+        server_address_config = api_config_obj.server_address;
+        camera_config = core_config_obj.camera;
+
+        EXPECT_NO_THROW(camera = data::CameraFactory::createCamera(logger_impl_, data_config_obj));
         ASSERT_NE(nullptr, camera);
 
-        EXPECT_NO_THROW(core = core::CoreFactory::createCore(camera_config, std::move(camera), logger_impl_));
+        EXPECT_NO_THROW(core = core::CoreFactory::createCore(std::move(camera), logger_impl_, core_config_obj));
         ASSERT_NE(nullptr, core);
 
-        EXPECT_NO_THROW(service = camera_service::api::ApiControllerFactory::createController(api_config, server_address_config,
-            std::move(core), logger_impl_));
+        EXPECT_NO_THROW(service = camera_service::api::ApiControllerFactory::createController(std::move(core), logger_impl_, api_config_obj));
         ASSERT_NE(nullptr, service);
 
         ASSERT_TRUE(service->startAsync().isSuccess());
@@ -41,7 +46,7 @@ protected:
         ASSERT_TRUE(service->isRunning());
     }
 
-    std::unique_ptr<Config> config;
+    std::unique_ptr<ConfigManager> config;
     std::unique_ptr<data::ICameraHal> camera;
     std::unique_ptr<core::ICore> core;
     std::unique_ptr<api::ApiController> service;

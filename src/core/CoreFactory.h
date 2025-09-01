@@ -1,7 +1,7 @@
 #pragma once
 #include <memory>
-#include <string>
 
+#include "common/Config/ConfigManager.h"
 #include "data/ICameraHal.h"
 #include "core/ICore.h"
 #include "common/Logger/Logger.h"
@@ -9,8 +9,8 @@
 namespace camera_service::core {
     class CoreFactory {
     public:
-        static std::unique_ptr<ICore> createCore(const std::string& core_type,
-                                                std::unique_ptr<data::ICameraHal> camera,
-                                                std::shared_ptr<LayerLogger> logger);
+        static std::unique_ptr<ICore> createCore(
+            std::unique_ptr<data::ICameraHal> camera,
+            std::shared_ptr<LayerLogger> logger, const CoreConfig& config);
     };
 }

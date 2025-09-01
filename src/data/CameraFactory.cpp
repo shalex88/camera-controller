@@ -6,13 +6,13 @@
 #include "registers_map_manager/RegisterImplFake.h"
 
 namespace camera_service::data {
-    std::unique_ptr<ICameraHal> CameraFactory::createCamera(const std::string& camera_type,
-                                                            std::shared_ptr<LayerLogger> logger, std::string device) {
-        if (camera_type == "nfov") {
+    std::unique_ptr<ICameraHal> CameraFactory::createCamera(
+        std::shared_ptr<LayerLogger> logger, const DataConfig& config) {
+        if (config.camera == "nfov") {
             std::unique_ptr<IRegisterImpl> register_impl;
-            if (device != "fake") {
-                logger->debug("Using device: {}", device);
-                register_impl = std::make_unique<RegisterImplUio>(device);
+            if (config.device != "fake") {
+                logger->debug("Using device: {}", config.device);
+                register_impl = std::make_unique<RegisterImplUio>(config.device);
             } else {
                 logger->debug("Using fake device");
                 register_impl = std::make_unique<RegisterImplFake>();
@@ -22,6 +22,6 @@ namespace camera_service::data {
             return std::make_unique<CameraHal>(std::move(camera_hw), std::move(logger));
         }
 
-        throw std::invalid_argument("Unknown camera type: " + camera_type);
+        throw std::invalid_argument("Unknown camera type: " + config.camera);
     }
 }

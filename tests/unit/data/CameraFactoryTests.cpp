@@ -2,6 +2,7 @@
 #include <gmock/gmock.h>
 /* Add your project include files here */
 #include "data/CameraFactory.h"
+#include "common/Config/ConfigManager.h"
 
 using namespace camera_service;
 using namespace testing;
@@ -15,15 +16,27 @@ protected:
 };
 
 TEST_F(CameraFactoryTests, CreateNfovCameraSuccess) {
-    const auto camera = data::CameraFactory::createCamera("nfov", logger_impl_, "fake");
+    DataConfig config;
+    config.camera = "nfov";  // Valid camera type
+    config.device = "fake";  // Valid device type
+
+    const auto camera = data::CameraFactory::createCamera(logger_impl_, config);
     ASSERT_NE(nullptr, camera);
     ASSERT_TRUE(camera.get() != nullptr);
 }
 
 TEST_F(CameraFactoryTests, ThrowsOnUnknownType) {
-    EXPECT_THROW(data::CameraFactory::createCamera("unknown", logger_impl_,"fake"), std::invalid_argument);
+    DataConfig config;
+    config.camera = "invalid_camera";  // Invalid camera type to trigger exception
+    config.device = "fake";  // Valid device type
+
+    EXPECT_THROW(data::CameraFactory::createCamera(logger_impl_, config), std::invalid_argument);
 }
 
 TEST_F(CameraFactoryTests, ThrowsOnEmptyType) {
-    EXPECT_THROW(data::CameraFactory::createCamera("", logger_impl_,"fake"), std::invalid_argument);
+    DataConfig config;
+    config.camera = "";  // Empty camera type to trigger exception
+    config.device = "fake";  // Valid device type
+
+    EXPECT_THROW(data::CameraFactory::createCamera(logger_impl_, config), std::invalid_argument);
 }

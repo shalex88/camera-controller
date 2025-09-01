@@ -2,6 +2,8 @@
 #include <gmock/gmock.h>
 /* Add your project include files here */
 #include "data/NfovCameraHw.h"
+#include "data/registers_map_manager/RegistersMapManager.h"
+#include "data/registers_map_manager/RegisterImplFake.h"
 #include "common/types/Result.h"
 
 using namespace camera_service;
@@ -10,14 +12,18 @@ using namespace testing;
 class NfovStrategyTests : public Test {
 protected:
     void SetUp() override {
-        camera_impl_ = std::make_unique<data::NfovCameraHw>();
+        auto register_impl = std::make_unique<RegisterImplFake>();
+        auto registers_manager = std::make_unique<data::RegistersMapManager>(std::move(register_impl));
+        camera_impl_ = std::make_unique<data::NfovCameraHw>(std::move(registers_manager));
     }
 
     std::unique_ptr<data::NfovCameraHw> camera_impl_;
 };
 
 TEST_F(NfovStrategyTests, CanBeConstructed) {
-    const auto camera = std::make_unique<data::NfovCameraHw>();
+    auto register_impl = std::make_unique<RegisterImplFake>();
+    auto registers_manager = std::make_unique<data::RegistersMapManager>(std::move(register_impl));
+    const auto camera = std::make_unique<data::NfovCameraHw>(std::move(registers_manager));
     ASSERT_NE(nullptr, camera);
 }
 
@@ -40,23 +46,23 @@ TEST_F(NfovStrategyTests, DisconnectWhenNotConnected) {
 }
 
 TEST_F(NfovStrategyTests, ZoomOperations) {
-    constexpr auto expected_value = 2.0;
+    constexpr auto expected_value = 2u;  // Use uint32_t instead of double
 
     const auto set_result = camera_impl_->setZoom(expected_value);
     ASSERT_TRUE(set_result.isSuccess());
 
     const auto get_result = camera_impl_->getZoom();
     ASSERT_TRUE(get_result.isSuccess());
-    EXPECT_DOUBLE_EQ(expected_value, get_result.value());
+    EXPECT_EQ(expected_value, get_result.value());
 }
 
 TEST_F(NfovStrategyTests, FocusOperations) {
-    constexpr auto expected_value = 2.0;
+    constexpr auto expected_value = 2u;  // Use uint32_t instead of double
 
     const auto set_result = camera_impl_->setFocus(expected_value);
     ASSERT_TRUE(set_result.isSuccess());
 
     const auto get_result = camera_impl_->getFocus();
     ASSERT_TRUE(get_result.isSuccess());
-    EXPECT_DOUBLE_EQ(expected_value, get_result.value());
+    EXPECT_EQ(expected_value, get_result.value());
 }
