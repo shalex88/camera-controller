@@ -2,7 +2,7 @@
 
 #include "ICameraHw.h"
 
-#include "registers_map_manager/RegistersMapManager.h"
+#include "hw_interface/mmio/RegistersMapManager.h"
 #include <memory>
 
 namespace camera_service::data {

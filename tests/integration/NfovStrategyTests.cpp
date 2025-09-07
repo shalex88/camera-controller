@@ -2,8 +2,8 @@
 #include <gmock/gmock.h>
 /* Add your project include files here */
 #include "data/NfovCameraHw.h"
-#include "data/registers_map_manager/RegistersMapManager.h"
-#include "data/registers_map_manager/RegisterImplFake.h"
+#include "data/hw_interface/mmio/RegistersMapManager.h"
+#include "data/hw_interface/mmio/RegisterImplFake.h"
 #include "common/types/Result.h"
 
 using namespace camera_service;

@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 /* Add your project include files here */
-#include "data/registers_map_manager/RegistersMapManager.h"
+#include "data/hw_interface/mmio/RegistersMapManager.h"
 #include <thread>
 
 using namespace camera_service::data;

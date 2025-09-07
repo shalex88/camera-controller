@@ -7,4 +7,4 @@ app:
     camera: nfov
   data:
     camera: nfov
-    device: fake
+    device: /dev/uio0

@@ -6,7 +6,7 @@
 #include "data/ICameraHw.h"
 #include "common/types/Result.h"
 #include "data/CameraHal.h"
-#include "data/registers_map_manager/RegisterImplFake.h"
+#include "data/hw_interface/mmio/RegisterImplFake.h"
 
 using namespace camera_service;
 using namespace testing;

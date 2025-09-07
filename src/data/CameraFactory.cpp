@@ -2,8 +2,8 @@
 
 #include "data/CameraHal.h"
 #include "data/NfovCameraHw.h"
-#include "data/registers_map_manager/RegisterImplUio.h"
-#include "registers_map_manager/RegisterImplFake.h"
+#include "data/hw_interface/mmio/RegisterImplUio.h"
+#include "data/hw_interface/mmio/RegisterImplFake.h"
 
 namespace camera_service::data {
     std::unique_ptr<ICameraHal> CameraFactory::createCamera(
