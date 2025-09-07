@@ -5,7 +5,7 @@
 #include "api/GrpcTransport.h"
 #include "core/ICore.h"
 #include "common/types/Result.h"
-#include "utils/GrpcClient.h"
+#include "../../utils/GrpcClient.h"
 
 using namespace camera_service;
 using namespace testing;
@@ -23,13 +23,15 @@ public:
 class GrpcTransportTests : public Test {
 protected:
     void SetUp() override {
-        request_handler = std::make_shared<api::RequestHandler>(std::make_unique<CoreMock>());
-        grpc_transport = std::make_unique<api::GrpcTransport>(request_handler);
+        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "Data");
+        request_handler = std::make_shared<api::RequestHandler>(std::make_unique<CoreMock>(), logger_impl_);
+        grpc_transport = std::make_unique<api::GrpcTransport>(request_handler, logger_impl_);
     }
 
     std::shared_ptr<api::RequestHandler> request_handler;
     std::unique_ptr<api::GrpcTransport> grpc_transport;
     std::string server_address = "0.0.0.0:50051";
+    std::shared_ptr<LayerLogger> logger_impl_;
 };
 
 TEST_F(GrpcTransportTests, CreationSuccess) {
@@ -37,71 +39,71 @@ TEST_F(GrpcTransportTests, CreationSuccess) {
 }
 
 TEST_F(GrpcTransportTests, CreationFailIfNoRequestHandler) {
-    EXPECT_THROW(api::GrpcTransport transport(nullptr), std::invalid_argument);
+    EXPECT_THROW(api::GrpcTransport transport(nullptr, logger_impl_), std::invalid_argument);
 }
 
 TEST_F(GrpcTransportTests, StartServerSuccess) {
-    auto result = grpc_transport->start(server_address);
-    EXPECT_TRUE(result.isSuccess());
-    grpc_transport->stop();
+    const auto result = grpc_transport->start(server_address);
+    ASSERT_TRUE(result.isSuccess());
+    EXPECT_TRUE(grpc_transport->stop().isSuccess());
 }
 
 TEST_F(GrpcTransportTests, StartServerOnInvalidPortShouldFail) {
-    auto result = grpc_transport->start("invalid_port");
-    EXPECT_TRUE(result.isError());
+    const auto result = grpc_transport->start("invalid_port");
+    ASSERT_TRUE(result.isError());
 }
 
 TEST_F(GrpcTransportTests, StopServerWhenNotStartedShouldSucceed) {
-    auto result = grpc_transport->stop();
-    EXPECT_TRUE(result.isSuccess());
+    const auto result = grpc_transport->stop();
+    ASSERT_TRUE(result.isSuccess());
 }
 
 TEST_F(GrpcTransportTests, StopRunningServerShouldSucceed) {
     // Start server first
-    auto start_result = grpc_transport->start(server_address);
-    EXPECT_TRUE(start_result.isSuccess());
+    const auto start_result = grpc_transport->start(server_address);
+    ASSERT_TRUE(start_result.isSuccess());
 
     // Then stop it
-    auto stop_result = grpc_transport->stop();
-    EXPECT_TRUE(stop_result.isSuccess());
+    const auto stop_result = grpc_transport->stop();
+    ASSERT_TRUE(stop_result.isSuccess());
 }
 
 TEST_F(GrpcTransportTests, StopServerMultipleTimesShouldSucceed) {
     // Start and stop once
-    grpc_transport->start(server_address);
-    auto first_stop = grpc_transport->stop();
-    EXPECT_TRUE(first_stop.isSuccess());
+    EXPECT_TRUE(grpc_transport->start(server_address).isSuccess());
+    const auto first_stop = grpc_transport->stop();
+    ASSERT_TRUE(first_stop.isSuccess());
 
     // Stop again when already stopped
-    auto second_stop = grpc_transport->stop();
-    EXPECT_TRUE(second_stop.isSuccess());
+    const auto second_stop = grpc_transport->stop();
+    ASSERT_TRUE(second_stop.isSuccess());
 }
 
 TEST_F(GrpcTransportTests, RunLoopWithoutStartShouldFail) {
-    auto result = grpc_transport->runLoop();
-    EXPECT_TRUE(result.isError());
+    const auto result = grpc_transport->runLoop();
+    ASSERT_TRUE(result.isError());
 }
 
 TEST_F(GrpcTransportTests, RunLoopAfterStopShouldFail) {
     // Start and stop the server
-    grpc_transport->start(server_address);
-    grpc_transport->stop();
+    EXPECT_TRUE(grpc_transport->start(server_address).isSuccess());
+    EXPECT_TRUE(grpc_transport->stop().isSuccess());
 
     // Try to run loop after stop
-    auto result = grpc_transport->runLoop();
-    EXPECT_TRUE(result.isError());
+    const auto result = grpc_transport->runLoop();
+    ASSERT_TRUE(result.isError());
 }
 
 TEST_F(GrpcTransportTests, RunLoopWithRunningServerShouldSucceed) {
-    grpc_transport->start(server_address);
+    EXPECT_TRUE(grpc_transport->start(server_address).isSuccess());
 
-    std::thread server_thread([&]() {
-        auto result = grpc_transport->runLoop();
-        EXPECT_TRUE(result.isSuccess());
+    std::thread server_thread([&] {
+        const auto result = grpc_transport->runLoop();
+        ASSERT_TRUE(result.isSuccess());
     });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    grpc_transport->stop();
+    EXPECT_TRUE(grpc_transport->stop().isSuccess());
     server_thread.join();
 }

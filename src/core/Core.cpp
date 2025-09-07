@@ -1,24 +1,28 @@
 #include "Core.h"
-#include <iostream>
-#include "common/Logger/Logger.h"
-#include "data/ICamera.h"
+#include "data/ICameraHal.h"
 
 namespace camera_service::core {
-    Core::Core(std::unique_ptr<data::ICamera> camera)
-        : camera_(std::move(camera)), is_initialized_(false) {
+    Core::Core(std::unique_ptr<data::ICameraHal> camera,
+               std::shared_ptr<LayerLogger> logger)
+        : camera_(std::move(camera)), logger_(std::move(logger)), is_initialized_(false) {
         if (!camera_) {
             throw std::invalid_argument("Cannot initialize Core with null camera");
+        }
+        if (!logger_) {
+            throw std::invalid_argument("Logger cannot be null");
         }
     }
 
     Core::~Core() {
         if (isInitialized()) {
-            shutdown();
+            if (shutdown().isError()) {
+                logger_->error("Failed to shut down Core properly");
+            }
         }
     }
 
     Result<void> Core::initialize() {
-        LOG_INFO("Initializing Core...");
+        logger_->info("Initializing Core...");
 
         if (!camera_->isConnected()) {
             if (const auto connect_result = camera_->connect(); connect_result.isError()) {
@@ -27,7 +31,7 @@ namespace camera_service::core {
         }
 
         is_initialized_ = true;
-        LOG_INFO("Core initialized successfully.");
+        logger_->info("Core initialized successfully");
         return Result<void>::success();
     }
 
@@ -38,7 +42,7 @@ namespace camera_service::core {
 
         is_initialized_ = false;
 
-        LOG_INFO("Shutting down Core...");
+        logger_->info("Shutting down Core...");
 
         if (camera_ && camera_->isConnected()) {
             if (const auto disconnect_result = camera_->disconnect(); disconnect_result.isError()) {
@@ -46,7 +50,7 @@ namespace camera_service::core {
             }
         }
 
-        LOG_INFO("Core shut down successfully.");
+        logger_->info("Core shut down successfully");
         return Result<void>::success();
     }
 

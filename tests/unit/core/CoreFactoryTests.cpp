@@ -2,15 +2,16 @@
 #include <gmock/gmock.h>
 /* Add your project include files here */
 #include "core/CoreFactory.h"
+#include "common/Config/ConfigManager.h"
 
 #include "core/Core.h"
-#include "data/ICamera.h"
+#include "data/ICameraHal.h"
 #include "common/types/Result.h"
 
 using namespace camera_service;
 using namespace testing;
 
-class MockCamera final : public data::ICamera {
+class MockCamera final : public data::ICameraHal {
 public:
     MOCK_METHOD(Result<void>, connect, (), (override));
     MOCK_METHOD(Result<void>, disconnect, (), (override));
@@ -23,27 +24,39 @@ public:
 
 class CoreFactoryTests : public Test {
 protected:
-    static std::unique_ptr<MockCamera> createMockCamera() {
-        return std::make_unique<MockCamera>();
+    CoreFactoryTests() {
+        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "API");
+        core_ = std::make_unique<MockCamera>();
     }
+    std::shared_ptr<LayerLogger> logger_impl_;
+    std::unique_ptr<MockCamera> core_;
 };
 
 TEST_F(CoreFactoryTests, CreateCameraCoreSuccess) {
-    const auto core = core::CoreFactory::createCore("nfov", createMockCamera());
+    CoreConfig config;
+    config.camera = "nfov";  // Valid camera type
+
+    const auto core = core::CoreFactory::createCore(std::move(core_), logger_impl_, config);
     ASSERT_NE(nullptr, core);
-    EXPECT_TRUE(dynamic_cast<core::Core*>(core.get()) != nullptr);
+    ASSERT_TRUE(dynamic_cast<core::Core*>(core.get()) != nullptr);
 }
 
 TEST_F(CoreFactoryTests, ThrowsOnUnknownType) {
+    CoreConfig config;
+    config.camera = "invalid_camera";  // Invalid camera type to trigger exception
+
     EXPECT_THROW(
-        core::CoreFactory::createCore("unknown", createMockCamera()),
+        core::CoreFactory::createCore(std::move(core_), logger_impl_, config),
         std::invalid_argument
     );
 }
 
 TEST_F(CoreFactoryTests, ThrowsOnNullCamera) {
+    CoreConfig config;
+    config.camera = "nfov";  // Valid camera type
+
     EXPECT_THROW(
-        core::CoreFactory::createCore("nfov", nullptr),
+        core::CoreFactory::createCore(nullptr, logger_impl_, config),
         std::invalid_argument
     );
 }

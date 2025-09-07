@@ -24,6 +24,7 @@ public:
     }
 
     virtual void setLogLevel(LogLevel level) = 0;
+    virtual void setLogLevel(const std::string& level) = 0;
 
 protected:
     virtual void logImpl(LogLevel level, const std::string &msg) = 0;

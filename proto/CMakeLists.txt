@@ -13,6 +13,7 @@ target_link_libraries(proto
         PUBLIC
         protobuf::libprotobuf
         gRPC::grpc++
+        gRPC::grpc++_reflection
 )
 
 target_include_directories(proto
@@ -26,6 +27,7 @@ protobuf_generate(TARGET proto
         LANGUAGE cpp
         PROTOC_OUT_DIR ${PROTO_OUT_DIR}
 )
+
 protobuf_generate(TARGET proto
         LANGUAGE grpc
         GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc

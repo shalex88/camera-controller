@@ -1,25 +1,36 @@
 #include "GrpcTransport.h"
 
 #include <grpcpp/grpcpp.h>
+#include <grpcpp/ext/proto_server_reflection_plugin.h>
 
 #include "api/RequestHandler.h"
 #include "api/GrpcCallbackHandler.h"
-#include "common/Logger/Logger.h"
 
 namespace camera_service::api {
-    GrpcTransport::GrpcTransport(std::shared_ptr<RequestHandler> request_handler) {
+    GrpcTransport::GrpcTransport(std::shared_ptr<IRequestHandler> request_handler,
+                                std::shared_ptr<LayerLogger> logger)
+        : logger_(std::move(logger)) {
         if (!request_handler) {
             throw std::invalid_argument("Request Handler cannot be null");
+        }
+        if (!logger_) {
+            throw std::invalid_argument("Logger cannot be null");
         }
         callback_handler_ = std::make_unique<GrpcCallbackHandler>(std::move(request_handler));
     }
 
     GrpcTransport::~GrpcTransport() {
-        stop();
+        if (stop().isError()) {
+            logger_->error("Failed to stop the gRPC server");
+        }
     }
 
     Result<void> GrpcTransport::start(const std::string& server_address) {
-        grpc::EnableDefaultHealthCheckService(true);
+        //TODO: learn how to use health check
+        grpc::EnableDefaultHealthCheckService(false);
+        //TODO: disable in production
+        grpc::reflection::InitProtoReflectionServerBuilderPlugin();
+
         grpc::ServerBuilder builder;
         builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
         builder.RegisterService(callback_handler_.get());
@@ -29,7 +40,7 @@ namespace camera_service::api {
             return Result<void>::error("Failed to start the gRPC server");
         }
 
-        LOG_INFO("Service is listening on {}", server_address);
+        logger_->info("Service is listening on {} with reflection enabled", server_address);
         return Result<void>::success();
     }
 

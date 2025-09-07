@@ -20,13 +20,15 @@ public:
 
 class RequestHandlerTests : public Test {
 protected:
-    void SetUp() override {
+    RequestHandlerTests() {
+        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "API");
         core = new CoreMock();
         auto core_obj = std::unique_ptr<core::ICore>(core);
-        request_handler = std::make_unique<api::RequestHandler>(std::move(core_obj));
+        request_handler = std::make_unique<api::RequestHandler>(std::move(core_obj), logger_impl_);
     }
     std::unique_ptr<api::RequestHandler> request_handler;
     CoreMock* core {};
+    std::shared_ptr<LayerLogger> logger_impl_;
 };
 
 TEST_F(RequestHandlerTests, CreationSuccess) {
@@ -34,12 +36,12 @@ TEST_F(RequestHandlerTests, CreationSuccess) {
 }
 
 TEST_F(RequestHandlerTests, CreationFailNoCore) {
-    EXPECT_THROW(api::RequestHandler request_handler(nullptr), std::invalid_argument);
+    EXPECT_THROW(api::RequestHandler request_handler(nullptr, logger_impl_), std::invalid_argument);
 }
 
 TEST_F(RequestHandlerTests, StartSuccess) {
     const auto result = request_handler->start();
-    EXPECT_TRUE(result.isSuccess());
+    ASSERT_TRUE(result.isSuccess());
 }
 
 TEST_F(RequestHandlerTests, StartFailOnInitialize) {
@@ -47,7 +49,7 @@ TEST_F(RequestHandlerTests, StartFailOnInitialize) {
         .WillOnce(Return(Result<void>::error("Initialize failed")));
 
     const auto result = request_handler->start();
-    EXPECT_TRUE(result.isError());
+    ASSERT_TRUE(result.isError());
 }
 
 TEST_F(RequestHandlerTests, StopSuccessIfRunning) {
@@ -60,12 +62,12 @@ TEST_F(RequestHandlerTests, StopSuccessIfRunning) {
     ASSERT_TRUE(start_result.isSuccess());
 
     const auto stop_result = request_handler->stop();
-    EXPECT_TRUE(stop_result.isSuccess());
+    ASSERT_TRUE(stop_result.isSuccess());
 }
 
 TEST_F(RequestHandlerTests, StopSuccessIfNotRunning) {
     const auto result = request_handler->stop();
-    EXPECT_TRUE(result.isSuccess());
+    ASSERT_TRUE(result.isSuccess());
 }
 
 TEST_F(RequestHandlerTests, StopFailsIfCoreShutdownFails) {
@@ -78,7 +80,7 @@ TEST_F(RequestHandlerTests, StopFailsIfCoreShutdownFails) {
     ASSERT_TRUE(start_result.isSuccess());
 
     const auto stop_result = request_handler->stop();
-    EXPECT_TRUE(stop_result.isError());
+    ASSERT_TRUE(stop_result.isError());
 }
 
 TEST_F(RequestHandlerTests, ZoomOperations) {
@@ -86,12 +88,12 @@ TEST_F(RequestHandlerTests, ZoomOperations) {
     EXPECT_CALL(*core, initialize())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*core, setZoom(2.0))
+    EXPECT_CALL(*core, setZoom(2))
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*core, getZoom())
         .InSequence(s)
-        .WillOnce(Return(Result<types::zoom>::success(2.0)));
+        .WillOnce(Return(Result<types::zoom>::success(2u)));
     EXPECT_CALL(*core, shutdown())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
@@ -99,23 +101,23 @@ TEST_F(RequestHandlerTests, ZoomOperations) {
     const auto start_result = request_handler->start();
     ASSERT_TRUE(start_result.isSuccess()) << "Failed to start: " << start_result.error();
 
-    const auto set_result = request_handler->setZoom(2.0);
-    EXPECT_TRUE(set_result.isSuccess()) << "Failed to set zoom: " << set_result.error();
+    const auto set_result = request_handler->setZoom(2);
+    ASSERT_TRUE(set_result.isSuccess()) << "Failed to set zoom: " << set_result.error();
 
     const auto get_result = request_handler->getZoom();
     ASSERT_TRUE(get_result.isSuccess()) << "Failed to get zoom: " << get_result.error();
-    EXPECT_DOUBLE_EQ(2.0, get_result.value());
+    EXPECT_EQ(2, get_result.value());
 
     const auto stop_result = request_handler->stop();
-    EXPECT_TRUE(stop_result.isSuccess()) << "Failed to stop: " << stop_result.error();
+    ASSERT_TRUE(stop_result.isSuccess()) << "Failed to stop: " << stop_result.error();
 }
 
 TEST_F(RequestHandlerTests, ZoomOperationsFailIfNotRunning) {
-    const auto set_result = request_handler->setZoom(2.0);
-    EXPECT_TRUE(set_result.isError());
+    const auto set_result = request_handler->setZoom(2);
+    ASSERT_TRUE(set_result.isError());
 
     const auto get_result = request_handler->getZoom();
-    EXPECT_TRUE(get_result.isError());
+    ASSERT_TRUE(get_result.isError());
 }
 
 TEST_F(RequestHandlerTests, FocusOperations) {
@@ -123,12 +125,12 @@ TEST_F(RequestHandlerTests, FocusOperations) {
     EXPECT_CALL(*core, initialize())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*core, setFocus(1.5))
+    EXPECT_CALL(*core, setFocus(1))
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*core, getFocus())
         .InSequence(s)
-        .WillOnce(Return(Result<types::focus>::success(1.5)));
+        .WillOnce(Return(Result<types::focus>::success(1u)));
     EXPECT_CALL(*core, shutdown())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
@@ -136,21 +138,21 @@ TEST_F(RequestHandlerTests, FocusOperations) {
     const auto start_result = request_handler->start();
     ASSERT_TRUE(start_result.isSuccess()) << "Failed to start: " << start_result.error();
 
-    const auto set_result = request_handler->setFocus(1.5);
-    EXPECT_TRUE(set_result.isSuccess()) << "Failed to set focus: " << set_result.error();
+    const auto set_result = request_handler->setFocus(1);
+    ASSERT_TRUE(set_result.isSuccess()) << "Failed to set focus: " << set_result.error();
 
     const auto get_result = request_handler->getFocus();
     ASSERT_TRUE(get_result.isSuccess()) << "Failed to get focus: " << get_result.error();
-    EXPECT_DOUBLE_EQ(1.5, get_result.value());
+    EXPECT_EQ(1, get_result.value());
 
     const auto stop_result = request_handler->stop();
-    EXPECT_TRUE(stop_result.isSuccess()) << "Failed to stop: " << stop_result.error();
+    ASSERT_TRUE(stop_result.isSuccess()) << "Failed to stop: " << stop_result.error();
 }
 
 TEST_F(RequestHandlerTests, FocusOperationsFailIfNotRunning) {
-    const auto set_result = request_handler->setFocus(2.0);
-    EXPECT_TRUE(set_result.isError());
+    const auto set_result = request_handler->setFocus(2);
+    ASSERT_TRUE(set_result.isError());
 
     const auto get_result = request_handler->getFocus();
-    EXPECT_TRUE(get_result.isError());
+    ASSERT_TRUE(get_result.isError());
 }

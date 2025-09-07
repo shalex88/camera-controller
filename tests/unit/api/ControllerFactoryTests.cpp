@@ -1,8 +1,9 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 /* Add your project include files here */
-#include "api/ControllerFactory.h"
-#include "api/Controller.h"
+#include "api/ApiControllerFactory.h"
+#include "common/Config/ConfigManager.h"
+#include "api/ApiController.h"
 #include "core/ICore.h"
 #include "common/types/Result.h"
 
@@ -21,21 +22,33 @@ public:
 
 class ControllerFactoryTests : public Test {
 protected:
-    static std::unique_ptr<CoreMock> createMockCore() {
-        return std::make_unique<CoreMock>();
+    ControllerFactoryTests() {
+        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "");
+        core_ = std::make_unique<CoreMock>();
     }
+
     std::string server_address = "50051";
+    std::shared_ptr<LayerLogger> logger_impl_;
+    std::unique_ptr<core::ICore> core_;
 };
 
 TEST_F(ControllerFactoryTests, CreateGrpcServiceSuccess) {
-    const auto service = api::ControllerFactory::createController("grpc", server_address, createMockCore());
+    ApiConfig config;
+    config.api = "grpc";  // Valid API type
+    config.server_address = "localhost:50051";  // Valid server address format
+
+    const auto service = api::ApiControllerFactory::createController(std::move(core_), logger_impl_, config);
     ASSERT_NE(nullptr, service);
-    EXPECT_TRUE(service.get() != nullptr);
+    ASSERT_TRUE(service.get() != nullptr);
 }
 
 TEST_F(ControllerFactoryTests, ThrowsOnUnknownType) {
+    ApiConfig config;
+    config.api = "invalid_api";  // Invalid API type to trigger exception
+    config.server_address = "localhost:50051";  // Valid server address format
+
     EXPECT_THROW(
-        api::ControllerFactory::createController("unknown", server_address, createMockCore()),
+        api::ApiControllerFactory::createController(std::move(core_), logger_impl_, config),
         std::invalid_argument
     );
 }

@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 #include "common/types/Result.h"
-#include "common/types/ICameraOperations.h"
+#include "common/types/ICameraCapabilities.h"
 
 namespace camera_service::core {
     class CoreException final : public std::runtime_error {
@@ -10,7 +10,7 @@ namespace camera_service::core {
         }
     };
 
-    class ICore : public api::ICameraOperations {
+    class ICore : public api::ICameraCapabilities {
     public:
         ~ICore() override = default;
 

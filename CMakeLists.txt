@@ -17,6 +17,13 @@ endif()
 cmake_minimum_required(VERSION 3.21)
 project(${PROJECT_NAME} LANGUAGES CXX VERSION ${VERSION})
 
+option(WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
+if(WARNINGS_AS_ERRORS)
+    add_compile_options(
+            $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:-Werror>
+    )
+endif()
+
 add_compile_definitions(APP_NAME="${PROJECT_NAME}")
 add_compile_definitions(GRPC_CALLBACK_API_NONEXPERIMENTAL)
 
@@ -41,6 +48,9 @@ endif()
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
+include(resources/registers/GenerateRegistersMap.cmake)
+add_dependencies(${PROJECT_NAME} registers)
+
 function(link_common_libraries target)
     target_link_libraries(${target}
             PUBLIC
@@ -48,6 +58,7 @@ function(link_common_libraries target)
             proto
             spdlog::spdlog_header_only
             ${YAML_CPP_TARGET}
+            registers
     )
 endfunction(link_common_libraries)
 

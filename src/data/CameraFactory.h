@@ -2,11 +2,14 @@
 #include <memory>
 #include <string>
 
-#include "ICamera.h"
+#include "ICameraHal.h"
+#include "common/Config/ConfigManager.h"
+#include "common/Logger/Logger.h"
 
 namespace camera_service::data {
     class CameraFactory {
     public:
-        static std::unique_ptr<ICamera> createCamera(const std::string& camera_type);
+        static std::unique_ptr<ICameraHal> createCamera(
+            std::shared_ptr<LayerLogger> logger, const DataConfig& config);
     };
 }

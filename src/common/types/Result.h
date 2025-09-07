@@ -5,11 +5,13 @@
 #include <type_traits>
 #include <utility>
 
+#include "common/Logger/Logger.h"
+
 // Helper type for void Results
 struct Empty {};
 
 template<typename T, typename E = std::string>
-class Result {
+class [[nodiscard]] Result {
 public:
     // Success constructor - for non-void types
     template<typename U = T, typename = std::enable_if_t<!std::is_void_v<U>>>
@@ -74,6 +76,7 @@ public:
 
     // Convenience function to create an error result
     static Result error(E error) {
+        LOG_ERROR("{}", error);
         return Result(std::move(error));
     }
 

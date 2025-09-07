@@ -8,12 +8,14 @@
 using namespace camera_service;
 using namespace std::chrono_literals;
 
+#define NFOV_CAMERA_LOCK_TIMEOUT_MS 400ms
+
 class GrpcClient {
 public:
     explicit GrpcClient(const std::shared_ptr<grpc::Channel>& channel)
         : stub_(camera::CameraService::NewStub(channel)) {}
 
-    Result<void> setZoom(const types::zoom zoom_value, const std::chrono::milliseconds timeout = 300ms) const {
+    Result<void> setZoom(const types::zoom zoom_value, const std::chrono::milliseconds timeout = NFOV_CAMERA_LOCK_TIMEOUT_MS) const {
         camera::SetZoomRequest request;
         camera::SetZoomResponse response;
         grpc::ClientContext context;
@@ -27,7 +29,7 @@ public:
         return Result<void>::success();
     }
 
-    Result<types::zoom> getZoom(const std::chrono::milliseconds timeout = 300ms) const {
+    Result<types::zoom> getZoom(const std::chrono::milliseconds timeout = NFOV_CAMERA_LOCK_TIMEOUT_MS) const {
         const camera::GetZoomRequest request;
         camera::GetZoomResponse response;
         grpc::ClientContext context;
@@ -40,7 +42,7 @@ public:
         return Result<types::zoom>::success(response.zoom());
     }
 
-    Result<void> setFocus(const types::focus focus_value, const std::chrono::milliseconds timeout = 300ms) const {
+    Result<void> setFocus(const types::focus focus_value, const std::chrono::milliseconds timeout = NFOV_CAMERA_LOCK_TIMEOUT_MS) const {
         camera::SetFocusRequest request;
         camera::SetFocusResponse response;
         grpc::ClientContext context;
@@ -54,7 +56,7 @@ public:
         return Result<void>::success();
     }
 
-    Result<types::focus> getFocus(const std::chrono::milliseconds timeout = 300ms) const {
+    Result<types::focus> getFocus(const std::chrono::milliseconds timeout = NFOV_CAMERA_LOCK_TIMEOUT_MS) const {
         const camera::GetFocusRequest request;
         camera::GetFocusResponse response;
         grpc::ClientContext context;
