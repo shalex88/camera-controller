@@ -32,7 +32,7 @@ void CoreConfig::validate() const {
 
 void DataConfig::validate() const {
     static const std::set<std::string> valid_cameras{"nfov", "wfov", "fake"};
-    static const std::set<std::string> valid_devices{"/dev/uio0", "fake"};
+    static const std::set<std::string> valid_devices{"/dev/uio0", "/dev/pts/5", "fake"};
 
     if (camera.empty()) {
         throw ConfigException("Data camera type cannot be empty");

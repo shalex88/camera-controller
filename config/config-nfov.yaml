@@ -4,7 +4,7 @@ app:
     api_type: grpc
     server_address: 0.0.0.0:50051
   core:
-    camera: wfov
+    camera: nfov
   data:
-    camera: wfov
-    device: /dev/pts/5
+    camera: nfov
+    device: /dev/uio0

@@ -7,4 +7,4 @@ app:
     camera: wfov
   data:
     camera: wfov
-    device: /dev/pts/5
+    device: /dev/ttyS1

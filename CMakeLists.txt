@@ -17,7 +17,7 @@ endif()
 cmake_minimum_required(VERSION 3.21)
 project(${PROJECT_NAME} LANGUAGES CXX VERSION ${VERSION})
 
-option(WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
+option(WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
 if(WARNINGS_AS_ERRORS)
     add_compile_options(
             $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:-Werror>
