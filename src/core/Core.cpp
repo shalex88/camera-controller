@@ -26,7 +26,7 @@ namespace camera_service::core {
 
         if (!camera_->isConnected()) {
             if (const auto connect_result = camera_->connect(); connect_result.isError()) {
-                return Result<void>::error(connect_result.error());
+                return Result<void>::error(logger_, connect_result.error());
             }
         }
 
@@ -46,7 +46,7 @@ namespace camera_service::core {
 
         if (camera_ && camera_->isConnected()) {
             if (const auto disconnect_result = camera_->disconnect(); disconnect_result.isError()) {
-                return Result<void>::error(disconnect_result.error());
+                return Result<void>::error(logger_, disconnect_result.error());
             }
         }
 
@@ -60,7 +60,7 @@ namespace camera_service::core {
 
     Result<void> Core::setZoom(const types::zoom zoom_level) {
         if (!isInitialized()) {
-            return Result<void>::error("Core not initialized");
+            return Result<void>::error(logger_, "Core not initialized");
         }
 
         return camera_->setZoom(zoom_level);
@@ -68,7 +68,7 @@ namespace camera_service::core {
 
     Result<types::zoom> Core::getZoom() const {
         if (!isInitialized()) {
-            return Result<types::zoom>::error("Core not initialized");
+            return Result<types::zoom>::error(logger_, "Core not initialized");
         }
 
         return camera_->getZoom();
@@ -76,7 +76,7 @@ namespace camera_service::core {
 
     Result<void> Core::setFocus(const types::focus focus_value) {
         if (!isInitialized()) {
-            return Result<void>::error("Core not initialized");
+            return Result<void>::error(logger_, "Core not initialized");
         }
 
         return camera_->setFocus(focus_value);
@@ -84,7 +84,7 @@ namespace camera_service::core {
 
     Result<types::focus> Core::getFocus() const {
         if (!isInitialized()) {
-            return Result<types::focus>::error("Core not initialized");
+            return Result<types::focus>::error(logger_, "Core not initialized");
         }
 
         return camera_->getFocus();

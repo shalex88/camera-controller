@@ -74,9 +74,12 @@ public:
         return Result<void, E>(Empty{});
     }
 
-    // Convenience function to create an error result
     static Result error(E error) {
-        LOG_ERROR("{}", error);
+        return Result(std::move(error));
+    }
+
+    static Result error(std::shared_ptr<LayerLogger> logger, E error) {
+        logger->error("{}", error);
         return Result(std::move(error));
     }
 

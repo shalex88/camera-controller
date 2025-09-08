@@ -13,7 +13,7 @@ namespace camera_service::data {
     }
 
     CameraHal::~CameraHal() {
-        if (connected_) {
+        if (isConnected()) {
             if (disconnect().isError()) {
                 logger_->error("Failed to disconnect Camera");
             }
@@ -21,79 +21,80 @@ namespace camera_service::data {
     }
 
     Result<void> CameraHal::setZoom(const types::zoom zoom) {
-        if (!connected_) {
-            return Result<void>::error("Camera not connected");
+        if (!isConnected()) {
+            return Result<void>::error(logger_,"Camera not connected");
         }
 
         if (!isValidZoom(zoom)) {
-            return Result<void>::error("Invalid zoom value");
+            return Result<void>::error(logger_, "Invalid zoom value");
         }
 
-        logger_->debug("Setting camera zoom to: {}", zoom);
+        logger_->debug("{} {}", __func__, zoom);
         return camera_hw_->setZoom(zoom);
     }
 
     Result<types::zoom> CameraHal::getZoom() const {
-        if (!connected_) {
-            return Result<types::zoom>::error("Camera not connected");
+        if (!isConnected()) {
+            return Result<types::zoom>::error(logger_, "Camera not connected");
         }
 
-        logger_->debug("Getting camera zoom");
+        logger_->debug(__func__);
         auto zoom_result = camera_hw_->getZoom();
 
         if (zoom_result.isError()) {
-            return Result<types::zoom>::error("Failed to get zoom: " + zoom_result.error());
+            return Result<types::zoom>::error(logger_, zoom_result.error());
         }
 
         if (!isValidZoom(zoom_result.value())) {
-            return Result<types::zoom>::error("Invalid zoom value");
+            return Result<types::zoom>::error(logger_, "Invalid zoom value");
         }
 
-        logger_->debug("Current Zoom is: {}", zoom_result.value());
+        logger_->debug("{} {}", __func__, zoom_result.value());
         return zoom_result;
     }
 
     Result<void> CameraHal::setFocus(const types::focus focus) {
-        if (!connected_) {
-            return Result<void>::error("Camera not connected");
+        if (!isConnected()) {
+            return Result<void>::error(logger_, "Camera not connected");
         }
 
         if (!isValidFocus(focus)) {
-            return Result<void>::error("Invalid focus value");
+            return Result<void>::error(logger_, "Invalid focus value");
         }
 
-        logger_->debug("Setting camera focus to: {}", focus);
+        logger_->debug("{} {}", __func__, focus);
         return camera_hw_->setFocus(focus);
     }
 
     Result<types::focus> CameraHal::getFocus() const {
-        if (!connected_) {
-            return Result<types::focus>::error("Camera not connected");
+        if (!isConnected()) {
+            return Result<types::focus>::error(logger_, "Camera not connected");
         }
 
-        logger_->debug("Getting camera focus");
+        logger_->debug(__func__);
         auto focus_result = camera_hw_->getFocus();
 
         if (focus_result.isError()) {
-            return Result<types::focus>::error("Failed to get focus: " + focus_result.error());
+            return Result<types::focus>::error(logger_, focus_result.error());
         }
 
         if (!isValidFocus(focus_result.value())) {
-            return Result<types::focus>::error("Invalid focus value");
+            return Result<types::focus>::error(logger_, "Invalid focus value");
         }
 
-        logger_->debug("Current Focus is: {}", focus_result.value());
+        logger_->debug("{} {}", __func__, focus_result.value());
         return focus_result;
     }
 
     Result<void> CameraHal::connect() {
         if (connected_) {
-            return Result<void>::error("Camera already connected");
+            return Result<void>::error(logger_, "Camera already connected");
         }
 
-        logger_->debug("Connecting to camera");
-        if (camera_hw_->connect().isError()) {
-            return Result<void>::error("Connecting to camera failed");
+        logger_->debug(__func__);
+        const auto connect_result = camera_hw_->connect();
+        if (connect_result.isError()) {
+            return Result<void>::error(logger_, connect_result.error());
         }
 
         connected_ = true;
@@ -102,12 +103,13 @@ namespace camera_service::data {
 
     Result<void> CameraHal::disconnect() {
         if (!connected_) {
-            return Result<void>::error("Camera not connected");
+            return Result<void>::error(logger_, "Camera not connected");
         }
 
-        logger_->debug("Disconnecting from camera");
-        if (camera_hw_->disconnect().isError()) {
-            return Result<void>::error("Disconnecting from camera failed");
+        logger_->debug(__func__);
+        const auto disconnect_result = camera_hw_->disconnect();
+        if (disconnect_result.isError()) {
+            return Result<void>::error(logger_, disconnect_result.error());
         }
 
         connected_ = false;

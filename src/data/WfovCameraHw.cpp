@@ -10,13 +10,13 @@
 namespace camera_service::data {
     WfovCameraHw::~WfovCameraHw() {
         if (disconnect().isError()) {
-            LOG_ERROR("Failed to disconnect WFOV camera");
+            LOG_ERROR(disconnect().error());
         }
     }
 
     Result<void> WfovCameraHw::setZoom(const types::zoom zoom) {
         if (uart_->write(convertToVector(zoom)).isError()) {
-            return Result<void>::error("Failed to write zoom value to UART");
+            return Result<void>::error("Failed to write value");
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(WFOV_CAMERA_LOCK_TIMEOUT_MS));
@@ -26,7 +26,7 @@ namespace camera_service::data {
     Result<types::zoom> WfovCameraHw::getZoom() const {
         const auto zoom = uart_->read();
         if (zoom.isError()) {
-            return Result<types::zoom>::error("Failed to read zoom value from UART");
+            return Result<types::zoom>::error("Failed to read value");
         }
         const types::zoom zoom_int = static_cast<types::zoom>(convertToInt(zoom.value()));
         std::this_thread::sleep_for(std::chrono::milliseconds(WFOV_CAMERA_LOCK_TIMEOUT_MS));
@@ -35,7 +35,7 @@ namespace camera_service::data {
 
     Result<void> WfovCameraHw::setFocus(const types::focus focus) {
         if (uart_->write(convertToVector(focus)).isError()) {
-            return Result<void>::error("Failed to write focus value to UART");
+            return Result<void>::error("Failed to write value");
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(WFOV_CAMERA_LOCK_TIMEOUT_MS));
         return Result<void>::success();
@@ -44,7 +44,7 @@ namespace camera_service::data {
     Result<types::focus> WfovCameraHw::getFocus() const {
         const auto focus = uart_->read();
         if (focus.isError())     {
-            return Result<types::focus>::error("Failed to read focus value from UART");
+            return Result<types::focus>::error("Failed to read value");
         }
         const types::zoom focus_int = static_cast<types::zoom>(convertToInt(focus.value()));
         std::this_thread::sleep_for(std::chrono::milliseconds(WFOV_CAMERA_LOCK_TIMEOUT_MS));
@@ -53,7 +53,7 @@ namespace camera_service::data {
 
     Result<void> WfovCameraHw::connect() {
         if (uart_->open().isError()) {
-            return Result<void>::error("Failed to open UART interface");
+            return Result<void>::error("Failed to connect");
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(WFOV_CAMERA_LOCK_TIMEOUT_MS));
@@ -62,7 +62,7 @@ namespace camera_service::data {
 
     Result<void> WfovCameraHw::disconnect() {
         if (uart_->close().isError()) {
-            return Result<void>::error("Failed to close UART interface");
+            return Result<void>::error("Failed to disconnect");
         }
 
         return Result<void>::success();

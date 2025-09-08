@@ -1,5 +1,4 @@
 #include "UartInterface.h"
-#include "common/Logger/Logger.h"
 
 #include <fcntl.h>
 #include <termios.h>
@@ -8,6 +7,8 @@
 #include <cerrno>
 #include <cstring>
 #include <utility>
+
+#include "common/Logger/Logger.h"
 
 namespace camera_service::data::uart {
 
@@ -34,7 +35,6 @@ Result<void> UartInterface::open() {
                                   " - " + std::string(strerror(errno)));
     }
 
-    LOG_DEBUG("UART device opened successfully: {}", device_path_);
     return Result<void>::success();
 }
 
@@ -48,7 +48,6 @@ Result<void> UartInterface::close() {
     }
 
     fd_ = -1;
-    LOG_DEBUG("UART device closed successfully");
     return Result<void>::success();
 }
 
@@ -74,7 +73,6 @@ Result<size_t> UartInterface::write(const std::vector<char>& data) {
         return Result<size_t>::error("Failed to write to UART: " + std::string(strerror(errno)));
     }
 
-    LOG_DEBUG("Wrote {} bytes to UART", bytes_written);
     return Result<size_t>::success(static_cast<size_t>(bytes_written));
 }
 
@@ -112,7 +110,6 @@ Result<std::vector<char>> UartInterface::read() {
     }
 
     buffer.resize(static_cast<size_t>(bytes_read));
-    LOG_DEBUG("Read {} bytes from UART", bytes_read);
     return Result<std::vector<char>>::success(std::move(buffer));
 }
 
@@ -121,7 +118,7 @@ bool UartInterface::isOpen() const {
 }
 
 Result<void> UartInterface::setTerminalAttributes(int baud_rate, int data_bits, int stop_bits, char parity) {
-    struct termios tty = {};
+    termios tty = {};
 
     if (tcgetattr(fd_, &tty) != 0) {
         return Result<void>::error("Failed to get terminal attributes: " + std::string(strerror(errno)));
@@ -129,8 +126,6 @@ Result<void> UartInterface::setTerminalAttributes(int baud_rate, int data_bits, 
 
     // For PTS devices, we may need different configuration
     if (device_type_ == DeviceType::PTS) {
-        LOG_DEBUG("Configuring PTS device: {}", device_path_);
-
         // PTS devices don't need baud rate configuration, but we still set other parameters
         // Configure data bits
         tty.c_cflag &= ~CSIZE;
@@ -169,11 +164,7 @@ Result<void> UartInterface::setTerminalAttributes(int baud_rate, int data_bits, 
         } else if (stop_bits == 2) {
             tty.c_cflag |= CSTOPB;
         }
-
-        LOG_DEBUG("PTS configured: {}N{} (baud rate not applicable)", data_bits, stop_bits);
     } else {
-        LOG_DEBUG("Configuring UART device: {}", device_path_);
-
         // Configure baud rate (only for real UART devices)
         int baud_flag = getBaudRateFlag(baud_rate);
         if (baud_flag == -1) {
