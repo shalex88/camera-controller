@@ -9,9 +9,11 @@
 
 class SpdLogAdapter final : public LoggerInterface {
 public:
-    SpdLogAdapter() {
+    SpdLogAdapter() : SpdLogAdapter(APP_NAME) {}
+
+    explicit SpdLogAdapter(const std::string& logger_name) {
         auto stdout_sink = std::make_shared<spdlog::sinks::ostream_sink_mt>(std::cout, true);
-        logger_ = std::make_shared<spdlog::logger>(APP_NAME, stdout_sink);
+        logger_ = std::make_shared<spdlog::logger>(logger_name, stdout_sink);
         set_default_logger(logger_);
         logger_->set_level(spdlog::level::info);
     }

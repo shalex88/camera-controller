@@ -88,6 +88,7 @@ private:
     std::unique_ptr<LoggerInterface> logger_impl_ = std::make_unique<SpdLogAdapter>();
 };
 
+#define SET_LOGGER_NAME(name) GlobalLogger::getInstance().setLoggerAdapter(std::make_unique<SpdLogAdapter>(name))
 #define SET_LOG_LEVEL(level) GlobalLogger::getInstance().setLogLevel(level)
 
 #define LOG_TRACE(...) GlobalLogger::getInstance().log(LoggerInterface::LogLevel::Trace, __VA_ARGS__)

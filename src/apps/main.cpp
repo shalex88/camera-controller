@@ -42,13 +42,18 @@ std::string parseInputArgs(const int argc, char* argv[]) {
 int main(const int argc, char* argv[]) {
     const auto config_file = parseInputArgs(argc, argv);
 
-    LOG_INFO("{} v{}.{}.{}{}", APP_NAME, APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH, APP_VERSION_DIRTY);
-
     try {
         const auto config = std::make_unique<ConfigManager>(config_file);
 
+        const std::string logger_name = std::string(APP_NAME) + "-" + config->getDataConfig().camera;
+
+        SET_LOGGER_NAME(logger_name);
         SET_LOG_LEVEL(config->getLogLevel());
-        auto logger_impl = std::make_shared<SpdLogAdapter>();
+
+        LOG_INFO("{} v{}.{}.{}{}", APP_NAME, APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH, APP_VERSION_DIRTY);
+
+        auto logger_impl = std::make_shared<SpdLogAdapter>(logger_name);
+
         const auto api_logger = std::make_shared<LayerLogger>(logger_impl, "API", config->getLogLevel());
         const auto core_logger = std::make_shared<LayerLogger>(logger_impl, "CORE", config->getLogLevel());
         const auto data_logger = std::make_shared<LayerLogger>(logger_impl, "DATA", config->getLogLevel());
