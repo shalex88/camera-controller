@@ -38,8 +38,8 @@ include_directories(${INCLUDE_DIR} ${SOURCE_DIR} ${proto_INCLUDE_DIRS})
 file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS "${SOURCE_DIR}/*.cpp")
 
 find_package(spdlog CONFIG REQUIRED)
-
-find_package(yaml-cpp REQUIRED)
+find_package(CLI11 CONFIG REQUIRED)
+find_package(yaml-cpp CONFIG REQUIRED)
 if(TARGET yaml-cpp::yaml-cpp)
     set(YAML_CPP_TARGET yaml-cpp::yaml-cpp)
 elseif(TARGET yaml-cpp)
@@ -59,6 +59,7 @@ function(link_common_libraries target)
             spdlog::spdlog_header_only
             ${YAML_CPP_TARGET}
             registers
+            CLI11::CLI11
     )
 endfunction(link_common_libraries)
 

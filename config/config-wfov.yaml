@@ -1,10 +1,11 @@
+# Sony
 app:
   log_level: debug
   api:
     api_type: grpc
-    server_address: 0.0.0.0:50051
+    server_address: 0.0.0.0:50052
   core:
     camera: wfov
   data:
     camera: wfov
-    device: /dev/ttyS1
+    device: /dev/ttyPS1

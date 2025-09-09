@@ -11,14 +11,15 @@
 namespace camera_service::data {
     std::unique_ptr<ICameraHal> CameraFactory::createCamera(
         std::shared_ptr<LayerLogger> logger, const DataConfig& config) {
+        logger->info("Camera: {}", config.camera);
+        logger->debug("Device: {}", config.device);
+
         if (config.camera == "nfov") {
             std::unique_ptr<IRegisterImpl> register_impl;
 
             if (config.device != "fake") {
-                logger->debug("Using device: {}", config.device);
                 register_impl = std::make_unique<RegisterImplUio>(config.device);
             } else {
-                logger->debug("Using fake device");
                 register_impl = std::make_unique<RegisterImplFake>();
             }
 

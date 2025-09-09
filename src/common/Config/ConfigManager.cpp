@@ -1,4 +1,5 @@
 #include "ConfigManager.h"
+
 #include <yaml-cpp/yaml.h>
 #include <set>
 
@@ -80,16 +81,13 @@ ConfigManager::ConfigManager(const std::string& filename)
 
 void ConfigManager::loadFromFile(const std::filesystem::path& filename) const {
     try {
-        const YAML::Node config = YAML::LoadFile(filename);
-
-        if (config["app"]) {
+        if (const YAML::Node config = YAML::LoadFile(filename); config["app"]) {
             const auto& app_node = config["app"];
             loadApiConfig(app_node);
             loadCoreConfig(app_node);
             loadDataConfig(app_node);
             loadLogLevel(app_node);
         }
-
     } catch (const YAML::Exception& e) {
         throw ConfigException("YAML parsing error: " + std::string(e.what()));
     }

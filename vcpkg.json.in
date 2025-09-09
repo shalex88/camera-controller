@@ -4,6 +4,7 @@
   "dependencies": [
     "spdlog",
     "yaml-cpp",
-    "grpc"
+    "grpc",
+    "cli11"
   ]
 }
