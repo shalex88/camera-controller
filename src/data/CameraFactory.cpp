@@ -32,10 +32,8 @@ namespace camera_service::data {
             std::unique_ptr<uart::IUartInterface> uart_interface;
 
             if (config.device != "fake") {
-                logger->debug("Using device: {}", config.device);
                 uart_interface = std::make_unique<uart::UartInterface>(config.device);
             } else {
-                logger->debug("Using fake device");
                 uart_interface = std::make_unique<uart::FakeUartInterface>();
             }
 

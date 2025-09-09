@@ -53,7 +53,7 @@ namespace camera_service::data {
 
     Result<void> WfovCameraHw::connect() {
         if (uart_->open().isError()) {
-            return Result<void>::error("Failed to connect");
+            return Result<void>::error("Failed to connect to device");
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(WFOV_CAMERA_LOCK_TIMEOUT_MS));

@@ -59,12 +59,12 @@ int main(const int argc, char* argv[]) {
 
         const auto api_controller = camera_service::api::ApiControllerFactory::createController(std::move(core), api_logger, config->getApiConfig());
 
-        if (api_controller->startAsync().isError()) {
-            LOG_ERROR("Failed to start API controller");
+        if (const auto app = api_controller->startAsync(); app.isError()) {
+            LOG_ERROR("Shutting down due to startup error: {}", app.error());
             return EXIT_FAILURE;
         }
 
-        LOG_INFO("Camera service started successfully");
+        LOG_INFO("Running...");
 
         while (api_controller->isRunning()) {
             std::this_thread::sleep_for(std::chrono::seconds(1));

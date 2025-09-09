@@ -30,14 +30,14 @@ namespace camera_service::api {
         logger_->info("Starting API ApiController...");
 
         if (const auto requst_handler_start_result = request_handler_->start(); requst_handler_start_result.isError()) {
-            return Result<void>::error("Failed to start request handler: " + requst_handler_start_result.error());
+            return Result<void>::error(logger_, "Failed to start: " + requst_handler_start_result.error());
         }
 
         if (const auto transport_result = transport_->start(server_address_); transport_result.isError()) {
             if (request_handler_->stop().isError()) {
                 throw std::runtime_error("Request Handler is still running");
             }
-            return Result<void>::error("Failed to start transport: " + transport_result.error());
+            return Result<void>::error(transport_result.error());
         }
 
         running_ = true;

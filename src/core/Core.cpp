@@ -22,16 +22,16 @@ namespace camera_service::core {
     }
 
     Result<void> Core::initialize() {
-        logger_->info("Initializing Core...");
+        logger_->info("Initializing...");
 
         if (!camera_->isConnected()) {
             if (const auto connect_result = camera_->connect(); connect_result.isError()) {
-                return Result<void>::error(logger_, connect_result.error());
+                return Result<void>::error(logger_, "Init failed: " + connect_result.error());
             }
         }
 
         is_initialized_ = true;
-        logger_->info("Core initialized successfully");
+        logger_->info("Initialized successfully");
         return Result<void>::success();
     }
 

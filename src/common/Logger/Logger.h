@@ -74,7 +74,8 @@ public:
 
     template<typename... Args>
     void log(LoggerInterface::LogLevel level, const std::string& format, Args... args) {
-        logger_impl_->log(level, format, std::forward<Args>(args)...);
+        const std::string prefixed_format = "[APP] " + format;
+        logger_impl_->log(level, prefixed_format, std::forward<Args>(args)...);
     }
 
     void setLoggerAdapter(std::unique_ptr<LoggerInterface> adapter) {
