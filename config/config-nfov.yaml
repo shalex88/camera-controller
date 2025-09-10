@@ -1,5 +1,5 @@
-# Adimec
 app:
+  name: nfov
   log_level: debug
   api:
     api_type: grpc
@@ -7,5 +7,5 @@ app:
   core:
     camera: nfov
   data:
-    camera: nfov
+    camera: adimec
     device: /dev/uio0

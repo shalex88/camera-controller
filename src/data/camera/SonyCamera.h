@@ -1,17 +1,17 @@
 #pragma once
 
-#include "ICameraHw.h"
+#include "../ICameraHw.h"
 
-#include "hw_interface/mmio/RegistersMapManager.h"
+#include "data/hw_interface/uart/IUartInterface.h"
 #include <memory>
 
 namespace camera_service::data {
-    class NfovCameraHw final : public ICameraHw {
+    class SonyCamera final : public ICameraHw {
     public:
-        explicit NfovCameraHw(std::unique_ptr<RegistersMapManager> fpga_manager) :
-            fpga_(std::move(fpga_manager)) {
+        explicit SonyCamera(std::unique_ptr<uart::IUartInterface> uart_interface) :
+            uart_(std::move(uart_interface)) {
         };
-        ~NfovCameraHw() override;
+        ~SonyCamera() override;
 
         Result<void> setZoom(types::zoom zoom) override;
         Result<types::zoom> getZoom() const override;
@@ -28,6 +28,10 @@ namespace camera_service::data {
             .min_focus = 0,
             .max_focus = 100,
         };
-        std::unique_ptr<RegistersMapManager> fpga_;
+
+        std::unique_ptr<uart::IUartInterface> uart_;
+
+        static double convertToInt(const std::vector<char>& data);
+        static std::vector<char> convertToVector(const double& value);
     };
 }

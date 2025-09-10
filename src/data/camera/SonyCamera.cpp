@@ -1,4 +1,4 @@
-#include "WfovCameraHw.h"
+#include "SonyCamera.h"
 
 #include <thread>
 #include <chrono>
@@ -8,13 +8,13 @@
 #define WFOV_CAMERA_LOCK_TIMEOUT_MS 200
 
 namespace camera_service::data {
-    WfovCameraHw::~WfovCameraHw() {
+    SonyCamera::~SonyCamera() {
         if (disconnect().isError()) {
             LOG_ERROR(disconnect().error());
         }
     }
 
-    Result<void> WfovCameraHw::setZoom(const types::zoom zoom) {
+    Result<void> SonyCamera::setZoom(const types::zoom zoom) {
         if (uart_->write(convertToVector(zoom)).isError()) {
             return Result<void>::error("Failed to write value");
         }
@@ -23,7 +23,7 @@ namespace camera_service::data {
         return Result<void>::success();
     }
 
-    Result<types::zoom> WfovCameraHw::getZoom() const {
+    Result<types::zoom> SonyCamera::getZoom() const {
         const auto zoom = uart_->read();
         if (zoom.isError()) {
             return Result<types::zoom>::error("Failed to read value");
@@ -33,7 +33,7 @@ namespace camera_service::data {
         return Result<types::zoom>::success(zoom_int);
     }
 
-    Result<void> WfovCameraHw::setFocus(const types::focus focus) {
+    Result<void> SonyCamera::setFocus(const types::focus focus) {
         if (uart_->write(convertToVector(focus)).isError()) {
             return Result<void>::error("Failed to write value");
         }
@@ -41,7 +41,7 @@ namespace camera_service::data {
         return Result<void>::success();
     }
 
-    Result<types::focus> WfovCameraHw::getFocus() const {
+    Result<types::focus> SonyCamera::getFocus() const {
         const auto focus = uart_->read();
         if (focus.isError())     {
             return Result<types::focus>::error("Failed to read value");
@@ -51,7 +51,7 @@ namespace camera_service::data {
         return Result<types::focus>::success(focus_int);
     }
 
-    Result<void> WfovCameraHw::connect() {
+    Result<void> SonyCamera::connect() {
         if (uart_->open().isError()) {
             return Result<void>::error("Failed to connect to device");
         }
@@ -60,7 +60,7 @@ namespace camera_service::data {
         return Result<void>::success();
     }
 
-    Result<void> WfovCameraHw::disconnect() {
+    Result<void> SonyCamera::disconnect() {
         if (uart_->close().isError()) {
             return Result<void>::error("Failed to disconnect");
         }
@@ -68,15 +68,15 @@ namespace camera_service::data {
         return Result<void>::success();
     }
 
-    types::CameraLimits WfovCameraHw::getLimits() const {
+    types::CameraLimits SonyCamera::getLimits() const {
         return limits_;
     }
 
-    double WfovCameraHw::convertToInt(const std::vector<char>& data) {
+    double SonyCamera::convertToInt(const std::vector<char>& data) {
         return std::stod(std::string(data.begin(), data.end()));
     }
 
-    std::vector<char> WfovCameraHw::convertToVector(const double& value) {
+    std::vector<char> SonyCamera::convertToVector(const double& value) {
         return {std::to_string(value).begin(), std::to_string(value).end()};
     }
 }

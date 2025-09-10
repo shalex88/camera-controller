@@ -15,9 +15,9 @@ protected:
     std::shared_ptr<LayerLogger> logger_impl_;
 };
 
-TEST_F(CameraFactoryTests, CreateNfovCameraSuccess) {
+TEST_F(CameraFactoryTests, CreateSonyCameraSuccess) {
     DataConfig config;
-    config.camera = "nfov";  // Valid camera type
+    config.camera = "sony";  // Valid camera type
     config.device = "fake";  // Valid device type
 
     const auto camera = data::CameraFactory::createCamera(logger_impl_, config);

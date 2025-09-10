@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 /* Add your project include files here */
-#include "data/NfovCameraHw.h"
+#include "../../src/data/camera/AdimecCamera.h"
 #include "data/hw_interface/mmio/RegistersMapManager.h"
 #include "data/hw_interface/mmio/RegisterImplFake.h"
 #include "common/types/Result.h"
@@ -14,16 +14,16 @@ protected:
     void SetUp() override {
         auto register_impl = std::make_unique<RegisterImplFake>();
         auto registers_manager = std::make_unique<data::RegistersMapManager>(std::move(register_impl));
-        camera_impl_ = std::make_unique<data::NfovCameraHw>(std::move(registers_manager));
+        camera_impl_ = std::make_unique<data::AdimecCamera>(std::move(registers_manager));
     }
 
-    std::unique_ptr<data::NfovCameraHw> camera_impl_;
+    std::unique_ptr<data::AdimecCamera> camera_impl_;
 };
 
 TEST_F(NfovStrategyTests, CanBeConstructed) {
     auto register_impl = std::make_unique<RegisterImplFake>();
     auto registers_manager = std::make_unique<data::RegistersMapManager>(std::move(register_impl));
-    const auto camera = std::make_unique<data::NfovCameraHw>(std::move(registers_manager));
+    const auto camera = std::make_unique<data::AdimecCamera>(std::move(registers_manager));
     ASSERT_NE(nullptr, camera);
 }
 

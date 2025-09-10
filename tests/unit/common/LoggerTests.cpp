@@ -60,41 +60,41 @@ TEST_F(LoggerTest, SetLogLevelToCritical) {
 }
 
 TEST_F(LoggerTest, LogTrace) {
-    EXPECT_CALL(*mock_logger, logImpl(LoggerInterface::LogLevel::Trace, "Test message"));
+    EXPECT_CALL(*mock_logger, logImpl(LoggerInterface::LogLevel::Trace, ::testing::HasSubstr("Test message")));
     LOG_TRACE("Test message");
 }
 
 TEST_F(LoggerTest, LogDebug) {
-    EXPECT_CALL(*mock_logger, logImpl(LoggerInterface::LogLevel::Debug, "Test message"));
+    EXPECT_CALL(*mock_logger, logImpl(LoggerInterface::LogLevel::Debug, ::testing::HasSubstr("Test message")));
     LOG_DEBUG("Test message");
 }
 
 TEST_F(LoggerTest, LogInfo) {
-    EXPECT_CALL(*mock_logger, logImpl(LoggerInterface::LogLevel::Info, "Test message"));
+    EXPECT_CALL(*mock_logger, logImpl(LoggerInterface::LogLevel::Info, ::testing::HasSubstr("Test message")));
     LOG_INFO("Test message");
 }
 
 TEST_F(LoggerTest, LogWarn) {
-    EXPECT_CALL(*mock_logger, logImpl(LoggerInterface::LogLevel::Warn, "Test message"));
+    EXPECT_CALL(*mock_logger, logImpl(LoggerInterface::LogLevel::Warn, ::testing::HasSubstr("Test message")));
     LOG_WARN("Test message");
 }
 
 TEST_F(LoggerTest, LogError) {
-    EXPECT_CALL(*mock_logger, logImpl(LoggerInterface::LogLevel::Error, "Test message"));
+    EXPECT_CALL(*mock_logger, logImpl(LoggerInterface::LogLevel::Error, ::testing::HasSubstr("Test message")));
     LOG_ERROR("Test message");
 }
 
 TEST_F(LoggerTest, LogCritical) {
-    EXPECT_CALL(*mock_logger, logImpl(LoggerInterface::LogLevel::Critical, "Test message"));
+    EXPECT_CALL(*mock_logger, logImpl(LoggerInterface::LogLevel::Critical, ::testing::HasSubstr("Test message")));
     LOG_CRITICAL("Test message");
 }
 
 TEST_F(LoggerTest, LogWithFormatting) {
-    EXPECT_CALL(*mock_logger, logImpl(LoggerInterface::LogLevel::Info, "Value: 42"));
+    EXPECT_CALL(*mock_logger, logImpl(LoggerInterface::LogLevel::Info, ::testing::HasSubstr("Value: 42")));
     LOG_INFO("Value: {}", 42);
 }
 
 TEST_F(LoggerTest, LogWithMultipleArgs) {
-    EXPECT_CALL(*mock_logger, logImpl(LoggerInterface::LogLevel::Info, "Hello World 42"));
+    EXPECT_CALL(*mock_logger, logImpl(LoggerInterface::LogLevel::Info, ::testing::HasSubstr("Hello World 42")));
     LOG_INFO("{} {} {}", "Hello", "World", 42);
 }

@@ -91,13 +91,14 @@ namespace camera_service::data {
             return Result<void>::error(logger_, "Camera already connected");
         }
 
-        logger_->debug("Connecting to camera...");
+        logger_->info("Connecting to camera...");
         const auto connect_result = camera_hw_->connect();
         if (connect_result.isError()) {
             return Result<void>::error(logger_, connect_result.error());
         }
 
         connected_ = true;
+        logger_->info("Camera connected successfully");
         return Result<void>::success();
     }
 

@@ -27,7 +27,7 @@ namespace camera_service::api {
     }
 
     Result<void> ApiController::startAsync() {
-        logger_->info("Starting API ApiController...");
+        logger_->info("Initializing...");
 
         if (const auto requst_handler_start_result = request_handler_->start(); requst_handler_start_result.isError()) {
             return Result<void>::error(logger_, "Failed to start: " + requst_handler_start_result.error());
@@ -50,6 +50,8 @@ namespace camera_service::api {
                 logger_->info("Transport run loop completed successfully");
             }
         });
+
+        logger_->info("Initialized successfully");
 
         return Result<void>::success();
     }

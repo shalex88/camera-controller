@@ -1,17 +1,17 @@
 #pragma once
 
-#include "ICameraHw.h"
+#include "../ICameraHw.h"
 
-#include "hw_interface/uart/IUartInterface.h"
+#include "data/hw_interface/mmio/RegistersMapManager.h"
 #include <memory>
 
 namespace camera_service::data {
-    class WfovCameraHw final : public ICameraHw {
+    class AdimecCamera final : public ICameraHw {
     public:
-        explicit WfovCameraHw(std::unique_ptr<uart::IUartInterface> uart_interface) :
-            uart_(std::move(uart_interface)) {
+        explicit AdimecCamera(std::unique_ptr<RegistersMapManager> fpga_manager) :
+            fpga_(std::move(fpga_manager)) {
         };
-        ~WfovCameraHw() override;
+        ~AdimecCamera() override;
 
         Result<void> setZoom(types::zoom zoom) override;
         Result<types::zoom> getZoom() const override;
@@ -28,10 +28,6 @@ namespace camera_service::data {
             .min_focus = 0,
             .max_focus = 100,
         };
-
-        std::unique_ptr<uart::IUartInterface> uart_;
-
-        static double convertToInt(const std::vector<char>& data);
-        static std::vector<char> convertToVector(const double& value);
+        std::unique_ptr<RegistersMapManager> fpga_;
     };
 }

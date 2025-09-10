@@ -74,7 +74,7 @@ public:
 
     template<typename... Args>
     void log(LoggerInterface::LogLevel level, const std::string& format, Args... args) {
-        const std::string prefixed_format = "[APP] " + format;
+        const std::string prefixed_format = "[GLOBAL] " + format;
         logger_impl_->log(level, prefixed_format, std::forward<Args>(args)...);
     }
 
@@ -88,7 +88,14 @@ private:
     std::unique_ptr<LoggerInterface> logger_impl_ = std::make_unique<SpdLogAdapter>();
 };
 
-#define SET_LOGGER_NAME(name) GlobalLogger::getInstance().setLoggerAdapter(std::make_unique<SpdLogAdapter>(name))
+#define CONFIGURE_GLOBAL_LOGGER(name, level) do { \
+    auto adapter = std::make_unique<SpdLogAdapter>(name); \
+    if (adapter) { \
+        GlobalLogger::getInstance().setLoggerAdapter(std::move(adapter)); \
+        GlobalLogger::getInstance().setLogLevel(level); \
+    } \
+} while(0)
+
 #define SET_LOG_LEVEL(level) GlobalLogger::getInstance().setLogLevel(level)
 
 #define LOG_TRACE(...) GlobalLogger::getInstance().log(LoggerInterface::LogLevel::Trace, __VA_ARGS__)

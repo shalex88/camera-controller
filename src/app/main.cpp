@@ -45,23 +45,17 @@ int main(const int argc, char* argv[]) {
     try {
         const auto config = std::make_unique<ConfigManager>(config_file);
 
-        const std::string logger_name = std::string(APP_NAME) + "-" + config->getDataConfig().camera;
+        CONFIGURE_GLOBAL_LOGGER(config->getAppName(), config->getLogLevel());
 
-        SET_LOGGER_NAME(logger_name);
-        SET_LOG_LEVEL(config->getLogLevel());
+        auto scoped_logger_impl = std::make_shared<SpdLogAdapter>(config->getAppName());
+        const auto api_logger = std::make_shared<LayerLogger>(scoped_logger_impl, "API", config->getLogLevel());
+        const auto core_logger = std::make_shared<LayerLogger>(scoped_logger_impl, "CORE", config->getLogLevel());
+        const auto data_logger = std::make_shared<LayerLogger>(scoped_logger_impl, "DATA", config->getLogLevel());
 
         LOG_INFO("{} v{}.{}.{}{}", APP_NAME, APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH, APP_VERSION_DIRTY);
 
-        auto logger_impl = std::make_shared<SpdLogAdapter>(logger_name);
-
-        const auto api_logger = std::make_shared<LayerLogger>(logger_impl, "API", config->getLogLevel());
-        const auto core_logger = std::make_shared<LayerLogger>(logger_impl, "CORE", config->getLogLevel());
-        const auto data_logger = std::make_shared<LayerLogger>(logger_impl, "DATA", config->getLogLevel());
-
         auto camera = camera_service::data::CameraFactory::createCamera(data_logger, config->getDataConfig());
-
         auto core = camera_service::core::CoreFactory::createCore(std::move(camera), core_logger, config->getCoreConfig());
-
         const auto api_controller = camera_service::api::ApiControllerFactory::createController(std::move(core), api_logger, config->getApiConfig());
 
         if (const auto app = api_controller->startAsync(); app.isError()) {

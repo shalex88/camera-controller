@@ -21,7 +21,7 @@ void ApiConfig::validate() const {
 }
 
 void CoreConfig::validate() const {
-    static const std::set<std::string> valid_cameras{"nfov", "wfov", "fake"};
+    static const std::set<std::string> valid_cameras{"nfov", "wfov"};
 
     if (camera.empty()) {
         throw ConfigException("Camera type cannot be empty");
@@ -29,7 +29,7 @@ void CoreConfig::validate() const {
 }
 
 void DataConfig::validate() const {
-    static const std::set<std::string> valid_cameras{"nfov", "wfov", "fake"};
+    static const std::set<std::string> valid_cameras{"sony", "adimec"};
 
     if (camera.empty()) {
         throw ConfigException("Data camera type cannot be empty");
@@ -43,18 +43,20 @@ void DataConfig::validate() const {
 }
 
 void AppConfig::validate() const {
-    static const std::set<std::string> valid_log_levels{"trace", "debug", "info", "warn", "error", "critical", "off"};
+    static const std::set<std::string> valid_log_levels{"trace", "debug", "info", "warn", "error", "critical"};
 
     api_config.validate();
     core_config.validate();
     data_config.validate();
 
-    // Validate log level
     if (log_level.empty()) {
         throw ConfigException("Log level cannot be empty");
     }
     if (!valid_log_levels.contains(log_level)) {
         throw ConfigException("Invalid log level: " + log_level);
+    }
+    if (name.empty()) {
+        throw ConfigException("App name cannot be empty");
     }
 
     // Cross-validation: ensure camera types are consistent
@@ -79,7 +81,7 @@ void ConfigManager::loadFromFile(const std::filesystem::path& filename) const {
             loadApiConfig(app_node);
             loadCoreConfig(app_node);
             loadDataConfig(app_node);
-            loadLogLevel(app_node);
+            loadAppConfig(app_node);
         }
     } catch (const YAML::Exception& e) {
         throw ConfigException("YAML parsing error: " + std::string(e.what()));
@@ -119,9 +121,12 @@ void ConfigManager::loadDataConfig(const YAML::Node& app_node) const {
     }
 }
 
-void ConfigManager::loadLogLevel(const YAML::Node& app_node) const {
+void ConfigManager::loadAppConfig(const YAML::Node& app_node) const {
     if (app_node["log_level"]) {
         app_config_->log_level = app_node["log_level"].as<std::string>();
+    }
+    if (app_node["name"]) {
+        app_config_->name = app_node["name"].as<std::string>();
     }
 }
 
@@ -139,6 +144,10 @@ const DataConfig& ConfigManager::getDataConfig() const {
 
 const std::string& ConfigManager::getLogLevel() const {
     return app_config_->log_level;
+}
+
+const std::string& ConfigManager::getAppName() const {
+    return app_config_->name;
 }
 
 void ConfigManager::validateConfiguration() const {

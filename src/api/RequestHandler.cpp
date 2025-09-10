@@ -20,8 +20,6 @@ namespace camera_service::api {
     }
 
     Result<void> RequestHandler::start() {
-        logger_->debug("Starting Request Handler...");
-
         if (const auto init_result = core_->initialize(); init_result.isError()) {
             return Result<void>::error(init_result.error());
         }

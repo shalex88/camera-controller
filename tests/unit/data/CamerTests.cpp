@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 /* Add your project include files here */
-#include "data/NfovCameraHw.h"
+#include "../../../src/data/camera/AdimecCamera.h"
 #include "data/ICameraHal.h"
 #include "data/ICameraHw.h"
 #include "common/types/Result.h"
@@ -47,7 +47,7 @@ protected:
 TEST_F(CameraTests, CanBeConstructed) {
     auto register_impl = std::make_unique<RegisterImplFake>(); //FIXME: use a mock
     auto fpga_manager = std::make_unique<data::RegistersMapManager>(std::move(register_impl)); //FIXME: use a mock
-    const auto camera = std::make_unique<data::NfovCameraHw>(std::move(fpga_manager));
+    const auto camera = std::make_unique<data::AdimecCamera>(std::move(fpga_manager));
     ASSERT_NE(nullptr, camera);
 }
 

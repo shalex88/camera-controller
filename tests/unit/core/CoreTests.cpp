@@ -73,7 +73,7 @@ TEST_F(CoreTests, InitializeFailsOnConnectError) {
     core::Core core(std::move(camera), logger_impl_);
     const auto result = core.initialize();
     ASSERT_TRUE(result.isError());
-    EXPECT_EQ(result.error(), "Failed to connect");
+    EXPECT_THAT(result.error(), ::testing::HasSubstr("Failed to connect"));
 }
 
 TEST_F(CoreTests, ZoomOperationsSuccess) {

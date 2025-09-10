@@ -35,6 +35,7 @@ struct AppConfig {
     CoreConfig core_config;
     DataConfig data_config;
     std::string log_level;
+    std::string name;
 
     void validate() const;
 };
@@ -48,6 +49,7 @@ public:
     const CoreConfig& getCoreConfig() const;
     const DataConfig& getDataConfig() const;
     const std::string& getLogLevel() const;
+    const std::string& getAppName() const;
 
 private:
     void loadFromFile(const std::filesystem::path& filename) const;
@@ -55,7 +57,7 @@ private:
     void loadApiConfig(const YAML::Node& app_node) const;
     void loadCoreConfig(const YAML::Node& app_node) const;
     void loadDataConfig(const YAML::Node& app_node) const;
-    void loadLogLevel(const YAML::Node& app_node) const;
+    void loadAppConfig(const YAML::Node& app_node) const;
 
     std::unique_ptr<AppConfig> app_config_;
 };
