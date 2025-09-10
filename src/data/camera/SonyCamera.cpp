@@ -24,12 +24,18 @@ namespace camera_service::data {
     }
 
     Result<types::zoom> SonyCamera::getZoom() const {
-        const auto zoom = uart_->read();
-        if (zoom.isError()) {
-            return Result<types::zoom>::error("Failed to read value");
+        std::vector<char> getZoomCmd = {'G', 'Z'};
+        auto writeResult = uart_->write(getZoomCmd);
+        if (writeResult.isError()) {
+            return Result<types::zoom>::error("Failed to send get zoom request: " + writeResult.error());
         }
+
+        const auto zoom = uart_->read(); // TODO: Blocking?
+        if (zoom.isError()) {
+            return Result<types::zoom>::error("Failed to read zoom value: " + zoom.error());
+        }
+
         const types::zoom zoom_int = static_cast<types::zoom>(convertToInt(zoom.value()));
-        std::this_thread::sleep_for(std::chrono::milliseconds(WFOV_CAMERA_LOCK_TIMEOUT_MS));
         return Result<types::zoom>::success(zoom_int);
     }
 
@@ -42,12 +48,18 @@ namespace camera_service::data {
     }
 
     Result<types::focus> SonyCamera::getFocus() const {
-        const auto focus = uart_->read();
-        if (focus.isError())     {
-            return Result<types::focus>::error("Failed to read value");
+        std::vector<char> getFocusCmd = {'G', 'F'};
+        auto writeResult = uart_->write(getFocusCmd);
+        if (writeResult.isError()) {
+            return Result<types::focus>::error("Failed to send get focus request: " + writeResult.error());
         }
-        const types::zoom focus_int = static_cast<types::zoom>(convertToInt(focus.value()));
-        std::this_thread::sleep_for(std::chrono::milliseconds(WFOV_CAMERA_LOCK_TIMEOUT_MS));
+
+        const auto focus = uart_->read(); // TODO: Blocking?
+        if (focus.isError()) {
+            return Result<types::focus>::error("Failed to read focus value: " + focus.error());
+        }
+
+        const types::focus focus_int = static_cast<types::focus>(convertToInt(focus.value()));
         return Result<types::focus>::success(focus_int);
     }
 
