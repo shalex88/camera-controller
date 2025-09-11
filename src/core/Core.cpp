@@ -89,4 +89,12 @@ namespace camera_service::core {
 
         return camera_->getFocus();
     }
+
+    Result<types::info> Core::getInfo() const {
+        if (!isInitialized()) {
+            return Result<types::info>::error(logger_, "Core not initialized");
+        }
+
+        return camera_->getInfo();
+    }
 }

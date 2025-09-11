@@ -46,6 +46,10 @@ elseif(TARGET yaml-cpp)
     set(YAML_CPP_TARGET yaml-cpp)
 endif()
 
+find_package(PkgConfig REQUIRED)
+set(ENV{PKG_CONFIG_PATH} "${CMAKE_CURRENT_LIST_DIR}/../libVISCA2/build:$ENV{PKG_CONFIG_PATH}")
+pkg_check_modules(LIBVISCA REQUIRED libvisca)
+
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
 include(resources/registers/GenerateRegistersMap.cmake)
@@ -60,9 +64,12 @@ function(link_common_libraries target)
             ${YAML_CPP_TARGET}
             registers
             CLI11::CLI11
+#            PkgConfig::LIBVISCA
+            ${CMAKE_CURRENT_LIST_DIR}/../libVISCA2/build/visca/libvisca.so
     )
 endfunction(link_common_libraries)
 
+target_include_directories(${PROJECT_NAME} PRIVATE ${LIBVISCA_INCLUDE_DIRS})
 link_common_libraries(${PROJECT_NAME})
 add_subdirectory(tests)
 

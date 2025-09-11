@@ -24,6 +24,7 @@ namespace camera_service::core {
         Result<types::zoom> getZoom() const override;
         Result<void> setFocus(types::focus focus_value) override;
         Result<types::focus> getFocus() const override;
+        Result<types::info> getInfo() const override;
 
     private:
         bool isInitialized() const;

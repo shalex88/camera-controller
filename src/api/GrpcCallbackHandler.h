@@ -29,6 +29,11 @@ namespace camera_service::api {
             const camera::GetFocusRequest* request,
             camera::GetFocusResponse* response) override;
 
+        grpc::ServerUnaryReactor* GetInfo(
+            grpc::CallbackServerContext* context,
+            const camera::GetInfoRequest* request,
+            camera::GetInfoResponse* response) override;
+
     private:
         std::shared_ptr<IRequestHandler> request_handler_;
     };

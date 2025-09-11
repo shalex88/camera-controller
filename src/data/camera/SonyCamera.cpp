@@ -63,6 +63,24 @@ namespace camera_service::data {
         return Result<types::focus>::success(focus_int);
     }
 
+    Result<types::info> SonyCamera::getInfo() const {
+        std::vector<char> getFocusCmd = {'G', 'F'};
+        auto writeResult = uart_->write(getFocusCmd);
+        if (writeResult.isError()) {
+            return Result<types::info>::error("Failed to send get focus request: " + writeResult.error());
+        }
+
+        const auto info = uart_->read(); // TODO: Blocking?
+        if (info.isError()) {
+            return Result<types::info>::error("Failed to read focus value: " + info.error());
+        }
+
+        std::string info_str(info.value().begin(), info.value().end());
+
+        // const types::focus focus_int = static_cast<types::focus>(convertToInt(focus.value()));
+        return Result<types::info>::success(info_str);
+    }
+
     Result<void> SonyCamera::connect() {
         if (uart_->open().isError()) {
             return Result<void>::error("Failed to connect to device");

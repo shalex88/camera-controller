@@ -38,6 +38,12 @@ namespace camera_service::data {
         return Result<types::focus>::success(static_cast<types::focus>(focus));
     }
 
+    Result<types::info> AdimecCamera::getInfo() const {
+        const auto info = fpga_->getValue(REG::VERSION);
+        std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
+        return Result<types::info>::success(std::to_string(info));
+    }
+
     Result<void> AdimecCamera::connect() {
         std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
         return Result<void>::success();

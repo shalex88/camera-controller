@@ -7,6 +7,7 @@ service CameraService {
   rpc GetZoom (GetZoomRequest) returns (GetZoomResponse) {}
   rpc SetFocus (SetFocusRequest) returns (SetFocusResponse) {}
   rpc GetFocus (GetFocusRequest) returns (GetFocusResponse) {}
+  rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {}
 }
 
 message SetZoomRequest {
@@ -37,4 +38,11 @@ message GetFocusRequest {
 
 message GetFocusResponse {
   uint32 focus = 1;
+}
+
+message GetInfoRequest {
+}
+
+message GetInfoResponse {
+  string info = 1;
 }

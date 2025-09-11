@@ -17,6 +17,7 @@ namespace camera_service::data {
         Result<types::zoom> getZoom() const override;
         Result<void> setFocus(types::focus focus) override;
         Result<types::focus> getFocus() const override;
+        Result<types::info> getInfo() const override;
         Result<void> connect() override;
         Result<void> disconnect() override;
         types::CameraLimits getLimits() const override;

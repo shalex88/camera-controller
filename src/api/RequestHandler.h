@@ -21,6 +21,7 @@ namespace camera_service::api {
         Result<types::zoom> getZoom() const override;
         Result<void> setFocus(types::focus focus_value) override;
         Result<types::focus> getFocus() const override;
+        Result<types::info> getInfo() const override;
 
     private:
         std::unique_ptr<core::ICore> core_;

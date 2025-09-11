@@ -86,6 +86,22 @@ namespace camera_service::data {
         return focus_result;
     }
 
+    Result<types::info> CameraHal::getInfo() const {
+        if (!isConnected()) {
+            return Result<types::info>::error(logger_, "Camera not connected");
+        }
+
+        logger_->debug(__func__);
+        auto focus_result = camera_hw_->getInfo();
+
+        if (focus_result.isError()) {
+            return Result<types::info>::error(logger_, focus_result.error());
+        }
+
+        logger_->debug("{} {}", __func__, focus_result.value());
+        return focus_result;
+    }
+
     Result<void> CameraHal::connect() {
         if (connected_) {
             return Result<void>::error(logger_, "Camera already connected");
@@ -127,6 +143,7 @@ namespace camera_service::data {
     }
 
     bool CameraHal::isValidFocus(const types::focus value) const {
+        logger_->debug("Focus limits: min: {}, max: {}, received: {}", limits_.min_focus, limits_.max_focus, value);
         return value >= limits_.min_focus && value <= limits_.max_focus;
     }
 }

@@ -3,6 +3,7 @@
 #include "data/CameraHal.h"
 #include "data/camera/AdimecCamera.h"
 #include "data/camera/SonyCamera.h"
+#include "data/camera/SonyCameraVisca.h"
 #include "data/hw_interface/mmio/RegisterImplUio.h"
 #include "data/hw_interface/mmio/RegisterImplFake.h"
 #include "data/hw_interface/uart/UartInterface.h"
@@ -38,6 +39,11 @@ namespace camera_service::data {
             }
 
             auto camera_hw = std::make_unique<SonyCamera>(std::move(uart_interface));
+            return std::make_unique<CameraHal>(std::move(camera_hw), std::move(logger));
+        }
+
+        if (config.camera == "sony-visca") {
+            auto camera_hw = std::make_unique<SonyCameraVisca>(config.device);
             return std::make_unique<CameraHal>(std::move(camera_hw), std::move(logger));
         }
 

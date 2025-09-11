@@ -12,5 +12,6 @@ namespace camera_service::api {
         virtual Result<types::zoom> getZoom() const = 0;
         virtual Result<void> setFocus(types::focus focus_value) = 0; //FIXME: make const when camera is stateless
         virtual Result<types::focus> getFocus() const = 0;
+        virtual Result<types::info> getInfo() const = 0;
     };
 }

@@ -120,4 +120,22 @@ namespace camera_service::api {
 
         return operation;
     }
+
+    Result<types::info> RequestHandler::getInfo() const {
+        if (!isRunning()) {
+            return Result<types::info>::error("Request Handler is not running");
+        }
+
+        logger_->debug("Request: getInfo");
+
+        auto operation = core_->getInfo();
+
+        if (operation.isError()) {
+            logger_->error("Response: {}", operation.error());
+        } else {
+            logger_->debug("Response: {}", operation.value());
+        }
+
+        return operation;
+    }
 }

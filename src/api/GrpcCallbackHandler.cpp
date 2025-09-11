@@ -96,4 +96,19 @@ namespace camera_service::api {
                 return Result<void>::error(result.error());
             });
     }
+
+    grpc::ServerUnaryReactor* GrpcCallbackHandler::GetInfo(
+        grpc::CallbackServerContext* context,
+        const camera::GetInfoRequest* request,
+        camera::GetInfoResponse* response) {
+        return handleGrpcRequest(context, request, response,
+            [this](const camera::GetInfoRequest* req, camera::GetInfoResponse* resp) {
+                const auto result = request_handler_->getInfo();
+                if (result.isSuccess()) {
+                    resp->set_info(result.value());
+                    return Result<void>::success();
+                }
+                return Result<void>::error(result.error());
+            });
+    }
 }

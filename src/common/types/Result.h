@@ -10,12 +10,19 @@
 // Helper type for void Results
 struct Empty {};
 
+// Helper wrapper to distinguish success from error when T and E are the same type
+template<typename T>
+struct Success {
+    T value;
+    explicit Success(T v) : value(std::move(v)) {}
+};
+
 template<typename T, typename E = std::string>
 class [[nodiscard]] Result {
 public:
     // Success constructor - for non-void types
     template<typename U = T, typename = std::enable_if_t<!std::is_void_v<U>>>
-    explicit Result(U value) : data_(std::move(value)) {}
+    explicit Result(U value) : data_(Success<U>{std::move(value)}) {}
 
     // Success constructor - for void type
     template<typename U = T, typename = std::enable_if_t<std::is_void_v<U>>>
@@ -29,7 +36,7 @@ public:
         if constexpr (std::is_void_v<T>) {
             return std::holds_alternative<Empty>(data_);
         } else {
-            return std::holds_alternative<T>(data_);
+            return std::holds_alternative<Success<T>>(data_);
         }
     }
 
@@ -42,14 +49,14 @@ public:
     // Only available for non-void Results
     template<typename U = T, typename = std::enable_if_t<!std::is_void_v<U>>>
     [[nodiscard]] const U& value() const& {
-        return std::get<U>(data_);
+        return std::get<Success<U>>(data_).value;
     }
 
     // Get the success value. Throws if result contains error.
     // Only available for non-void Results
     template<typename U = T, typename = std::enable_if_t<!std::is_void_v<U>>>
     U&& value() && {
-        return std::move(std::get<U>(data_));
+        return std::move(std::get<Success<U>>(data_).value);
     }
 
     // Get the error value. Throws if result contains success.
@@ -86,6 +93,6 @@ public:
 private:
     using data_type = std::conditional_t<std::is_void_v<T>,
                                       std::variant<Empty, E>,
-                                      std::variant<T, E>>;
+                                      std::variant<Success<T>, E>>;
     data_type data_;
 };
