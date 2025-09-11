@@ -3,11 +3,8 @@
 #include "data/CameraHal.h"
 #include "data/camera/AdimecCamera.h"
 #include "data/camera/SonyCamera.h"
-#include "data/camera/SonyCameraVisca.h"
 #include "data/hw_interface/mmio/RegisterImplUio.h"
 #include "data/hw_interface/mmio/RegisterImplFake.h"
-#include "data/hw_interface/uart/UartInterface.h"
-#include "data/hw_interface/uart/FakeUartInterface.h"
 
 namespace camera_service::data {
     std::unique_ptr<ICameraHal> CameraFactory::createCamera(
@@ -30,20 +27,7 @@ namespace camera_service::data {
         }
 
         if (config.camera == "sony") {
-            std::unique_ptr<uart::IUartInterface> uart_interface;
-
-            if (config.device != "fake") {
-                uart_interface = std::make_unique<uart::UartInterface>(config.device);
-            } else {
-                uart_interface = std::make_unique<uart::FakeUartInterface>();
-            }
-
-            auto camera_hw = std::make_unique<SonyCamera>(std::move(uart_interface));
-            return std::make_unique<CameraHal>(std::move(camera_hw), std::move(logger));
-        }
-
-        if (config.camera == "sony-visca") {
-            auto camera_hw = std::make_unique<SonyCameraVisca>(config.device);
+            auto camera_hw = std::make_unique<SonyCamera>(config.device);
             return std::make_unique<CameraHal>(std::move(camera_hw), std::move(logger));
         }
 

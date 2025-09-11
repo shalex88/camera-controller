@@ -8,10 +8,8 @@
 #define NFOV_CAMERA_LOCK_TIMEOUT_MS 200
 
 namespace camera_service::data {
-    AdimecCamera::~AdimecCamera() {
-        if (disconnect().isError()) {
-            LOG_ERROR("Failed to disconnect NFOV camera");
-        }
+    AdimecCamera::AdimecCamera(std::unique_ptr<RegistersMapManager> fpga_manager):
+        fpga_(std::move(fpga_manager)) {
     }
 
     Result<void> AdimecCamera::setZoom(const types::zoom zoom) {

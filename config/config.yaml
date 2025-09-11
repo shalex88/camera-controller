@@ -7,5 +7,5 @@ app:
   core:
     camera: wfov
   data:
-    camera: sony-visca
+    camera: sony
     device: /dev/ttyACM0

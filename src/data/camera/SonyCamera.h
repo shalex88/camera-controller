@@ -1,17 +1,13 @@
 #pragma once
 
 #include "../ICameraHw.h"
-
-#include "data/hw_interface/uart/IUartInterface.h"
-#include <memory>
+#include "../../../../libVISCA2/visca/libvisca.h"
 
 namespace camera_service::data {
     class SonyCamera final : public ICameraHw {
     public:
-        explicit SonyCamera(std::unique_ptr<uart::IUartInterface> uart_interface) :
-            uart_(std::move(uart_interface)) {
-        };
-        ~SonyCamera() override;
+        explicit SonyCamera(std::string device_path);
+        ~SonyCamera() override = default;
 
         Result<void> setZoom(types::zoom zoom) override;
         Result<types::zoom> getZoom() const override;
@@ -24,15 +20,18 @@ namespace camera_service::data {
 
     private:
         types::CameraLimits limits_ {
-            .min_zoom = 0,
-            .max_zoom = 100,
-            .min_focus = 0,
-            .max_focus = 100,
+            .min_zoom = 0x0000,
+            .max_zoom = 0x4000,  // Standard VISCA zoom range
+            .min_focus = 0x1000,
+            .max_focus = 0xF000, // Standard VISCA focus range
         };
 
-        std::unique_ptr<uart::IUartInterface> uart_;
+        std::string device_path_ {};
+        mutable int32_t camera_address_ {};
+        mutable VISCAInterface_t interface_ {};
+        mutable VISCACamera_t camera_ {};
 
-        static double convertToInt(const std::vector<char>& data);
-        static std::vector<char> convertToVector(const double& value);
+        static Result<void> sendCommand(const std::function<uint32_t()>& command);
+        static Result<uint16_t> sendInquiry(const std::function<uint32_t(uint16_t*)>& inquiry);
     };
 }

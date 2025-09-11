@@ -29,7 +29,7 @@ namespace camera_service::data {
             return Result<void>::error(logger_, "Invalid normalized zoom value. Must be 0-100");
         }
 
-        const types::zoom camera_zoom = normalizeZoom(normalized_zoom);
+        const types::zoom camera_zoom = denormalizeZoom(normalized_zoom);
         if (!isValidCameraZoom(camera_zoom)) {
             return Result<void>::error(logger_, "Invalid zoom value");
         }

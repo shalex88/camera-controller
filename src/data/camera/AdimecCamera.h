@@ -8,10 +8,8 @@
 namespace camera_service::data {
     class AdimecCamera final : public ICameraHw {
     public:
-        explicit AdimecCamera(std::unique_ptr<RegistersMapManager> fpga_manager) :
-            fpga_(std::move(fpga_manager)) {
-        };
-        ~AdimecCamera() override;
+        explicit AdimecCamera(std::unique_ptr<RegistersMapManager> fpga_manager);;
+        ~AdimecCamera() override = default;
 
         Result<void> setZoom(types::zoom zoom) override;
         Result<types::zoom> getZoom() const override;
