@@ -20,17 +20,22 @@ namespace camera_service::data {
         }
     }
 
-    Result<void> CameraHal::setZoom(const types::zoom zoom) {
+    Result<void> CameraHal::setZoom(const types::zoom normalized_zoom) {
         if (!isConnected()) {
             return Result<void>::error(logger_,"Camera not connected");
         }
 
-        if (!isValidZoom(zoom)) {
+        if (!isValidNormalizedZoom(normalized_zoom)) {
+            return Result<void>::error(logger_, "Invalid normalized zoom value. Must be 0-100");
+        }
+
+        const types::zoom camera_zoom = normalizeZoom(normalized_zoom);
+        if (!isValidCameraZoom(camera_zoom)) {
             return Result<void>::error(logger_, "Invalid zoom value");
         }
 
-        logger_->debug("{} {}", __func__, zoom);
-        return camera_hw_->setZoom(zoom);
+        logger_->debug("{} normalized: {}, converted: {}", __func__, normalized_zoom, camera_zoom);
+        return camera_hw_->setZoom(camera_zoom);
     }
 
     Result<types::zoom> CameraHal::getZoom() const {
@@ -45,25 +50,34 @@ namespace camera_service::data {
             return Result<types::zoom>::error(logger_, zoom_result.error());
         }
 
-        if (!isValidZoom(zoom_result.value())) {
-            return Result<types::zoom>::error(logger_, "Invalid zoom value");
+        const types::zoom camera_zoom = zoom_result.value();
+
+        if (!isValidCameraZoom(camera_zoom)) {
+            return Result<types::zoom>::error(logger_, "Invalid zoom value from camera");
         }
 
-        logger_->debug("{} {}", __func__, zoom_result.value());
-        return zoom_result;
+        const types::zoom normalized_zoom = normalizeZoom(camera_zoom);
+
+        logger_->debug("{} camera: {}, normalized: {}", __func__, camera_zoom, normalized_zoom);
+        return Result<types::zoom>::success(normalized_zoom);
     }
 
-    Result<void> CameraHal::setFocus(const types::focus focus) {
+    Result<void> CameraHal::setFocus(const types::focus normalized_focus) {
         if (!isConnected()) {
             return Result<void>::error(logger_, "Camera not connected");
         }
 
-        if (!isValidFocus(focus)) {
+        if (!isValidNormalizedFocus(normalized_focus)) {
+            return Result<void>::error(logger_, "Invalid normalized focus value. Must be 0-100");
+        }
+
+        const types::focus camera_focus = denormalizeFocus(normalized_focus);
+        if (!isValidCameraFocus(camera_focus)) {
             return Result<void>::error(logger_, "Invalid focus value");
         }
 
-        logger_->debug("{} {}", __func__, focus);
-        return camera_hw_->setFocus(focus);
+        logger_->debug("{} normalized: {}, converted: {}", __func__, normalized_focus, camera_focus);
+        return camera_hw_->setFocus(camera_focus);
     }
 
     Result<types::focus> CameraHal::getFocus() const {
@@ -78,12 +92,16 @@ namespace camera_service::data {
             return Result<types::focus>::error(logger_, focus_result.error());
         }
 
-        if (!isValidFocus(focus_result.value())) {
-            return Result<types::focus>::error(logger_, "Invalid focus value");
+        const types::focus camera_focus = focus_result.value();
+
+        if (!isValidCameraFocus(camera_focus)) {
+            return Result<types::focus>::error(logger_, "Invalid focus value from camera");
         }
 
-        logger_->debug("{} {}", __func__, focus_result.value());
-        return focus_result;
+        const types::focus normalized_focus = normalizeFocus(camera_focus);
+
+        logger_->debug("{} camera: {}, normalized: {}", __func__, camera_focus, normalized_focus);
+        return Result<types::focus>::success(normalized_focus);
     }
 
     Result<types::info> CameraHal::getInfo() const {
@@ -92,14 +110,14 @@ namespace camera_service::data {
         }
 
         logger_->debug(__func__);
-        auto focus_result = camera_hw_->getInfo();
+        auto info_result = camera_hw_->getInfo();
 
-        if (focus_result.isError()) {
-            return Result<types::info>::error(logger_, focus_result.error());
+        if (info_result.isError()) {
+            return Result<types::info>::error(logger_, info_result.error());
         }
 
-        logger_->debug("{} {}", __func__, focus_result.value());
-        return focus_result;
+        logger_->debug("{} {}", __func__, info_result.value());
+        return info_result;
     }
 
     Result<void> CameraHal::connect() {
@@ -138,12 +156,35 @@ namespace camera_service::data {
         return connected_;
     }
 
-    bool CameraHal::isValidZoom(const types::zoom value) const {
+    bool CameraHal::isValidCameraZoom(const types::zoom value) const {
         return value >= limits_.min_zoom && value <= limits_.max_zoom;
     }
 
-    bool CameraHal::isValidFocus(const types::focus value) const {
-        logger_->debug("Focus limits: min: {}, max: {}, received: {}", limits_.min_focus, limits_.max_focus, value);
+    bool CameraHal::isValidCameraFocus(const types::focus value) const {
         return value >= limits_.min_focus && value <= limits_.max_focus;
+    }
+
+    bool CameraHal::isValidNormalizedZoom(const types::zoom value) {
+        return value >= 0 && value <= 100;
+    }
+
+    bool CameraHal::isValidNormalizedFocus(const types::focus value) {
+        return value >= 0 && value <= 100;
+    }
+
+    types::zoom CameraHal::normalizeZoom(const types::zoom camera_zoom) const {
+        return (camera_zoom - limits_.min_zoom) * 100 / (limits_.max_zoom - limits_.min_zoom);
+    }
+
+    types::focus CameraHal::normalizeFocus(const types::focus camera_focus) const {
+        return (camera_focus - limits_.min_focus) * 100 / (limits_.max_focus - limits_.min_focus);
+    }
+
+    types::zoom CameraHal::denormalizeZoom(const types::zoom normalized_zoom) const {
+        return limits_.min_zoom + (normalized_zoom * (limits_.max_zoom - limits_.min_zoom)) / 100;
+    }
+
+    types::focus CameraHal::denormalizeFocus(const types::focus normalized_focus) const {
+        return limits_.min_focus + (normalized_focus * (limits_.max_focus - limits_.min_focus)) / 100;
     }
 }

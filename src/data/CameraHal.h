@@ -15,9 +15,9 @@ namespace camera_service::data {
                           std::shared_ptr<LayerLogger> logger);
         ~CameraHal() override;
 
-        Result<void> setZoom(types::zoom zoom) override;
+        Result<void> setZoom(types::zoom normalized_zoom) override;
         Result<types::zoom> getZoom() const override;
-        Result<void> setFocus(types::focus focus) override;
+        Result<void> setFocus(types::focus normalized_focus) override;
         Result<types::focus> getFocus() const override;
         Result<types::info> getInfo() const override;
         Result<void> connect() override;
@@ -30,7 +30,13 @@ namespace camera_service::data {
         types::CameraLimits limits_;
         bool connected_ {false};
 
-        bool isValidZoom(types::zoom value) const;
-        bool isValidFocus(types::focus value) const;
+        static bool isValidNormalizedZoom(types::zoom value);
+        static bool isValidNormalizedFocus(types::focus value);
+        bool isValidCameraZoom(types::zoom value) const;
+        bool isValidCameraFocus(types::focus value) const;
+        types::zoom normalizeZoom(types::zoom camera_zoom) const;
+        types::focus normalizeFocus(types::focus camera_focus) const;
+        types::zoom denormalizeZoom(types::zoom normalized_zoom) const;
+        types::focus denormalizeFocus(types::focus normalized_focus) const;
     };
 }
