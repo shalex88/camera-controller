@@ -15,9 +15,9 @@ namespace camera_service::data {
                           std::shared_ptr<LayerLogger> logger);
         ~CameraHal() override;
 
-        Result<void> setZoom(types::zoom normalized_zoom) override;
+        Result<void> setZoom(types::zoom normalized_zoom) const override;
         Result<types::zoom> getZoom() const override;
-        Result<void> setFocus(types::focus normalized_focus) override;
+        Result<void> setFocus(types::focus normalized_focus) const override;
         Result<types::focus> getFocus() const override;
         Result<types::info> getInfo() const override;
         Result<void> connect() override;

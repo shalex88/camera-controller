@@ -20,7 +20,7 @@ namespace camera_service::data {
         }
     }
 
-    Result<void> CameraHal::setZoom(const types::zoom normalized_zoom) {
+    Result<void> CameraHal::setZoom(const types::zoom normalized_zoom) const {
         if (!isConnected()) {
             return Result<void>::error(logger_,"Camera not connected");
         }
@@ -62,7 +62,7 @@ namespace camera_service::data {
         return Result<types::zoom>::success(normalized_zoom);
     }
 
-    Result<void> CameraHal::setFocus(const types::focus normalized_focus) {
+    Result<void> CameraHal::setFocus(const types::focus normalized_focus) const {
         if (!isConnected()) {
             return Result<void>::error(logger_, "Camera not connected");
         }
@@ -110,7 +110,7 @@ namespace camera_service::data {
         }
 
         logger_->debug(__func__);
-        const auto info_result = camera_hw_->getInfo(); //FIXME: returns error, bug in Result class?
+        const auto info_result = camera_hw_->getInfo();
 
         if (info_result.isError()) {
             return Result<types::info>::error(logger_, info_result.error());

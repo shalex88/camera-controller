@@ -58,7 +58,7 @@ namespace camera_service::core {
         return is_initialized_;
     }
 
-    Result<void> Core::setZoom(const types::zoom zoom_level) {
+    Result<void> Core::setZoom(const types::zoom zoom_level) const {
         if (!isInitialized()) {
             return Result<void>::error(logger_, "Core not initialized");
         }
@@ -74,7 +74,7 @@ namespace camera_service::core {
         return camera_->getZoom();
     }
 
-    Result<void> Core::setFocus(const types::focus focus_value) {
+    Result<void> Core::setFocus(const types::focus focus_value) const {
         if (!isInitialized()) {
             return Result<void>::error(logger_, "Core not initialized");
         }

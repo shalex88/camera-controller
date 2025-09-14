@@ -65,7 +65,7 @@ function(link_common_libraries target)
             registers
             CLI11::CLI11
 #            PkgConfig::LIBVISCA
-            ${CMAKE_CURRENT_LIST_DIR}/../libVISCA2/build/visca/libvisca.so
+            ${CMAKE_SOURCE_DIR}/../libVISCA2/build/visca/libvisca.so
     )
 endfunction(link_common_libraries)
 

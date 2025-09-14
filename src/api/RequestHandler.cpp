@@ -49,7 +49,7 @@ namespace camera_service::api {
         return running_;
     }
 
-    Result<void> RequestHandler::setZoom(const types::zoom zoom_level) {
+    Result<void> RequestHandler::setZoom(const types::zoom zoom_level) const {
         if (!isRunning()) {
             return Result<void>::error("Request Handler is not running");
         }
@@ -85,7 +85,7 @@ namespace camera_service::api {
         return operation;
     }
 
-    Result<void> RequestHandler::setFocus(const types::focus focus_value) {
+    Result<void> RequestHandler::setFocus(const types::focus focus_value) const {
         if (!isRunning()) {
             return Result<void>::error("Request Handler is not running");
         }

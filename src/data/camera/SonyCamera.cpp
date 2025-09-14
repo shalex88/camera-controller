@@ -2,7 +2,6 @@
 
 #include <thread>
 #include <chrono>
-#include <cstring>
 #include <utility>
 
 #include "common/Logger/Logger.h"
@@ -12,7 +11,7 @@ namespace camera_service::data {
         : device_path_(std::move(device_path)) {
     }
 
-    Result<void> SonyCamera::setZoom(const types::zoom zoom) {
+    Result<void> SonyCamera::setZoom(const types::zoom zoom) const {
         return sendCommand([this, zoom]() {
             return VISCA_set_zoom_value(&interface_, &camera_, static_cast<uint16_t>(zoom));
         });
@@ -30,13 +29,13 @@ namespace camera_service::data {
         return Result<types::zoom>::success(static_cast<types::zoom>(result.value()));
     }
 
-    Result<void> SonyCamera::setFocus(const types::focus focus) {
-        const auto manualResult = sendCommand([this]() {
+    Result<void> SonyCamera::setFocus(const types::focus focus) const {
+        const auto manual_result = sendCommand([this]() {
             return VISCA_set_focus_auto(&interface_, &camera_, VISCA_OFF);
         });
 
-        if (manualResult.isError()) {
-            return Result<void>::error("Failed to set manual focus mode: " + manualResult.error());
+        if (manual_result.isError()) {
+            return Result<void>::error("Failed to set manual focus mode: " + manual_result.error());
         }
 
         return sendCommand([this, focus]() {
@@ -57,12 +56,12 @@ namespace camera_service::data {
     }
 
     Result<types::info> SonyCamera::getInfo() const {
-        const auto infoResult = sendCommand([this]() {
+        const auto info_result = sendCommand([this]() {
             return VISCA_get_camera_info(&interface_, &camera_);
         });
 
-        if (infoResult.isError()) {
-            return Result<types::info>::error("Failed to get camera info: " + infoResult.error());
+        if (info_result.isError()) {
+            return Result<types::info>::error("Failed to get camera info: " + info_result.error());
         }
 
         std::string info_str = "Sony VISCA Camera - ";

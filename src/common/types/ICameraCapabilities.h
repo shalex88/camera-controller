@@ -8,9 +8,9 @@ namespace camera_service::api {
     public:
         virtual ~ICameraCapabilities() = default;
 
-        virtual Result<void> setZoom(types::zoom zoom_level) = 0; //FIXME: make const when camera is stateless
+        virtual Result<void> setZoom(types::zoom zoom_level) const = 0;
         virtual Result<types::zoom> getZoom() const = 0;
-        virtual Result<void> setFocus(types::focus focus_value) = 0; //FIXME: make const when camera is stateless
+        virtual Result<void> setFocus(types::focus focus_value) const = 0;
         virtual Result<types::focus> getFocus() const = 0;
         virtual Result<types::info> getInfo() const = 0;
     };

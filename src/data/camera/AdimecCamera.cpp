@@ -12,7 +12,7 @@ namespace camera_service::data {
         fpga_(std::move(fpga_manager)) {
     }
 
-    Result<void> AdimecCamera::setZoom(const types::zoom zoom) {
+    Result<void> AdimecCamera::setZoom(const types::zoom zoom) const {
         fpga_->setValue(REG::ZOOM, static_cast<uint32_t>(zoom));
         std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
         return Result<void>::success();
@@ -24,7 +24,7 @@ namespace camera_service::data {
         return Result<types::zoom>::success(static_cast<types::zoom>(zoom));
     }
 
-    Result<void> AdimecCamera::setFocus(const types::focus focus) {
+    Result<void> AdimecCamera::setFocus(const types::focus focus) const {
         fpga_->setValue(REG::FOCUS, static_cast<uint32_t>(focus));
         std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
         return Result<void>::success();

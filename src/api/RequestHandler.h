@@ -17,9 +17,9 @@ namespace camera_service::api {
         Result<void> stop() override;
         bool isRunning() const override;
 
-        Result<void> setZoom(types::zoom zoom_level) override;
+        Result<void> setZoom(types::zoom zoom_level) const override;
         Result<types::zoom> getZoom() const override;
-        Result<void> setFocus(types::focus focus_value) override;
+        Result<void> setFocus(types::focus focus_value) const override;
         Result<types::focus> getFocus() const override;
         Result<types::info> getInfo() const override;
 

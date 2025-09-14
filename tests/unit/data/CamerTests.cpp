@@ -15,11 +15,12 @@ class MockCameraStrategy final : public data::ICameraHw {
 public:
     MOCK_METHOD(Result<void>, connect, (), (override));
     MOCK_METHOD(Result<void>, disconnect, (), (override));
-    MOCK_METHOD(Result<void>, setZoom, (types::zoom), (override));
+    MOCK_METHOD(Result<void>, setZoom, (types::zoom), (const, override));
     MOCK_METHOD(Result<types::zoom>, getZoom, (), (const, override));
-    MOCK_METHOD(Result<void>, setFocus, (types::focus), (override));
+    MOCK_METHOD(Result<void>, setFocus, (types::focus), (const, override));
     MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
     MOCK_METHOD(types::CameraLimits, getLimits, (), (const, override));
+    MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
     types::CameraLimits limits {
         .min_zoom = 0,
         .max_zoom = 100,
