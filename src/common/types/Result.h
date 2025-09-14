@@ -20,9 +20,9 @@ struct Success {
 template<typename T, typename E = std::string>
 class [[nodiscard]] Result {
 public:
-    // Success constructor - for non-void types
+    // Success constructor - for non-void types, using Success wrapper to avoid ambiguity
     template<typename U = T, typename = std::enable_if_t<!std::is_void_v<U>>>
-    explicit Result(U value) : data_(Success<U>{std::move(value)}) {}
+    explicit Result(Success<U> success) : data_(std::move(success)) {}
 
     // Success constructor - for void type
     template<typename U = T, typename = std::enable_if_t<std::is_void_v<U>>>
@@ -72,7 +72,7 @@ public:
     // Convenience function to create a success result
     template<typename U = T>
     static Result<U, E> success(U value) {
-        return Result<U, E>(std::move(value));
+        return Result<U, E>(Success<U>{std::move(value)});
     }
 
     // Convenience function to create a void success result

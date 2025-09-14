@@ -54,7 +54,7 @@ namespace camera_service::api {
             return Result<void>::error("Request Handler is not running");
         }
 
-        logger_->debug("Request: SetZoom to {}", zoom_level);
+        logger_->debug("Request: {} {}", __func__, zoom_level);
 
         auto operation = core_->setZoom(zoom_level);
 
@@ -72,7 +72,7 @@ namespace camera_service::api {
             return Result<types::zoom>::error("Request Handler is not running");
         }
 
-        logger_->debug("Request: GetZoom");
+        logger_->debug("Request: {}", __func__);
 
         auto operation = core_->getZoom();
 
@@ -90,7 +90,7 @@ namespace camera_service::api {
             return Result<void>::error("Request Handler is not running");
         }
 
-        logger_->debug("Request: SetFocus to {}", focus_value);
+        logger_->debug("Request: {} {}", __func__, focus_value);
 
         auto operation = core_->setFocus(focus_value);
 
@@ -108,7 +108,7 @@ namespace camera_service::api {
             return Result<types::focus>::error("Request Handler is not running");
         }
 
-        logger_->debug("Request: getFocus");
+        logger_->debug("Request: {}", __func__);
 
         auto operation = core_->getFocus();
 
@@ -126,7 +126,7 @@ namespace camera_service::api {
             return Result<types::info>::error("Request Handler is not running");
         }
 
-        logger_->debug("Request: getInfo");
+        logger_->debug("Request: {}", __func__);
 
         auto operation = core_->getInfo();
 

@@ -40,7 +40,7 @@ namespace camera_service::api {
             return Result<void>::error("Failed to start the gRPC server");
         }
 
-        logger_->info("Service is listening on {} with reflection enabled", server_address);
+        logger_->info("Listening on {}", server_address);
         return Result<void>::success();
     }
 

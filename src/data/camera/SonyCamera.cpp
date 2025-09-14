@@ -86,6 +86,8 @@ namespace camera_service::data {
             return Result<void>::error("Failed to set camera address");
         }
 
+        camera_.address = camera_address_;
+
         result = VISCA_clear(&interface_, &camera_);
         if (result != VISCA_SUCCESS) {
             VISCA_close_serial(&interface_);
@@ -98,7 +100,6 @@ namespace camera_service::data {
             return Result<void>::error("Failed to get camera information");
         }
 
-        LOG_INFO("Connected to Sony VISCA camera at address " + std::to_string(camera_address_));
         return Result<void>::success();
     }
 
@@ -108,7 +109,6 @@ namespace camera_service::data {
             return Result<void>::error("Failed to close serial connection");
         }
 
-        LOG_INFO("Disconnected from Sony VISCA camera");
         return Result<void>::success();
     }
 

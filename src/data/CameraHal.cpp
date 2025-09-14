@@ -110,7 +110,7 @@ namespace camera_service::data {
         }
 
         logger_->debug(__func__);
-        auto info_result = camera_hw_->getInfo();
+        const auto info_result = camera_hw_->getInfo(); //FIXME: returns error, bug in Result class?
 
         if (info_result.isError()) {
             return Result<types::info>::error(logger_, info_result.error());
