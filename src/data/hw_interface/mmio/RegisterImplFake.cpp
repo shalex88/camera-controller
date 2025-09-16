@@ -1,11 +1,10 @@
 #include "RegisterImplFake.h"
 
-bool RegisterImplFake::get(uint32_t address, uint32_t& value) const {
-    value = reg_value_;
-    return true;
-};
+Result<uint32_t> RegisterImplFake::get(uint32_t address) const {
+    return Result<uint32_t>::success(reg_value_);
+}
 
-bool RegisterImplFake::set(uint32_t address, uint32_t value) {
+Result<void> RegisterImplFake::set(uint32_t address, uint32_t value) {
     reg_value_ = value;
-    return true;
+    return Result<void>::success();
 }

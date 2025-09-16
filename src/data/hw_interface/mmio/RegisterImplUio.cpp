@@ -62,9 +62,9 @@ RegisterImplUio& RegisterImplUio::operator=(RegisterImplUio&& other) noexcept {
     return *this;
 }
 
-bool RegisterImplUio::set(const uint32_t address, const uint32_t value) {
+Result<void> RegisterImplUio::set(const uint32_t address, const uint32_t value) {
     if (!isValidAddress(address)) {
-        return false;
+        return Result<void>::error("Invalid address: 0x" + std::to_string(address));
     }
 
     const uint64_t offset = calculateOffset(address);
@@ -76,12 +76,12 @@ bool RegisterImplUio::set(const uint32_t address, const uint32_t value) {
         )
     );
     *reg_ptr = value;
-    return true;
+    return Result<void>::success();
 }
 
-bool RegisterImplUio::get(const uint32_t address, uint32_t& value) const {
+Result<uint32_t> RegisterImplUio::get(const uint32_t address) const {
     if (!isValidAddress(address)) {
-        return false;
+        return Result<uint32_t>::error("Invalid address: 0x" + std::to_string(address));
     }
 
     const uint64_t offset = calculateOffset(address);
@@ -92,8 +92,8 @@ bool RegisterImplUio::get(const uint32_t address, uint32_t& value) const {
             static_cast<const char*>(mapped_memory_) + offset
         )
     );
-    value = *reg_ptr;
-    return true;
+    const uint32_t value = *reg_ptr;
+    return Result<uint32_t>::success(value);
 }
 
 bool RegisterImplUio::openDevice() {

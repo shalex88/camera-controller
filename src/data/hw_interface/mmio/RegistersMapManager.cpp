@@ -6,85 +6,126 @@
 
 using namespace camera_service::data;
 
-uint32_t RegistersMapManager::getValue(const REG reg) const {
+Result<uint32_t> RegistersMapManager::getValue(const REG reg) const {
     std::lock_guard lock(mutex_);
-    uint32_t value{};
-    if (register_->get(g_registers_map[reg].address, value)) {
-        return value;
+    const auto result = register_->get(g_registers_map[reg].address);
+    if (result.isError()) {
+        return Result<uint32_t>::error("Failed to read register value: " + result.error());
     }
-
-    return 0xFFFF'FFFF; //FIXME: return Result::Error
+    return Result<uint32_t>::success(result.value());
 }
 
-bool RegistersMapManager::setValue(const REG reg, const uint32_t value) const {
+Result<void> RegistersMapManager::setValue(const REG reg, const uint32_t value) const {
     std::lock_guard lock(mutex_);
-    return register_->set(g_registers_map[reg].address, value);
+    const auto result = register_->set(g_registers_map[reg].address, value);
+    if (result.isError()) {
+        return Result<void>::error("Failed to write register value: " + result.error());
+    }
+    return Result<void>::success();
 }
 
-bool RegistersMapManager::resetValue(const REG reg) const {
+Result<void> RegistersMapManager::resetValue(const REG reg) const {
     return setValue(reg, g_registers_map[reg].default_value);
 }
 
-bool RegistersMapManager::clearValue(const REG reg) const {
+Result<void> RegistersMapManager::clearValue(const REG reg) const {
     return setValue(reg, 0);
 }
 
-bool RegistersMapManager::setBit(const REG reg, const uint8_t bit_index) const {
+Result<void> RegistersMapManager::setBit(const REG reg, const uint8_t bit_index) const {
     if(bit_index > 31) {
-        return false;
+        return Result<void>::error("Bit index out of range (0-31)");
     }
-    auto reg_value = getValue(reg);
+
+    const auto reg_result = getValue(reg);
+    if (reg_result.isError()) {
+        return Result<void>::error("Failed to read register for bit set: " +
+                                   reg_result.error());
+    }
+
+    auto reg_value = reg_result.value();
     reg_value |= 1UL << bit_index;
 
     return setValue(reg, reg_value);
 }
 
-bool RegistersMapManager::clearBit(const REG reg, const uint8_t bit_index) const {
+Result<void> RegistersMapManager::clearBit(const REG reg, const uint8_t bit_index) const {
     if(bit_index > 31) {
-        return false;
+        return Result<void>::error("Bit index out of range (0-31)");
     }
 
-    auto reg_value = getValue(reg);
+    const auto reg_result = getValue(reg);
+    if (reg_result.isError()) {
+        return Result<void>::error("Failed to read register for bit clear: " +
+                                   reg_result.error());
+    }
+
+    auto reg_value = reg_result.value();
     reg_value &= ~(1UL << bit_index);
 
     return setValue(reg, reg_value);
 }
 
-uint8_t RegistersMapManager::getNibble(const REG reg, const uint8_t nibble_index) const {
+Result<uint8_t> RegistersMapManager::getNibble(const REG reg,
+                                                const uint8_t nibble_index) const {
     if(nibble_index > 7) {
-        return 0xFF; //FIXME: return Result::Error
+        return Result<uint8_t>::error("Nibble index out of range (0-7)");
     }
 
-    const auto reg_value = getValue(reg);
+    const auto reg_result = getValue(reg);
+    if (reg_result.isError()) {
+        return Result<uint8_t>::error("Failed to read register for nibble get: " +
+                                      reg_result.error());
+    }
 
-    return (reg_value >> (nibble_index * 4)) & 0xF;
+    const auto reg_value = reg_result.value();
+    const uint8_t nibble_value = (reg_value >> (nibble_index * 4)) & 0xF;
+
+    return Result<uint8_t>::success(nibble_value);
 }
 
-uint8_t RegistersMapManager::setNibble(const REG reg, const uint8_t nibble_index, const uint8_t nibble_value) const {
-    if(nibble_index > 7 || nibble_value > 0xF) {
-        return 0xFF; //FIXME: return Result::Error
+Result<void> RegistersMapManager::setNibble(const REG reg,
+                                             const uint8_t nibble_index,
+                                             const uint8_t nibble_value) const {
+    if(nibble_index > 7) {
+        return Result<void>::error("Nibble index out of range (0-7)");
     }
 
-    auto reg_value = getValue(reg);
-    reg_value = (reg_value & ~(0xF << (nibble_index * 4))) | (nibble_value << (nibble_index * 4));
+    if(nibble_value > 0xF) {
+        return Result<void>::error("Nibble value out of range (0-15)");
+    }
+
+    const auto reg_result = getValue(reg);
+    if (reg_result.isError()) {
+        return Result<void>::error("Failed to read register for nibble set: " +
+                                   reg_result.error());
+    }
+
+    auto reg_value = reg_result.value();
+    reg_value = (reg_value & ~(0xF << (nibble_index * 4))) |
+                (nibble_value << (nibble_index * 4));
 
     return setValue(reg, reg_value);
 }
 
-bool RegistersMapManager::resetAll() const {
+Result<void> RegistersMapManager::resetAll() const {
     for(const auto key: g_registers_map | std::views::keys) {
-        if (!setValue(key, g_registers_map[key].default_value)) {
-            return false; // Return false if any operation fails
+        const auto result = setValue(key, g_registers_map[key].default_value);
+        if (result.isError()) {
+            return Result<void>::error("Failed to reset register: " +
+                                       result.error());
         }
     }
-    return true; // Return true if all operations succeed
+    return Result<void>::success();
 }
 
-bool RegistersMapManager::clearAll() const {
+Result<void> RegistersMapManager::clearAll() const {
     for(const auto key: g_registers_map | std::views::keys) {
-        if (!setValue(key, 0)) {
-            return false; // Return false if any operation fails
+        const auto result = setValue(key, 0);
+        if (result.isError()) {
+            return Result<void>::error("Failed to clear register: " +
+                                       result.error());
         }
     }
-    return true; // Return true if all operations succeed
+    return Result<void>::success();
 }

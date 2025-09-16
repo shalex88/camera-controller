@@ -1,12 +1,13 @@
 #pragma once
 
 #include <cstdint>
+#include "common/types/Result.h"
 
 namespace camera_service::data {
     class IRegisterImpl {
     public:
         virtual ~IRegisterImpl() = default;
-        virtual bool set(uint32_t address, uint32_t value) = 0;
-        virtual bool get(uint32_t address, uint32_t& value) const = 0;
+        virtual Result<void> set(uint32_t address, uint32_t value) = 0;
+        virtual Result<uint32_t> get(uint32_t address) const = 0;
     };
 }

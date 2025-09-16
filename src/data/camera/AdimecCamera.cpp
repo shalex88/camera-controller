@@ -13,33 +13,48 @@ namespace camera_service::data {
     }
 
     Result<void> AdimecCamera::setZoom(const types::zoom zoom) const {
-        fpga_->setValue(REG::ZOOM, static_cast<uint32_t>(zoom));
+          auto result = fpga_->setValue(REG::ZOOM, static_cast<uint32_t>(zoom));
+        if (result.isError()) {
+            return Result<void>::error("Failed to set zoom: " + result.error());
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
         return Result<void>::success();
     }
 
     Result<types::zoom> AdimecCamera::getZoom() const {
-        const auto zoom = fpga_->getValue(REG::ZOOM);
+        auto zoom_result = fpga_->getValue(REG::ZOOM);
+        if (zoom_result.isError()) {
+            return Result<types::zoom>::error("Failed to get zoom: " + zoom_result.error());
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
-        return Result<types::zoom>::success(static_cast<types::zoom>(zoom));
+        return Result<types::zoom>::success(static_cast<types::zoom>(zoom_result.value()));
     }
 
     Result<void> AdimecCamera::setFocus(const types::focus focus) const {
-        fpga_->setValue(REG::FOCUS, static_cast<uint32_t>(focus));
+        auto result = fpga_->setValue(REG::FOCUS, static_cast<uint32_t>(focus));
+        if (result.isError()) {
+            return Result<void>::error("Failed to set focus: " + result.error());
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
         return Result<void>::success();
     }
 
     Result<types::focus> AdimecCamera::getFocus() const {
-        const auto focus = fpga_->getValue(REG::FOCUS);
+        auto focus_result = fpga_->getValue(REG::FOCUS);
+        if (focus_result.isError()) {
+            return Result<types::focus>::error("Failed to get focus: " + focus_result.error());
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
-        return Result<types::focus>::success(static_cast<types::focus>(focus));
+        return Result<types::focus>::success(static_cast<types::focus>(focus_result.value()));
     }
 
     Result<types::info> AdimecCamera::getInfo() const {
-        const auto info = fpga_->getValue(REG::VERSION);
+        auto info_result = fpga_->getValue(REG::VERSION);
+        if (info_result.isError()) {
+            return Result<types::info>::error("Failed to get camera info: " + info_result.error());
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
-        return Result<types::info>::success(std::to_string(info));
+        return Result<types::info>::success(std::to_string(info_result.value()));
     }
 
     Result<void> AdimecCamera::connect() {

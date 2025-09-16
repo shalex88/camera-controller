@@ -19,8 +19,8 @@ public:
     RegisterImplUio(RegisterImplUio&& other) noexcept;
     RegisterImplUio& operator=(RegisterImplUio&& other) noexcept;
 
-    bool set(uint32_t address, uint32_t value) override;
-    bool get(uint32_t address, uint32_t& value) const override;
+    Result<void> set(uint32_t address, uint32_t value) override;
+    Result<uint32_t> get(uint32_t address) const override;
 
     bool isOpen() const noexcept { return fd_ != -1 && mapped_memory_ != nullptr; }
 
