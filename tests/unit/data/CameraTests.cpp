@@ -11,7 +11,7 @@
 using namespace camera_service;
 using namespace testing;
 
-class MockCameraStrategy final : public data::ICameraHw {
+class MockCameraStrategy : public data::ICameraHw {
 public:
     MOCK_METHOD(Result<void>, connect, (), (override));
     MOCK_METHOD(Result<void>, disconnect, (), (override));
@@ -32,7 +32,7 @@ public:
 class CameraTests : public Test {
 protected:
     CameraTests() {
-        auto camera_strategy_obj = std::make_unique<MockCameraStrategy>();
+        auto camera_strategy_obj = std::make_unique<NiceMock<MockCameraStrategy>>();
         camera_strategy = camera_strategy_obj.get();
         EXPECT_CALL(*camera_strategy, getLimits())
             .WillOnce(Return(camera_strategy->limits));
@@ -40,7 +40,7 @@ protected:
         camera = std::make_unique<data::CameraHal>(std::move(camera_strategy_obj), logger_impl_);
     }
 
-    MockCameraStrategy* camera_strategy {};
+    NiceMock<MockCameraStrategy>* camera_strategy {};
     std::unique_ptr<data::ICameraHal> camera;
     std::shared_ptr<LayerLogger> logger_impl_;
 };

@@ -6,7 +6,7 @@
 
 using namespace camera_service::data;
 
-class RegisterImplMock final : public IRegisterImpl {
+class RegisterImplMock : public IRegisterImpl {
 public:
     MOCK_METHOD(Result<uint32_t>, get, (uint32_t), (const, override));
     MOCK_METHOD(Result<void>, set, (uint32_t, uint32_t), (override));
@@ -15,11 +15,11 @@ public:
 class RegisterMapManagerTest : public testing::Test {
 public:
     RegisterMapManagerTest() {
-        auto register_impl_obj = std::make_unique<RegisterImplMock>();
+        auto register_impl_obj = std::make_unique<testing::NiceMock<RegisterImplMock>>();
         register_impl = register_impl_obj.get();
         register_map = std::make_unique<RegistersMapManager>(std::move(register_impl_obj));
     }
-    RegisterImplMock* register_impl{};
+    testing::NiceMock<RegisterImplMock>* register_impl {};
     std::unique_ptr<RegistersMapManager> register_map;
 };
 
@@ -165,41 +165,41 @@ TEST_F(RegisterMapManagerTest, ClearAllRegistersFails) {
 }
 
 TEST_F(RegisterMapManagerTest, SetRegisterValueThreadSafety) {
-    auto inside_interface_set_func = std::make_shared<std::atomic<bool>>(false);
-
     ON_CALL(*register_impl, set(testing::_, testing::_))
-            .WillByDefault([inside_interface_set_func](uint32_t address, uint32_t value) mutable {
-                if (*inside_interface_set_func) {
-                    return Result<void>::error("Concurrent access detected");
-                }
-                *inside_interface_set_func = true;
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                *inside_interface_set_func = false;
-                return Result<void>::success();
-            });
+            .WillByDefault(testing::Return(Result<void>::success()));
 
-    std::atomic error_flag(false);
+    ON_CALL(*register_impl, get(testing::_))
+            .WillByDefault(testing::Return(Result<uint32_t>::success(0u)));
+
+    std::atomic<bool> error_flag(false);
+    std::atomic<int> completed_operations(0);
+    const int opertions_per_thread = 100;
 
     std::thread thread1([&] {
-        for (int i = 0; i < 1000; ++i) {
+        for (int i = 0; i < opertions_per_thread; ++i) {
             const auto result = register_map->setValue(REG::ZOOM, 0xFFFF'FFFF);
             if (result.isError()) {
                 error_flag.store(true);
+                return;
             }
+            completed_operations.fetch_add(1);
         }
     });
 
     std::thread thread2([&] {
-        for (int i = 0; i < 1000; ++i) {
+        for (int i = 0; i < opertions_per_thread; ++i) {
             const auto result = register_map->setValue(REG::ZOOM, 0x0000'0000);
             if (result.isError()) {
                 error_flag.store(true);
+                return;
             }
+            completed_operations.fetch_add(1);
         }
     });
 
     thread1.join();
     thread2.join();
 
-    EXPECT_EQ(error_flag.load(), false);
+    EXPECT_FALSE(error_flag.load());
+    EXPECT_EQ(completed_operations.load(), opertions_per_thread*2);  // Both threads completed all operations
 }

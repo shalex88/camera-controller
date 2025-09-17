@@ -8,4 +8,4 @@ app:
     camera: wfov
   data:
     camera: sony
-    device: /dev/ttyACM0
+    device: fake

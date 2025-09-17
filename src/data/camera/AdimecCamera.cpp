@@ -5,15 +5,14 @@
 
 #include "common/Logger/Logger.h"
 
-#define NFOV_CAMERA_LOCK_TIMEOUT_MS 200
+#define NFOV_CAMERA_LOCK_TIMEOUT_MS 200 //TODO: remove when real async camera control is implemented
 
 namespace camera_service::data {
-    AdimecCamera::AdimecCamera(std::unique_ptr<RegistersMapManager> fpga_manager):
-        fpga_(std::move(fpga_manager)) {
+    AdimecCamera::AdimecCamera(std::unique_ptr<RegistersMapManager> fpga_manager) : fpga_(std::move(fpga_manager)) {
     }
 
     Result<void> AdimecCamera::setZoom(const types::zoom zoom) const {
-          auto result = fpga_->setValue(REG::ZOOM, static_cast<uint32_t>(zoom));
+        const auto result = fpga_->setValue(REG::ZOOM, static_cast<uint32_t>(zoom));
         if (result.isError()) {
             return Result<void>::error("Failed to set zoom: " + result.error());
         }
@@ -22,7 +21,7 @@ namespace camera_service::data {
     }
 
     Result<types::zoom> AdimecCamera::getZoom() const {
-        auto zoom_result = fpga_->getValue(REG::ZOOM);
+        const auto zoom_result = fpga_->getValue(REG::ZOOM);
         if (zoom_result.isError()) {
             return Result<types::zoom>::error("Failed to get zoom: " + zoom_result.error());
         }
@@ -31,7 +30,7 @@ namespace camera_service::data {
     }
 
     Result<void> AdimecCamera::setFocus(const types::focus focus) const {
-        auto result = fpga_->setValue(REG::FOCUS, static_cast<uint32_t>(focus));
+        const auto result = fpga_->setValue(REG::FOCUS, static_cast<uint32_t>(focus));
         if (result.isError()) {
             return Result<void>::error("Failed to set focus: " + result.error());
         }
@@ -40,7 +39,7 @@ namespace camera_service::data {
     }
 
     Result<types::focus> AdimecCamera::getFocus() const {
-        auto focus_result = fpga_->getValue(REG::FOCUS);
+        const auto focus_result = fpga_->getValue(REG::FOCUS);
         if (focus_result.isError()) {
             return Result<types::focus>::error("Failed to get focus: " + focus_result.error());
         }
@@ -49,7 +48,7 @@ namespace camera_service::data {
     }
 
     Result<types::info> AdimecCamera::getInfo() const {
-        auto info_result = fpga_->getValue(REG::VERSION);
+        const auto info_result = fpga_->getValue(REG::VERSION);
         if (info_result.isError()) {
             return Result<types::info>::error("Failed to get camera info: " + info_result.error());
         }

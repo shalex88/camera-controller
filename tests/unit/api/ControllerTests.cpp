@@ -9,14 +9,14 @@
 using namespace camera_service;
 using namespace testing;
 
-class TransportMock final: public api::ITransport {
+class TransportMock: public api::ITransport {
 public:
     MOCK_METHOD(Result<void>, start, (const std::string&), (override));
     MOCK_METHOD(Result<void>, stop, (), (override));
     MOCK_METHOD(Result<void>, runLoop, (), (override));
 };
 
-class RequestHandlerMock final: public api::IRequestHandler {
+class RequestHandlerMock: public api::IRequestHandler {
 public:
     MOCK_METHOD(Result<void>, start, (), (override));
     MOCK_METHOD(Result<void>, stop, (), (override));
@@ -32,14 +32,14 @@ class ControllerTests : public Test {
 protected:
     void SetUp() override {
         logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "API");
-        request_handler = std::make_shared<RequestHandlerMock>();
-        transport = new TransportMock();
+        request_handler = std::make_shared<NiceMock<RequestHandlerMock>>();
+        transport = new NiceMock<TransportMock>();
         auto transport_obj = std::unique_ptr<api::ITransport>(transport);
         controller = std::make_unique<api::ApiController>(request_handler, std::move(transport_obj), server_address, logger_impl_);
     }
 
-    std::shared_ptr<RequestHandlerMock> request_handler;
-    TransportMock* transport {};
+    std::shared_ptr<NiceMock<RequestHandlerMock>> request_handler;
+    NiceMock<TransportMock>* transport {};
     std::unique_ptr<api::ApiController> controller;
     std::string server_address = "50051";
     std::shared_ptr<LayerLogger> logger_impl_;
@@ -52,7 +52,7 @@ TEST_F(ControllerTests, CreationSuccess) {
 TEST_F(ControllerTests, CreationFailNoController) {
     EXPECT_THROW(api::ApiController controller(
         nullptr,
-        std::make_unique<TransportMock>(),
+        std::make_unique<NiceMock<TransportMock>>(),
         server_address, logger_impl_), std::invalid_argument);
 }
 
@@ -66,7 +66,7 @@ TEST_F(ControllerTests, CreationFailNoTransport) {
 TEST_F(ControllerTests, CreationFailEmptyPort) {
     EXPECT_THROW(api::ApiController controller(
         request_handler,
-        std::make_unique<TransportMock>(),
+        std::make_unique<NiceMock<TransportMock>>(),
         "", logger_impl_), std::invalid_argument);
 }
 
@@ -134,4 +134,3 @@ TEST_F(ControllerTests, StopFailsIfRequestHandlerStopFails) {
     const auto stop_result = controller->stop();
     ASSERT_TRUE(stop_result.isError());
 }
-

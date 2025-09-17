@@ -17,7 +17,7 @@ protected:
         std::ofstream config_file(test_config_path_);
         config_file << "app:\n";
         config_file << "  name: test\n";
-        config_file << "  log_level: debug\n";
+        config_file << "  log_level: info\n";
         config_file << "  api:\n";
         config_file << "    api_type: grpc\n";
         config_file << "    server_address: localhost:50051\n";
@@ -62,7 +62,7 @@ TEST_F(ConfigManagerTests, LoadValidConfig) {
     const auto& log_level = config.getLogLevel();
     const auto& app_name = config.getAppName();
     EXPECT_EQ(app_name, "test");
-    EXPECT_EQ(log_level, "debug");
+    EXPECT_EQ(log_level, "info");
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnNonexistentFile) {
@@ -79,49 +79,49 @@ TEST_F(ConfigManagerTests, ThrowsOnInvalidYaml) {
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnInvalidApiType) {
-    createInvalidConfig("app:\n  log_level: debug\n  api:\n    api_type: invalid_api\n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
+    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: invalid_api\n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
     EXPECT_THROW({
         ConfigManager config(invalid_config_path_);
     }, ConfigException);
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnMissingServerAddress) {
-    createInvalidConfig("app:\n  log_level: debug\n  api:\n    api_type: grpc\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
+    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
     EXPECT_THROW({
         ConfigManager config(invalid_config_path_);
     }, ConfigException);
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnInvalidServerAddressFormat) {
-    createInvalidConfig("app:\n  log_level: debug\n  api:\n    api_type: grpc\n    server_address: invalid_address\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
+    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: invalid_address\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
     EXPECT_THROW({
         ConfigManager config(invalid_config_path_);
     }, ConfigException);
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnInvalidCameraType) {
-    createInvalidConfig("app:\n  log_level: debug\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: invalid_camera\n  data:\n    camera: invalid_camera\n    device: fake");
+    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: invalid_camera\n  data:\n    camera: invalid_camera\n    device: fake");
     EXPECT_THROW({
         ConfigManager config(invalid_config_path_);
     }, ConfigException);
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnEmptyApiType) {
-    createInvalidConfig("app:\n  log_level: debug\n  api:\n    api_type: \n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
+    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: \n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
     EXPECT_THROW({
         ConfigManager config(invalid_config_path_);
     }, ConfigException);
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnEmptyCameraType) {
-    createInvalidConfig("app:\n  log_level: debug\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: \n  data:\n    camera: \n    device: fake");
+    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: \n  data:\n    camera: \n    device: fake");
     EXPECT_THROW({
         ConfigManager config(invalid_config_path_);
     }, ConfigException);
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnEmptyDeviceType) {
-    createInvalidConfig("app:\n  log_level: debug\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: ");
+    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: \"\"");
     EXPECT_THROW({
         ConfigManager config(invalid_config_path_);
     }, ConfigException);
@@ -144,7 +144,7 @@ TEST_F(ConfigManagerTests, HandlesLogLevel) {
 }
 
 TEST_F(ConfigManagerTests, ValidatesCoreCamera) {
-    createInvalidConfig("app:\n  name: \n  log_level: debug\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: wfov\n  data:\n    camera: sony\n    device: fake");
+    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: wfov\n  data:\n    camera: sony\n    device: fake");
     const ConfigManager config(invalid_config_path_);
 
     const auto& core_config = config.getCoreConfig();
@@ -152,21 +152,21 @@ TEST_F(ConfigManagerTests, ValidatesCoreCamera) {
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnMissingAppName) {
-    createInvalidConfig("app:\n  log_level: debug\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
+    createInvalidConfig("app:\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
     EXPECT_THROW({
         ConfigManager config(invalid_config_path_);
     }, ConfigException);
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnMissingLogLevel) {
-    createInvalidConfig("app:\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
+    createInvalidConfig("app:\n  name: test\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
     EXPECT_THROW({
         ConfigManager config(invalid_config_path_);
     }, ConfigException);
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnInvalidLogLevel) {
-    createInvalidConfig("app:\n  log_level: invalid_level\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: nfov\n    device: fake");
+    createInvalidConfig("app:\n  name: test\n  log_level: invalid_level\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
     EXPECT_THROW({
         ConfigManager config(invalid_config_path_);
     }, ConfigException);

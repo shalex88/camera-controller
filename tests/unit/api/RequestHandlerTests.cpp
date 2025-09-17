@@ -8,7 +8,7 @@
 using namespace camera_service;
 using namespace testing;
 
-class CoreMock final: public core::ICore {
+class CoreMock : public core::ICore {
 public:
     MOCK_METHOD(Result<void>, initialize, (), (override));
     MOCK_METHOD(Result<void>, shutdown, (), (override));
@@ -23,12 +23,12 @@ class RequestHandlerTests : public Test {
 protected:
     RequestHandlerTests() {
         logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "API");
-        core = new CoreMock();
+        core = new NiceMock<CoreMock>();
         auto core_obj = std::unique_ptr<core::ICore>(core);
         request_handler = std::make_unique<api::RequestHandler>(std::move(core_obj), logger_impl_);
     }
     std::unique_ptr<api::RequestHandler> request_handler;
-    CoreMock* core {};
+    NiceMock<CoreMock>* core {};
     std::shared_ptr<LayerLogger> logger_impl_;
 };
 
