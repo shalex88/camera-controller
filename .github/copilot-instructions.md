@@ -1,1 +1,0 @@
-* Use .github/instructions/cpp.instructions.md for C++ projects

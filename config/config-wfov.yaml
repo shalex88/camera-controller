@@ -3,7 +3,7 @@ app:
   log_level: debug
   api:
     api_type: grpc
-    server_address: 0.0.0.0:50052
+    server_address: 0.0.0.0:50051
   core:
     camera: wfov
   data:

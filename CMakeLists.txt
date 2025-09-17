@@ -34,7 +34,7 @@ set(INCLUDE_DIR "include")
 
 add_subdirectory(proto)
 
-include_directories(${INCLUDE_DIR} ${SOURCE_DIR} ${proto_INCLUDE_DIRS})
+include_directories(${INCLUDE_DIR} ${SOURCE_DIR} ${proto_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/3dparty/)
 file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS "${SOURCE_DIR}/*.cpp")
 
 find_package(spdlog CONFIG REQUIRED)
@@ -46,9 +46,11 @@ elseif(TARGET yaml-cpp)
     set(YAML_CPP_TARGET yaml-cpp)
 endif()
 
-find_package(PkgConfig REQUIRED)
-set(ENV{PKG_CONFIG_PATH} "${CMAKE_CURRENT_LIST_DIR}/../libVISCA2/build:$ENV{PKG_CONFIG_PATH}")
-pkg_check_modules(LIBVISCA REQUIRED libvisca)
+if (CMAKE_CROSSCOMPILING)
+    set(LIBVISCA_LIB libvisca.a.arm64)
+else()
+    set(LIBVISCA_LIB libvisca.a.amd64)
+endif()
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
@@ -65,11 +67,10 @@ function(link_common_libraries target)
             registers
             CLI11::CLI11
 #            PkgConfig::LIBVISCA
-            ${CMAKE_SOURCE_DIR}/../libVISCA2/build/visca/libvisca.so
+            ${CMAKE_SOURCE_DIR}/3dparty/visca/${LIBVISCA_LIB}
     )
 endfunction(link_common_libraries)
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${LIBVISCA_INCLUDE_DIRS})
 link_common_libraries(${PROJECT_NAME})
 add_subdirectory(tests)
 

@@ -126,7 +126,7 @@ namespace camera_service::data {
         }
 
         logger_->info("Connecting to camera...");
-        const auto connect_result = camera_hw_->connect();
+        const auto connect_result = camera_hw_->connect(); //FIXME: should we have a timeout here?
         if (connect_result.isError()) {
             return Result<void>::error(logger_, connect_result.error());
         }

@@ -18,7 +18,8 @@ OPTIONS:
 ## Run
 
 ```bash
-./camera-service
+./camera-service ../config/config-wfov.yaml
+```
 
 # Run client
 grpcui -plaintext 0.0.0.0:50051
