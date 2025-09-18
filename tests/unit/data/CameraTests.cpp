@@ -1,17 +1,18 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 /* Add your project include files here */
-#include "../../../src/data/camera/AdimecCamera.h"
+#include "data/camera/AdimecCamera.h"
 #include "data/ICameraHal.h"
 #include "data/ICameraHw.h"
 #include "common/types/Result.h"
 #include "data/CameraHal.h"
-#include "data/hw_interface/mmio/RegisterImplFake.h"
+#include "data/hw_interface/mmio/IRegisterImpl.h"
+#include "data/hw_interface/mmio/RegistersMapManager.h"
 
 using namespace camera_service;
 using namespace testing;
 
-class MockCameraStrategy : public data::ICameraHw {
+class MockCameraHw : public data::ICameraHw {
 public:
     MOCK_METHOD(Result<void>, connect, (), (override));
     MOCK_METHOD(Result<void>, disconnect, (), (override));
@@ -29,25 +30,31 @@ public:
     };
 };
 
+class MockRegisterImpl : public data::IRegisterImpl {
+public:
+    MOCK_METHOD(Result<void>, set, (uint32_t address, uint32_t value), (override));
+    MOCK_METHOD(Result<uint32_t>, get, (uint32_t address), (const, override));
+};
+
 class CameraTests : public Test {
 protected:
     CameraTests() {
-        auto camera_strategy_obj = std::make_unique<NiceMock<MockCameraStrategy>>();
-        camera_strategy = camera_strategy_obj.get();
-        EXPECT_CALL(*camera_strategy, getLimits())
-            .WillOnce(Return(camera_strategy->limits));
+        auto camera_strategy_obj = std::make_unique<NiceMock<MockCameraHw>>();
+        camera_hw_ = camera_strategy_obj.get();
+        EXPECT_CALL(*camera_hw_, getLimits())
+            .WillOnce(Return(camera_hw_->limits));
         logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "Data");
         camera = std::make_unique<data::CameraHal>(std::move(camera_strategy_obj), logger_impl_);
     }
 
-    NiceMock<MockCameraStrategy>* camera_strategy {};
+    NiceMock<MockCameraHw>* camera_hw_ {};
     std::unique_ptr<data::ICameraHal> camera;
     std::shared_ptr<LayerLogger> logger_impl_;
 };
 
 TEST_F(CameraTests, CanBeConstructed) {
-    auto register_impl = std::make_unique<RegisterImplFake>(); //FIXME: use a mock
-    auto fpga_manager = std::make_unique<data::RegistersMapManager>(std::move(register_impl)); //FIXME: use a mock
+    auto register_impl = std::make_unique<NiceMock<MockRegisterImpl>>();
+    auto fpga_manager = std::make_unique<data::RegistersMapManager>(std::move(register_impl));
     const auto camera = std::make_unique<data::AdimecCamera>(std::move(fpga_manager));
     ASSERT_NE(nullptr, camera);
 }
@@ -67,7 +74,7 @@ TEST_F(CameraTests, ConnectDisconnect) {
 }
 
 TEST_F(CameraTests, ConnectFailsWhenCameraCantConnect) {
-    EXPECT_CALL(*camera_strategy, connect())
+    EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::error("error")));
 
     const auto connect_result = camera->connect();
@@ -92,9 +99,9 @@ TEST_F(CameraTests, DisconnectWhenNotConnectedFails) {
 
 
 TEST_F(CameraTests, DisonnectWhenCameraCantDisconnectFails) {
-    EXPECT_CALL(*camera_strategy, connect())
+    EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_strategy, disconnect())
+    EXPECT_CALL(*camera_hw_, disconnect())
         .Times(AtLeast(1))
         .WillRepeatedly(Return(Result<void>::error("error")));
 
@@ -132,9 +139,9 @@ TEST_F(CameraTests, GetFocusWhenNotConnectedFail) {
 TEST_F(CameraTests, SetValidZoomSuccess) {
     constexpr auto expected_value = 2;
 
-    EXPECT_CALL(*camera_strategy, connect())
+    EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_strategy, setZoom(expected_value))
+    EXPECT_CALL(*camera_hw_, setZoom(expected_value))
         .WillOnce(Return(Result<void>::success()));
 
     const auto connect_result = camera->connect();
@@ -147,7 +154,7 @@ TEST_F(CameraTests, SetValidZoomSuccess) {
 TEST_F(CameraTests, SetInvalidZoomFail) {
     constexpr auto expected_value = -2;
 
-    EXPECT_CALL(*camera_strategy, connect())
+    EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
 
     const auto connect_result = camera->connect();
@@ -160,9 +167,9 @@ TEST_F(CameraTests, SetInvalidZoomFail) {
 TEST_F(CameraTests, SetValidZoomWhenCameraErrorFails) {
     constexpr auto expected_value = 2;
 
-    EXPECT_CALL(*camera_strategy, connect())
+    EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_strategy, setZoom(expected_value))
+    EXPECT_CALL(*camera_hw_, setZoom(expected_value))
         .WillOnce(Return(Result<void>::error("error")));
 
     const auto connect_result = camera->connect();
@@ -173,9 +180,9 @@ TEST_F(CameraTests, SetValidZoomWhenCameraErrorFails) {
 }
 
 TEST_F(CameraTests, GetValidZoomWhenCameraErrorFails) {
-    EXPECT_CALL(*camera_strategy, connect())
+    EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_strategy, getZoom())
+    EXPECT_CALL(*camera_hw_, getZoom())
         .WillOnce(Return(Result<types::zoom>::error("error")));
 
     const auto connect_result = camera->connect();
@@ -188,9 +195,9 @@ TEST_F(CameraTests, GetValidZoomWhenCameraErrorFails) {
 TEST_F(CameraTests, GetValidZoomSuccess) {
     constexpr auto expected_value = 2u;
 
-    EXPECT_CALL(*camera_strategy, connect())
+    EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_strategy, getZoom())
+    EXPECT_CALL(*camera_hw_, getZoom())
         .WillOnce(Return(Result<types::zoom>::success(expected_value)));
 
     const auto connect_result = camera->connect();
@@ -204,9 +211,9 @@ TEST_F(CameraTests, GetValidZoomSuccess) {
 TEST_F(CameraTests, GetInvalidZoomFail) {
     constexpr auto expected_value = -2u;
 
-    EXPECT_CALL(*camera_strategy, connect())
+    EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_strategy, getZoom())
+    EXPECT_CALL(*camera_hw_, getZoom())
         .WillOnce(Return(Result<types::zoom>::success(expected_value)));
 
     const auto connect_result = camera->connect();
@@ -219,9 +226,9 @@ TEST_F(CameraTests, GetInvalidZoomFail) {
 TEST_F(CameraTests, SetValidFocusSuccess) {
     constexpr auto expected_value = 2u;
 
-    EXPECT_CALL(*camera_strategy, connect())
+    EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_strategy, setFocus(expected_value))
+    EXPECT_CALL(*camera_hw_, setFocus(expected_value))
         .WillOnce(Return(Result<void>::success()));
 
     const auto connect_result = camera->connect();
@@ -234,9 +241,9 @@ TEST_F(CameraTests, SetValidFocusSuccess) {
 TEST_F(CameraTests, GetValidFocusSuccess) {
     constexpr auto expected_value = 2u;
 
-    EXPECT_CALL(*camera_strategy, connect())
+    EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_strategy, getFocus())
+    EXPECT_CALL(*camera_hw_, getFocus())
         .WillOnce(Return(Result<types::focus>::success(expected_value)));
 
     const auto connect_result = camera->connect();
@@ -250,9 +257,9 @@ TEST_F(CameraTests, GetValidFocusSuccess) {
 TEST_F(CameraTests, SetValidFocusWhenCameraErrorFails) {
     constexpr auto expected_value = 2u;
 
-    EXPECT_CALL(*camera_strategy, connect())
+    EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_strategy, setFocus(expected_value))
+    EXPECT_CALL(*camera_hw_, setFocus(expected_value))
         .WillOnce(Return(Result<void>::error("error")));
 
     const auto connect_result = camera->connect();
@@ -263,9 +270,9 @@ TEST_F(CameraTests, SetValidFocusWhenCameraErrorFails) {
 }
 
 TEST_F(CameraTests, GetValidFocusWhenCameraErrorFails) {
-    EXPECT_CALL(*camera_strategy, connect())
+    EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_strategy, getFocus())
+    EXPECT_CALL(*camera_hw_, getFocus())
         .WillOnce(Return(Result<types::focus>::error("error")));
 
     const auto connect_result = camera->connect();
@@ -278,7 +285,7 @@ TEST_F(CameraTests, GetValidFocusWhenCameraErrorFails) {
 TEST_F(CameraTests, SetInvalidFocusFail) {
     constexpr auto expected_value = -2u;
 
-    EXPECT_CALL(*camera_strategy, connect())
+    EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
 
     const auto connect_result = camera->connect();
@@ -292,9 +299,9 @@ TEST_F(CameraTests, SetInvalidFocusFail) {
 TEST_F(CameraTests, GetInvalidFocusFail) {
     constexpr auto expected_value = -2u;
 
-    EXPECT_CALL(*camera_strategy, connect())
+    EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_strategy, getFocus())
+    EXPECT_CALL(*camera_hw_, getFocus())
         .WillOnce(Return(Result<types::focus>::success(expected_value)));
 
     const auto connect_result = camera->connect();

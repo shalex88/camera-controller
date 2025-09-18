@@ -2,14 +2,11 @@
 
 #include "../ICameraHw.h"
 
-#include "data/hw_interface/mmio/RegistersMapManager.h"
-#include <memory>
-
 namespace camera_service::data {
-    class AdimecCamera final : public ICameraHw {
+    class FakeCamera final : public ICameraHw {
     public:
-        explicit AdimecCamera(std::unique_ptr<RegistersMapManager> fpga_manager);
-        ~AdimecCamera() override = default;
+        FakeCamera() = default;
+        ~FakeCamera() override = default;
 
         Result<void> setZoom(types::zoom zoom) const override;
         Result<types::zoom> getZoom() const override;
@@ -27,6 +24,9 @@ namespace camera_service::data {
             .min_focus = 0,
             .max_focus = 100,
         };
-        std::unique_ptr<RegistersMapManager> fpga_;
+
+        mutable types::zoom zoom_ = limits_.min_zoom;
+        mutable types::focus focus_ = limits_.min_focus;
+        types::info info_ = "Fake Camera";
     };
 }

@@ -7,5 +7,5 @@ app:
   core:
     camera: wfov
   data:
-    camera: sony
+    camera: fake
     device: fake

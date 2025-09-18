@@ -29,7 +29,7 @@ void CoreConfig::validate() const {
 }
 
 void DataConfig::validate() const {
-    static const std::set<std::string> valid_cameras{"sony", "adimec"};
+    static const std::set<std::string> valid_cameras{"sony", "adimec", "fake"};
 
     if (camera.empty()) {
         throw ConfigException("Data camera type cannot be empty");
