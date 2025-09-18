@@ -2,31 +2,9 @@
 #include <gmock/gmock.h>
 /* Add your project include files here */
 #include "api/ApiController.h"
-#include "api/RequestHandler.h"
 #include "api/ITransport.h"
 #include "common/types/Result.h"
-
-using namespace camera_service;
-using namespace testing;
-
-class TransportMock: public api::ITransport {
-public:
-    MOCK_METHOD(Result<void>, start, (const std::string&), (override));
-    MOCK_METHOD(Result<void>, stop, (), (override));
-    MOCK_METHOD(Result<void>, runLoop, (), (override));
-};
-
-class RequestHandlerMock: public api::IRequestHandler {
-public:
-    MOCK_METHOD(Result<void>, start, (), (override));
-    MOCK_METHOD(Result<void>, stop, (), (override));
-    MOCK_METHOD(bool, isRunning, (), (const, override));
-    MOCK_METHOD(Result<void>, setZoom, (types::zoom), (const, override));
-    MOCK_METHOD(Result<types::zoom>, getZoom, (), (const, override));
-    MOCK_METHOD(Result<void>, setFocus, (types::focus), (const, override));
-    MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
-    MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
-};
+#include "../../Mocks.h"
 
 class ControllerTests : public Test {
 protected:

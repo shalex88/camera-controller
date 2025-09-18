@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 /* Add your project include files here */
+#include "../../Mocks.h"
 #include "data/camera/AdimecCamera.h"
 #include "data/ICameraHal.h"
 #include "data/ICameraHw.h"
@@ -11,30 +12,6 @@
 
 using namespace camera_service;
 using namespace testing;
-
-class MockCameraHw : public data::ICameraHw {
-public:
-    MOCK_METHOD(Result<void>, connect, (), (override));
-    MOCK_METHOD(Result<void>, disconnect, (), (override));
-    MOCK_METHOD(Result<void>, setZoom, (types::zoom), (const, override));
-    MOCK_METHOD(Result<types::zoom>, getZoom, (), (const, override));
-    MOCK_METHOD(Result<void>, setFocus, (types::focus), (const, override));
-    MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
-    MOCK_METHOD(types::CameraLimits, getLimits, (), (const, override));
-    MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
-    types::CameraLimits limits {
-        .min_zoom = 0,
-        .max_zoom = 100,
-        .min_focus = 0,
-        .max_focus = 100,
-    };
-};
-
-class MockRegisterImpl : public data::IRegisterImpl {
-public:
-    MOCK_METHOD(Result<void>, set, (uint32_t address, uint32_t value), (override));
-    MOCK_METHOD(Result<uint32_t>, get, (uint32_t address), (const, override));
-};
 
 class CameraTests : public Test {
 protected:
@@ -309,4 +286,90 @@ TEST_F(CameraTests, GetInvalidFocusFail) {
 
     const auto set_result = camera->getFocus();
     ASSERT_TRUE(set_result.isError());
+}
+
+// SetMinZoom Tests
+TEST_F(CameraTests, SetMinZoomWhenNotConnectedFail) {
+    const auto result = camera->setMinZoom();
+    ASSERT_TRUE(result.isError());
+    EXPECT_EQ(result.error(), "Camera not connected");
+}
+
+TEST_F(CameraTests, SetMinZoomSuccess) {
+    EXPECT_CALL(*camera_hw_, connect())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*camera_hw_, setZoom(camera_hw_->limits.min_zoom))
+        .WillOnce(Return(Result<void>::success()));
+
+    const auto connect_result = camera->connect();
+    ASSERT_TRUE(connect_result.isSuccess());
+
+    const auto set_result = camera->setMinZoom();
+    ASSERT_TRUE(set_result.isSuccess());
+}
+
+TEST_F(CameraTests, SetMinZoomWhenCameraErrorFails) {
+    EXPECT_CALL(*camera_hw_, connect())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*camera_hw_, setZoom(camera_hw_->limits.min_zoom))
+        .WillOnce(Return(Result<void>::error("Hardware error")));
+
+    const auto connect_result = camera->connect();
+    ASSERT_TRUE(connect_result.isSuccess());
+
+    const auto set_result = camera->setMinZoom();
+    ASSERT_TRUE(set_result.isError());
+}
+
+// SetMaxZoom Tests
+TEST_F(CameraTests, SetMaxZoomWhenNotConnectedFail) {
+    const auto result = camera->setMaxZoom();
+    ASSERT_TRUE(result.isError());
+    EXPECT_EQ(result.error(), "Camera not connected");
+}
+
+TEST_F(CameraTests, SetMaxZoomSuccess) {
+    EXPECT_CALL(*camera_hw_, connect())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*camera_hw_, setZoom(camera_hw_->limits.max_zoom))
+        .WillOnce(Return(Result<void>::success()));
+
+    const auto connect_result = camera->connect();
+    ASSERT_TRUE(connect_result.isSuccess());
+
+    const auto set_result = camera->setMaxZoom();
+    ASSERT_TRUE(set_result.isSuccess());
+}
+
+TEST_F(CameraTests, SetMaxZoomWhenCameraErrorFails) {
+    EXPECT_CALL(*camera_hw_, connect())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*camera_hw_, setZoom(camera_hw_->limits.max_zoom))
+        .WillOnce(Return(Result<void>::error("Hardware error")));
+
+    const auto connect_result = camera->connect();
+    ASSERT_TRUE(connect_result.isSuccess());
+
+    const auto set_result = camera->setMaxZoom();
+    ASSERT_TRUE(set_result.isError());
+}
+
+TEST_F(CameraTests, SetMinMaxZoomSequenceSuccess) {
+    EXPECT_CALL(*camera_hw_, connect())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*camera_hw_, setZoom(camera_hw_->limits.min_zoom))
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*camera_hw_, setZoom(camera_hw_->limits.max_zoom))
+        .WillOnce(Return(Result<void>::success()));
+
+    const auto connect_result = camera->connect();
+    ASSERT_TRUE(connect_result.isSuccess());
+
+    // Move camera to min zoom position
+    const auto set_min_result = camera->setMinZoom();
+    ASSERT_TRUE(set_min_result.isSuccess());
+
+    // Move camera to max zoom position
+    const auto set_max_result = camera->setMaxZoom();
+    ASSERT_TRUE(set_max_result.isSuccess());
 }

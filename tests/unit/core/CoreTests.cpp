@@ -1,33 +1,18 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+/* Add your project include files here */
 #include "core/Core.h"
 #include "data/ICameraHal.h"
+#include "../../Mocks.h"
 #include "common/types/Result.h"
-
-using namespace camera_service;
-using namespace testing;
-
-class MockCamera final : public data::ICameraHal {
-public:
-    MOCK_METHOD(Result<void>, connect, (), (override));
-    MOCK_METHOD(Result<void>, disconnect, (), (override));
-    MOCK_METHOD(bool, isConnected, (), (const, override));
-    MOCK_METHOD(Result<void>, setZoom, (types::zoom), (const, override));
-    MOCK_METHOD(Result<types::zoom>, getZoom, (), (const, override));
-    MOCK_METHOD(Result<void>, setFocus, (types::focus), (const, override));
-    MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
-    MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
-private:
-    MOCK_METHOD(bool, isInitialized, (), (const));
-};
 
 class CoreTests : public Test {
 protected:
     CoreTests() {
         logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "Core");
-        camera = std::make_unique<MockCamera>();
+        camera = std::make_unique<MockCameraHal>();
     }
-    std::unique_ptr<MockCamera> camera;
+    std::unique_ptr<MockCameraHal> camera;
     std::shared_ptr<LayerLogger> logger_impl_;
 };
 

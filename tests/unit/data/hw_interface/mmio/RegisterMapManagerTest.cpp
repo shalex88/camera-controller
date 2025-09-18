@@ -2,24 +2,19 @@
 #include <gmock/gmock.h>
 /* Add your project include files here */
 #include "data/hw_interface/mmio/RegistersMapManager.h"
+#include "../../../../Mocks.h"
 #include <thread>
 
 using namespace camera_service::data;
 
-class RegisterImplMock : public IRegisterImpl {
-public:
-    MOCK_METHOD(Result<uint32_t>, get, (uint32_t), (const, override));
-    MOCK_METHOD(Result<void>, set, (uint32_t, uint32_t), (override));
-};
-
 class RegisterMapManagerTest : public testing::Test {
 public:
     RegisterMapManagerTest() {
-        auto register_impl_obj = std::make_unique<testing::NiceMock<RegisterImplMock>>();
+        auto register_impl_obj = std::make_unique<testing::NiceMock<MockRegisterImpl>>();
         register_impl = register_impl_obj.get();
         register_map = std::make_unique<RegistersMapManager>(std::move(register_impl_obj));
     }
-    testing::NiceMock<RegisterImplMock>* register_impl {};
+    testing::NiceMock<MockRegisterImpl>* register_impl {};
     std::unique_ptr<RegistersMapManager> register_map;
 };
 
