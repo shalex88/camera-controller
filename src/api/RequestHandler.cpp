@@ -138,4 +138,40 @@ namespace camera_service::api {
 
         return operation;
     }
+
+    Result<void> RequestHandler::setMinZoom() const {
+        if (!isRunning()) {
+            return Result<void>::error("Request Handler is not running");
+        }
+
+        logger_->debug("Request: {}", __func__);
+
+        auto operation = core_->setMinZoom();
+
+        if (operation.isError()) {
+            logger_->error("Response: {}", operation.error());
+        } else {
+            logger_->debug("Response: Success");
+        }
+
+        return operation;
+    }
+
+    Result<void> RequestHandler::setMaxZoom() const {
+        if (!isRunning()) {
+            return Result<void>::error("Request Handler is not running");
+        }
+
+        logger_->debug("Request: {}", __func__);
+
+        auto operation = core_->setMaxZoom();
+
+        if (operation.isError()) {
+            logger_->error("Response: {}", operation.error());
+        } else {
+            logger_->debug("Response: Success");
+        }
+
+        return operation;
+    }
 }

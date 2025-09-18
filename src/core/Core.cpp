@@ -97,4 +97,20 @@ namespace camera_service::core {
 
         return camera_->getInfo();
     }
+
+    Result<void> Core::setMinZoom() const {
+        if (!isInitialized()) {
+            return Result<void>::error(logger_, "Core not initialized");
+        }
+
+        return camera_->setMinZoom();
+    }
+
+    Result<void> Core::setMaxZoom() const {
+        if (!isInitialized()) {
+            return Result<void>::error(logger_, "Core not initialized");
+        }
+
+        return camera_->setMaxZoom();
+    }
 }

@@ -111,4 +111,32 @@ namespace camera_service::api {
                 return Result<void>::error(result.error());
             });
     }
+
+    grpc::ServerUnaryReactor* GrpcCallbackHandler::SetMinZoom(
+        grpc::CallbackServerContext* context,
+        const camera::SetMinZoomRequest* request,
+        camera::SetMinZoomResponse* response) {
+        return handleGrpcRequest(context, request, response,
+            [this](const camera::SetMinZoomRequest* req, camera::SetMinZoomResponse* resp) {
+                const auto result = request_handler_->setMinZoom();
+                if (result.isSuccess()) {
+                    return Result<void>::success();
+                }
+                return Result<void>::error(result.error());
+            });
+    }
+
+    grpc::ServerUnaryReactor* GrpcCallbackHandler::SetMaxZoom(
+        grpc::CallbackServerContext* context,
+        const camera::SetMaxZoomRequest* request,
+        camera::SetMaxZoomResponse* response) {
+        return handleGrpcRequest(context, request, response,
+            [this](const camera::SetMaxZoomRequest* req, camera::SetMaxZoomResponse* resp) {
+                const auto result = request_handler_->setMaxZoom();
+                if (result.isSuccess()) {
+                    return Result<void>::success();
+                }
+                return Result<void>::error(result.error());
+            });
+    }
 }

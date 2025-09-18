@@ -8,6 +8,8 @@ service CameraService {
   rpc SetFocus (SetFocusRequest) returns (SetFocusResponse) {}
   rpc GetFocus (GetFocusRequest) returns (GetFocusResponse) {}
   rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {}
+  rpc SetMinZoom (SetMinZoomRequest) returns (SetMinZoomResponse) {}
+  rpc SetMaxZoom (SetMaxZoomRequest) returns (SetMaxZoomResponse) {}
 }
 
 message SetZoomRequest {
@@ -45,4 +47,16 @@ message GetInfoRequest {
 
 message GetInfoResponse {
   string info = 1;
+}
+
+message SetMinZoomRequest {
+}
+
+message SetMinZoomResponse {
+}
+
+message SetMaxZoomRequest {
+}
+
+message SetMaxZoomResponse {
 }

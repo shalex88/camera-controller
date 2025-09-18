@@ -20,6 +20,8 @@ namespace camera_service::data {
         Result<void> setFocus(types::focus normalized_focus) const override;
         Result<types::focus> getFocus() const override;
         Result<types::info> getInfo() const override;
+        Result<void> setMinZoom() const override;
+        Result<void> setMaxZoom() const override;
         Result<void> connect() override;
         Result<void> disconnect() override;
         bool isConnected() const override;

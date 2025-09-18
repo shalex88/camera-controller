@@ -187,4 +187,24 @@ namespace camera_service::data {
     types::focus CameraHal::denormalizeFocus(const types::focus normalized_focus) const {
         return limits_.min_focus + (normalized_focus * (limits_.max_focus - limits_.min_focus)) / 100;
     }
+
+    Result<void> CameraHal::setMinZoom() const {
+        if (!isConnected()) {
+            return Result<void>::error(logger_, "Camera not connected");
+        }
+
+        logger_->debug("{} moving camera to minimum zoom position: {}", __func__, limits_.min_zoom);
+
+        return camera_hw_->setZoom(limits_.min_zoom);
+    }
+
+    Result<void> CameraHal::setMaxZoom() const {
+        if (!isConnected()) {
+            return Result<void>::error(logger_, "Camera not connected");
+        }
+
+        logger_->debug("{} moving camera to maximum zoom position: {}", __func__, limits_.max_zoom);
+
+        return camera_hw_->setZoom(limits_.max_zoom);
+    }
 }

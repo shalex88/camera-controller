@@ -34,6 +34,16 @@ namespace camera_service::api {
             const camera::GetInfoRequest* request,
             camera::GetInfoResponse* response) override;
 
+        grpc::ServerUnaryReactor* SetMinZoom(
+            grpc::CallbackServerContext* context,
+            const camera::SetMinZoomRequest* request,
+            camera::SetMinZoomResponse* response) override;
+
+        grpc::ServerUnaryReactor* SetMaxZoom(
+            grpc::CallbackServerContext* context,
+            const camera::SetMaxZoomRequest* request,
+            camera::SetMaxZoomResponse* response) override;
+
     private:
         std::shared_ptr<IRequestHandler> request_handler_;
     };

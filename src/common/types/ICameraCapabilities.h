@@ -13,5 +13,7 @@ namespace camera_service::api {
         virtual Result<void> setFocus(types::focus focus_value) const = 0;
         virtual Result<types::focus> getFocus() const = 0;
         virtual Result<types::info> getInfo() const = 0;
+        virtual Result<void> setMinZoom() const = 0;
+        virtual Result<void> setMaxZoom() const = 0;
     };
 }

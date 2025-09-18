@@ -69,4 +69,12 @@ namespace camera_service::data {
     types::CameraLimits AdimecCamera::getLimits() const {
         return limits_;
     }
+
+    Result<void> AdimecCamera::setMinZoom() const {
+        return setZoom(limits_.min_zoom);
+    }
+
+    Result<void> AdimecCamera::setMaxZoom() const {
+        return setZoom(limits_.max_zoom);
+    }
 }

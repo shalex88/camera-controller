@@ -115,6 +115,14 @@ namespace camera_service::data {
         return limits_;
     }
 
+    Result<void> SonyCamera::setMinZoom() const {
+        return setZoom(limits_.min_zoom);
+    }
+
+    Result<void> SonyCamera::setMaxZoom() const {
+        return setZoom(limits_.max_zoom);
+    }
+
     Result<void> SonyCamera::sendCommand(const std::function<uint32_t()>& command) {
         const uint32_t result = command();
         if (result == VISCA_SUCCESS) {
