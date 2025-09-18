@@ -17,13 +17,16 @@ namespace camera_service::api {
         Result<void> stop() override;
         bool isRunning() const override;
 
+        // Capability-aware request methods
         Result<void> setZoom(types::zoom zoom_level) const override;
         Result<types::zoom> getZoom() const override;
+        Result<void> goToMinZoom() const override;
+        Result<void> goToMaxZoom() const override;
+
         Result<void> setFocus(types::focus focus_value) const override;
         Result<types::focus> getFocus() const override;
+
         Result<types::info> getInfo() const override;
-        Result<void> setMinZoom() const override;
-        Result<void> setMaxZoom() const override;
 
     private:
         std::unique_ptr<core::ICore> core_;

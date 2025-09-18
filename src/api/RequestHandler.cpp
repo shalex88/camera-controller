@@ -2,6 +2,9 @@
 
 #include "core/Core.h"
 #include "common/Logger/Logger.h"
+#include "common/types/IZoomCapable.h"
+#include "common/types/IFocusCapable.h"
+#include "common/types/IInfoCapable.h"
 
 namespace camera_service::api {
     RequestHandler::RequestHandler(std::unique_ptr<core::ICore> core, std::shared_ptr<LayerLogger> logger)
@@ -85,6 +88,42 @@ namespace camera_service::api {
         return operation;
     }
 
+    Result<void> RequestHandler::goToMinZoom() const {
+        if (!isRunning()) {
+            return Result<void>::error("Request Handler is not running");
+        }
+
+        logger_->debug("Request: {}", __func__);
+
+        auto operation = core_->goToMinZoom();
+
+        if (operation.isError()) {
+            logger_->error("Response: {}", operation.error());
+        } else {
+            logger_->debug("Response: Success");
+        }
+
+        return operation;
+    }
+
+    Result<void> RequestHandler::goToMaxZoom() const {
+        if (!isRunning()) {
+            return Result<void>::error("Request Handler is not running");
+        }
+
+        logger_->debug("Request: {}", __func__);
+
+        auto operation = core_->goToMaxZoom();
+
+        if (operation.isError()) {
+            logger_->error("Response: {}", operation.error());
+        } else {
+            logger_->debug("Response: Success");
+        }
+
+        return operation;
+    }
+
     Result<void> RequestHandler::setFocus(const types::focus focus_value) const {
         if (!isRunning()) {
             return Result<void>::error("Request Handler is not running");
@@ -134,42 +173,6 @@ namespace camera_service::api {
             logger_->error("Response: {}", operation.error());
         } else {
             logger_->debug("Response: {}", operation.value());
-        }
-
-        return operation;
-    }
-
-    Result<void> RequestHandler::setMinZoom() const {
-        if (!isRunning()) {
-            return Result<void>::error("Request Handler is not running");
-        }
-
-        logger_->debug("Request: {}", __func__);
-
-        auto operation = core_->setMinZoom();
-
-        if (operation.isError()) {
-            logger_->error("Response: {}", operation.error());
-        } else {
-            logger_->debug("Response: Success");
-        }
-
-        return operation;
-    }
-
-    Result<void> RequestHandler::setMaxZoom() const {
-        if (!isRunning()) {
-            return Result<void>::error("Request Handler is not running");
-        }
-
-        logger_->debug("Request: {}", __func__);
-
-        auto operation = core_->setMaxZoom();
-
-        if (operation.isError()) {
-            logger_->error("Response: {}", operation.error());
-        } else {
-            logger_->debug("Response: Success");
         }
 
         return operation;

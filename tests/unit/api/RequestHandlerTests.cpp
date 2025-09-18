@@ -75,6 +75,7 @@ TEST_F(RequestHandlerTests, ZoomOperations) {
     EXPECT_CALL(*core, initialize())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
+
     EXPECT_CALL(*core, setZoom(2))
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
@@ -112,6 +113,7 @@ TEST_F(RequestHandlerTests, FocusOperations) {
     EXPECT_CALL(*core, initialize())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
+
     EXPECT_CALL(*core, setFocus(1))
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));

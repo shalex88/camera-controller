@@ -3,7 +3,7 @@
 namespace camera_service::data {
     CameraHal::CameraHal(std::unique_ptr<ICameraHw> camera_strategy,
                         std::shared_ptr<LayerLogger> logger)
-        : camera_hw_(std::move(camera_strategy)), logger_(std::move(logger)), limits_(camera_hw_->getLimits()) {
+        : camera_hw_(std::move(camera_strategy)), logger_(std::move(logger)) {
         if (!camera_hw_) {
             throw std::invalid_argument("Camera hardware cannot be null");
         }
@@ -20,9 +20,26 @@ namespace camera_service::data {
         }
     }
 
+    capabilities::IZoomCapable* CameraHal::isZoomCapable() const {
+        return dynamic_cast<IZoomCapable*>(camera_hw_.get());
+    }
+
+    capabilities::IFocusCapable* CameraHal::isFocusCapable() const {
+        return dynamic_cast<IFocusCapable*>(camera_hw_.get());
+    }
+
+    capabilities::IInfoCapable* CameraHal::isInfoCapable() const {
+        return dynamic_cast<IInfoCapable*>(camera_hw_.get());
+    }
+
     Result<void> CameraHal::setZoom(const types::zoom normalized_zoom) const {
         if (!isConnected()) {
             return Result<void>::error(logger_,"Camera not connected");
+        }
+
+        const auto* zoom_capable_camera = isZoomCapable();
+        if (!zoom_capable_camera) {
+            return Result<void>::error(logger_, "Camera doesn't support zoom");
         }
 
         if (!isValidNormalizedZoom(normalized_zoom)) {
@@ -35,7 +52,7 @@ namespace camera_service::data {
         }
 
         logger_->debug("{} normalized: {}, converted: {}", __func__, normalized_zoom, camera_zoom);
-        return camera_hw_->setZoom(camera_zoom);
+        return zoom_capable_camera->setZoom(camera_zoom);
     }
 
     Result<types::zoom> CameraHal::getZoom() const {
@@ -43,8 +60,13 @@ namespace camera_service::data {
             return Result<types::zoom>::error(logger_, "Camera not connected");
         }
 
+        const auto* zoom_capable_camera = isZoomCapable();
+        if (!zoom_capable_camera) {
+            return Result<types::zoom>::error(logger_, "Camera doesn't support zoom");
+        }
+
         logger_->debug(__func__);
-        auto zoom_result = camera_hw_->getZoom();
+        const auto zoom_result = zoom_capable_camera->getZoom();
 
         if (zoom_result.isError()) {
             return Result<types::zoom>::error(logger_, zoom_result.error());
@@ -67,6 +89,11 @@ namespace camera_service::data {
             return Result<void>::error(logger_, "Camera not connected");
         }
 
+        const auto* focus_capable = isFocusCapable();
+        if (!focus_capable) {
+            return Result<void>::error(logger_, "Camera doesn't support focus");
+        }
+
         if (!isValidNormalizedFocus(normalized_focus)) {
             return Result<void>::error(logger_, "Invalid normalized focus value. Must be 0-100");
         }
@@ -77,7 +104,7 @@ namespace camera_service::data {
         }
 
         logger_->debug("{} normalized: {}, converted: {}", __func__, normalized_focus, camera_focus);
-        return camera_hw_->setFocus(camera_focus);
+        return focus_capable->setFocus(camera_focus);
     }
 
     Result<types::focus> CameraHal::getFocus() const {
@@ -85,8 +112,13 @@ namespace camera_service::data {
             return Result<types::focus>::error(logger_, "Camera not connected");
         }
 
+        const auto* focus_capable = isFocusCapable();
+        if (!focus_capable) {
+            return Result<types::focus>::error(logger_, "Camera doesn't support focus");
+        }
+
         logger_->debug(__func__);
-        auto focus_result = camera_hw_->getFocus();
+        const auto focus_result = focus_capable->getFocus();
 
         if (focus_result.isError()) {
             return Result<types::focus>::error(logger_, focus_result.error());
@@ -109,9 +141,12 @@ namespace camera_service::data {
             return Result<types::info>::error(logger_, "Camera not connected");
         }
 
-        logger_->debug(__func__);
-        const auto info_result = camera_hw_->getInfo();
+        const auto* info_capable = isInfoCapable();
+        if (!info_capable) {
+            return Result<types::info>::error(logger_, "Camera doesn't support info");
+        }
 
+        const auto info_result = info_capable->getInfo();
         if (info_result.isError()) {
             return Result<types::info>::error(logger_, info_result.error());
         }
@@ -126,7 +161,7 @@ namespace camera_service::data {
         }
 
         logger_->info("Connecting to camera...");
-        const auto connect_result = camera_hw_->connect(); //FIXME: should we have a timeout here?
+        const auto connect_result = camera_hw_->connect();
         if (connect_result.isError()) {
             return Result<void>::error(logger_, connect_result.error());
         }
@@ -148,7 +183,6 @@ namespace camera_service::data {
         }
 
         connected_ = false;
-
         return Result<void>::success();
     }
 
@@ -156,12 +190,28 @@ namespace camera_service::data {
         return connected_;
     }
 
+    types::ZoomRange CameraHal::getZoomLimits() const {
+        const auto* zoom_capable_camera = isZoomCapable();
+        if (!zoom_capable_camera) {
+            throw std::runtime_error("Camera doesn't support zoom"); //FIXME: think of a better solution
+        }
+        return zoom_capable_camera->getZoomLimits();
+    }
+
+    types::FocusRange CameraHal::getFocusLimits() const {
+        const auto* focus_capable = isFocusCapable();
+        if (!focus_capable) {
+            throw std::runtime_error("Camera doesn't support focus"); //FIXME: think of a better solution
+        }
+        return focus_capable->getFocusLimits();
+    }
+
     bool CameraHal::isValidCameraZoom(const types::zoom value) const {
-        return value >= limits_.min_zoom && value <= limits_.max_zoom;
+        return value >= getZoomLimits().min && value <= getZoomLimits().max;
     }
 
     bool CameraHal::isValidCameraFocus(const types::focus value) const {
-        return value >= limits_.min_focus && value <= limits_.max_focus;
+        return value >= getFocusLimits().min && value <= getFocusLimits().max;
     }
 
     bool CameraHal::isValidNormalizedZoom(const types::zoom value) {
@@ -173,38 +223,18 @@ namespace camera_service::data {
     }
 
     types::zoom CameraHal::normalizeZoom(const types::zoom camera_zoom) const {
-        return (camera_zoom - limits_.min_zoom) * 100 / (limits_.max_zoom - limits_.min_zoom);
+        return (camera_zoom - getZoomLimits().min) * 100 / (getZoomLimits().max - getZoomLimits().min);
     }
 
     types::focus CameraHal::normalizeFocus(const types::focus camera_focus) const {
-        return (camera_focus - limits_.min_focus) * 100 / (limits_.max_focus - limits_.min_focus);
+        return (camera_focus - getFocusLimits().min) * 100 / (getFocusLimits().max - getFocusLimits().min);
     }
 
     types::zoom CameraHal::denormalizeZoom(const types::zoom normalized_zoom) const {
-        return limits_.min_zoom + (normalized_zoom * (limits_.max_zoom - limits_.min_zoom)) / 100;
+        return getZoomLimits().min + (normalized_zoom * (getZoomLimits().max - getZoomLimits().min)) / 100;
     }
 
     types::focus CameraHal::denormalizeFocus(const types::focus normalized_focus) const {
-        return limits_.min_focus + (normalized_focus * (limits_.max_focus - limits_.min_focus)) / 100;
-    }
-
-    Result<void> CameraHal::setMinZoom() const {
-        if (!isConnected()) {
-            return Result<void>::error(logger_, "Camera not connected");
-        }
-
-        logger_->debug("{} moving camera to minimum zoom position: {}", __func__, limits_.min_zoom);
-
-        return camera_hw_->setZoom(limits_.min_zoom);
-    }
-
-    Result<void> CameraHal::setMaxZoom() const {
-        if (!isConnected()) {
-            return Result<void>::error(logger_, "Camera not connected");
-        }
-
-        logger_->debug("{} moving camera to maximum zoom position: {}", __func__, limits_.max_zoom);
-
-        return camera_hw_->setZoom(limits_.max_zoom);
+        return getFocusLimits().min + (normalized_focus * (getFocusLimits().max - getFocusLimits().min)) / 100;
     }
 }

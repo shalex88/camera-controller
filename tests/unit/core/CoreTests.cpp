@@ -93,11 +93,14 @@ TEST_F(CoreTests, ZoomOperationsSuccess) {
 TEST_F(CoreTests, ZoomOperationsFailWhenNotInitialized) {
     core::Core core(std::move(camera), logger_impl_);
 
-    const auto set_result = core.setZoom(2);
+    // Operations should fail when not initialized
+    const auto set_result = core.setZoom(50);
     ASSERT_TRUE(set_result.isError());
+    EXPECT_THAT(set_result.error(), ::testing::HasSubstr("not initialized"));
 
     const auto get_result = core.getZoom();
     ASSERT_TRUE(get_result.isError());
+    EXPECT_THAT(get_result.error(), ::testing::HasSubstr("not initialized"));
 }
 
 TEST_F(CoreTests, FocusOperations) {
@@ -130,11 +133,14 @@ TEST_F(CoreTests, FocusOperations) {
 TEST_F(CoreTests, FocusOperationsFailWhenNotInitialized) {
     core::Core core(std::move(camera), logger_impl_);
 
-    const auto set_result = core.setFocus(2);
+    // Operations should fail when not initialized
+    const auto set_result = core.setFocus(50);
     ASSERT_TRUE(set_result.isError());
+    EXPECT_THAT(set_result.error(), ::testing::HasSubstr("not initialized"));
 
     const auto get_result = core.getFocus();
     ASSERT_TRUE(get_result.isError());
+    EXPECT_THAT(get_result.error(), ::testing::HasSubstr("not initialized"));
 }
 
 TEST_F(CoreTests, ShutdownSuccess) {

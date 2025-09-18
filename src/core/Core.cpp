@@ -60,7 +60,7 @@ namespace camera_service::core {
 
     Result<void> Core::setZoom(const types::zoom zoom_level) const {
         if (!isInitialized()) {
-            return Result<void>::error(logger_, "Core not initialized");
+            return Result<void>::error("Core is not initialized");
         }
 
         return camera_->setZoom(zoom_level);
@@ -68,15 +68,23 @@ namespace camera_service::core {
 
     Result<types::zoom> Core::getZoom() const {
         if (!isInitialized()) {
-            return Result<types::zoom>::error(logger_, "Core not initialized");
+            return Result<types::zoom>::error("Core is not initialized");
         }
 
         return camera_->getZoom();
     }
 
+    Result<void> Core::goToMinZoom() const {
+        return setZoom(0);
+    }
+
+    Result<void> Core::goToMaxZoom() const {
+        return setZoom(100);
+    }
+
     Result<void> Core::setFocus(const types::focus focus_value) const {
         if (!isInitialized()) {
-            return Result<void>::error(logger_, "Core not initialized");
+            return Result<void>::error("Core is not initialized");
         }
 
         return camera_->setFocus(focus_value);
@@ -84,7 +92,7 @@ namespace camera_service::core {
 
     Result<types::focus> Core::getFocus() const {
         if (!isInitialized()) {
-            return Result<types::focus>::error(logger_, "Core not initialized");
+            return Result<types::focus>::error("Core is not initialized");
         }
 
         return camera_->getFocus();
@@ -92,25 +100,9 @@ namespace camera_service::core {
 
     Result<types::info> Core::getInfo() const {
         if (!isInitialized()) {
-            return Result<types::info>::error(logger_, "Core not initialized");
+            return Result<types::info>::error("Core is not initialized");
         }
 
         return camera_->getInfo();
-    }
-
-    Result<void> Core::setMinZoom() const {
-        if (!isInitialized()) {
-            return Result<void>::error(logger_, "Core not initialized");
-        }
-
-        return camera_->setMinZoom();
-    }
-
-    Result<void> Core::setMaxZoom() const {
-        if (!isInitialized()) {
-            return Result<void>::error(logger_, "Core not initialized");
-        }
-
-        return camera_->setMaxZoom();
     }
 }

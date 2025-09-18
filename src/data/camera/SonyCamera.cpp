@@ -111,16 +111,12 @@ namespace camera_service::data {
         return Result<void>::success();
     }
 
-    types::CameraLimits SonyCamera::getLimits() const {
-        return limits_;
+    types::ZoomRange SonyCamera::getZoomLimits() const {
+        return zoom_limits_;
     }
 
-    Result<void> SonyCamera::setMinZoom() const {
-        return setZoom(limits_.min_zoom);
-    }
-
-    Result<void> SonyCamera::setMaxZoom() const {
-        return setZoom(limits_.max_zoom);
+    types::FocusRange SonyCamera::getFocusLimits() const {
+        return focus_limits_;
     }
 
     Result<void> SonyCamera::sendCommand(const std::function<uint32_t()>& command) {

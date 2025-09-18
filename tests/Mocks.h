@@ -9,6 +9,9 @@
 #include "data/ICameraHal.h"
 #include "data/ICameraHw.h"
 #include "data/hw_interface/mmio/IRegisterImpl.h"
+#include "common/types/IZoomCapable.h"
+#include "common/types/IFocusCapable.h"
+#include "common/types/IInfoCapable.h"
 
 using namespace camera_service;
 using namespace testing;
@@ -30,21 +33,22 @@ public:
     MOCK_METHOD(Result<void>, setFocus, (types::focus), (const, override));
     MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
     MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
-    MOCK_METHOD(Result<void>, setMinZoom, (), (const, override));
-    MOCK_METHOD(Result<void>, setMaxZoom, (), (const, override));
+    MOCK_METHOD(Result<void>, goToMinZoom, (), (const, override));
+    MOCK_METHOD(Result<void>, goToMaxZoom, (), (const, override));
 };
 
 class CoreMock: public core::ICore {
 public:
     MOCK_METHOD(Result<void>, initialize, (), (override));
     MOCK_METHOD(Result<void>, shutdown, (), (override));
+
     MOCK_METHOD(Result<void>, setZoom, (types::zoom), (const, override));
     MOCK_METHOD(Result<types::zoom>, getZoom, (), (const, override));
+    MOCK_METHOD(Result<void>, goToMinZoom, (), (const, override));
+    MOCK_METHOD(Result<void>, goToMaxZoom, (), (const, override));
     MOCK_METHOD(Result<void>, setFocus, (types::focus), (const, override));
     MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
     MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
-    MOCK_METHOD(Result<void>, setMinZoom, (), (const, override));
-    MOCK_METHOD(Result<void>, setMaxZoom, (), (const, override));
 };
 
 class MockCameraHal : public data::ICameraHal {
@@ -52,34 +56,41 @@ public:
     MOCK_METHOD(Result<void>, connect, (), (override));
     MOCK_METHOD(Result<void>, disconnect, (), (override));
     MOCK_METHOD(bool, isConnected, (), (const, override));
+
+    // IZoomCapable implementation
     MOCK_METHOD(Result<void>, setZoom, (types::zoom), (const, override));
     MOCK_METHOD(Result<types::zoom>, getZoom, (), (const, override));
+    MOCK_METHOD(types::ZoomRange, getZoomLimits, (), (const, override));
+
+    // IFocusCapable implementation
     MOCK_METHOD(Result<void>, setFocus, (types::focus), (const, override));
     MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
+    MOCK_METHOD(types::FocusRange, getFocusLimits, (), (const, override));
+
+    // IInfoCapable implementation
     MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
-    MOCK_METHOD(Result<void>, setMinZoom, (), (const, override));
-    MOCK_METHOD(Result<void>, setMaxZoom, (), (const, override));
 };
 
-class MockCameraHw: public data::ICameraHw {
+class MockCameraHw: public data::ICameraHw,
+                     public capabilities::IZoomCapable,
+                     public capabilities::IFocusCapable,
+                     public capabilities::IInfoCapable {
 public:
     MOCK_METHOD(Result<void>, connect, (), (override));
     MOCK_METHOD(Result<void>, disconnect, (), (override));
+
+    // IZoomCapable implementation
     MOCK_METHOD(Result<void>, setZoom, (types::zoom), (const, override));
     MOCK_METHOD(Result<types::zoom>, getZoom, (), (const, override));
+    MOCK_METHOD(types::ZoomRange, getZoomLimits, (), (const, override));
+
+    // IFocusCapable implementation
     MOCK_METHOD(Result<void>, setFocus, (types::focus), (const, override));
     MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
-    MOCK_METHOD(types::CameraLimits, getLimits, (), (const, override));
-    MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
-    MOCK_METHOD(Result<void>, setMinZoom, (), (const, override));
-    MOCK_METHOD(Result<void>, setMaxZoom, (), (const, override));
+    MOCK_METHOD(types::FocusRange, getFocusLimits, (), (const, override));
 
-    types::CameraLimits limits {
-        .min_zoom = 0,
-        .max_zoom = 100,
-        .min_focus = 0,
-        .max_focus = 100,
-    };
+    // IInfoCapable implementation
+    MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
 };
 
 class MockRegisterImpl: public data::IRegisterImpl {

@@ -17,16 +17,25 @@ namespace camera_service::core {
                      std::shared_ptr<LayerLogger> logger);
         ~Core() override;
 
+        // ICameraService implementation
         Result<void> initialize() override;
         Result<void> shutdown() override;
 
+        // Business methods for zoom operations
         Result<void> setZoom(types::zoom zoom_level) const override;
         Result<types::zoom> getZoom() const override;
+        Result<void> goToMinZoom() const override;
+        Result<void> goToMaxZoom() const override;
+
+        // Business methods for focus operations
         Result<void> setFocus(types::focus focus_value) const override;
         Result<types::focus> getFocus() const override;
+
+        // Business methods for info operations
         Result<types::info> getInfo() const override;
-        Result<void> setMinZoom() const override;
-        Result<void> setMaxZoom() const override;
+
+    protected:
+        // No longer needed - Core delegates directly to HAL business methods
 
     private:
         bool isInitialized() const;

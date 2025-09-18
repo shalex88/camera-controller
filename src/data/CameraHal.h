@@ -7,6 +7,9 @@
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
 #include "common/Logger/Logger.h"
+#include "common/types/IZoomCapable.h"
+#include "common/types/IFocusCapable.h"
+#include "common/types/IInfoCapable.h"
 
 namespace camera_service::data {
     class CameraHal final : public ICameraHal {
@@ -15,13 +18,18 @@ namespace camera_service::data {
                           std::shared_ptr<LayerLogger> logger);
         ~CameraHal() override;
 
+        // IZoomCapable implementation
         Result<void> setZoom(types::zoom normalized_zoom) const override;
         Result<types::zoom> getZoom() const override;
+
+        // IFocusCapable implementation
         Result<void> setFocus(types::focus normalized_focus) const override;
         Result<types::focus> getFocus() const override;
+
+        // IInfoCapable implementation
         Result<types::info> getInfo() const override;
-        Result<void> setMinZoom() const override;
-        Result<void> setMaxZoom() const override;
+
+        // ICameraHal specific methods
         Result<void> connect() override;
         Result<void> disconnect() override;
         bool isConnected() const override;
@@ -29,7 +37,6 @@ namespace camera_service::data {
     private:
         std::unique_ptr<ICameraHw> camera_hw_;
         std::shared_ptr<LayerLogger> logger_;
-        types::CameraLimits limits_;
         bool connected_ {false};
 
         static bool isValidNormalizedZoom(types::zoom value);
@@ -40,5 +47,12 @@ namespace camera_service::data {
         types::focus normalizeFocus(types::focus camera_focus) const;
         types::zoom denormalizeZoom(types::zoom normalized_zoom) const;
         types::focus denormalizeFocus(types::focus normalized_focus) const;
+
+        IZoomCapable* isZoomCapable() const;
+        IFocusCapable* isFocusCapable() const;
+        IInfoCapable* isInfoCapable() const;
+
+        types::ZoomRange getZoomLimits() const override;
+        types::FocusRange getFocusLimits() const override;
     };
 }

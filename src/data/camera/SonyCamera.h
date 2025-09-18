@@ -1,31 +1,46 @@
 #pragma once
 
 #include "../ICameraHw.h"
+#include "common/types/IZoomCapable.h"
+#include "common/types/IFocusCapable.h"
+#include "common/types/IInfoCapable.h"
 #include "../../../../libVISCA2/visca/libvisca.h"
 
 namespace camera_service::data {
-    class SonyCamera final : public ICameraHw {
+    class SonyCamera final : public ICameraHw,
+                             public capabilities::IZoomCapable,
+                             public capabilities::IFocusCapable,
+                             public capabilities::IInfoCapable {
     public:
         explicit SonyCamera(std::string device_path);
         ~SonyCamera() override = default;
 
+        // IZoomCapable implementation
         Result<void> setZoom(types::zoom zoom) const override;
         Result<types::zoom> getZoom() const override;
+        types::ZoomRange getZoomLimits() const override;
+
+        // IFocusCapable implementation
         Result<void> setFocus(types::focus focus) const override;
         Result<types::focus> getFocus() const override;
+        types::FocusRange getFocusLimits() const override;
+
+        // IInfoCapable implementation
         Result<types::info> getInfo() const override;
-        Result<void> setMinZoom() const override;
-        Result<void> setMaxZoom() const override;
+
+        // ICameraHw implementation
         Result<void> connect() override;
         Result<void> disconnect() override;
-        types::CameraLimits getLimits() const override;
 
     private:
-        types::CameraLimits limits_ {
-            .min_zoom = 0x0000,
-            .max_zoom = 0x4000,  // Standard VISCA zoom range
-            .min_focus = 0x1000,
-            .max_focus = 0xF000, // Standard VISCA focus range
+        types::ZoomRange zoom_limits_{
+            .min = 0x0000,
+            .max = 0x4000
+        };
+
+        types::FocusRange focus_limits_{
+            .min = 0x1000,
+            .max = 0xF000
         };
 
         std::string device_path_ {};

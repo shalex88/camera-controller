@@ -18,8 +18,6 @@ protected:
     CameraTests() {
         auto camera_strategy_obj = std::make_unique<NiceMock<MockCameraHw>>();
         camera_hw_ = camera_strategy_obj.get();
-        EXPECT_CALL(*camera_hw_, getLimits())
-            .WillOnce(Return(camera_hw_->limits));
         logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "Data");
         camera = std::make_unique<data::CameraHal>(std::move(camera_strategy_obj), logger_impl_);
     }
@@ -114,17 +112,23 @@ TEST_F(CameraTests, GetFocusWhenNotConnectedFail) {
 }
 
 TEST_F(CameraTests, SetValidZoomSuccess) {
-    constexpr auto expected_value = 2;
+    constexpr auto normalized_zoom = 50;
+
+    types::ZoomRange zoom_limits{.min = 0, .max = 100};
+    EXPECT_CALL(*camera_hw_, getZoomLimits())
+        .WillRepeatedly(Return(zoom_limits));
 
     EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_hw_, setZoom(expected_value))
+
+    constexpr auto expected_hw_value = 50;
+    EXPECT_CALL(*camera_hw_, setZoom(expected_hw_value))
         .WillOnce(Return(Result<void>::success()));
 
     const auto connect_result = camera->connect();
     ASSERT_TRUE(connect_result.isSuccess());
 
-    const auto set_result = camera->setZoom(expected_value);
+    const auto set_result = camera->setZoom(normalized_zoom);
     ASSERT_TRUE(set_result.isSuccess());
 }
 
@@ -142,17 +146,23 @@ TEST_F(CameraTests, SetInvalidZoomFail) {
 }
 
 TEST_F(CameraTests, SetValidZoomWhenCameraErrorFails) {
-    constexpr auto expected_value = 2;
+    constexpr auto normalized_zoom = 2;
+
+    types::ZoomRange zoom_limits{.min = 0, .max = 1000};
+    EXPECT_CALL(*camera_hw_, getZoomLimits())
+        .WillRepeatedly(Return(zoom_limits));
 
     EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_hw_, setZoom(expected_value))
+
+    constexpr auto expected_hw_value = 20;
+    EXPECT_CALL(*camera_hw_, setZoom(expected_hw_value))
         .WillOnce(Return(Result<void>::error("error")));
 
     const auto connect_result = camera->connect();
     EXPECT_TRUE(connect_result.isSuccess());
 
-    const auto set_result = camera->setZoom(expected_value);
+    const auto set_result = camera->setZoom(normalized_zoom);
     ASSERT_TRUE(set_result.isError());
 }
 
@@ -170,19 +180,25 @@ TEST_F(CameraTests, GetValidZoomWhenCameraErrorFails) {
 }
 
 TEST_F(CameraTests, GetValidZoomSuccess) {
-    constexpr auto expected_value = 2u;
+    constexpr auto hardware_zoom_value = 200u;
+
+    types::ZoomRange zoom_limits{.min = 0, .max = 1000};
+    EXPECT_CALL(*camera_hw_, getZoomLimits())
+        .WillRepeatedly(Return(zoom_limits));
 
     EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera_hw_, getZoom())
-        .WillOnce(Return(Result<types::zoom>::success(expected_value)));
+        .WillOnce(Return(Result<types::zoom>::success(hardware_zoom_value)));
 
     const auto connect_result = camera->connect();
     EXPECT_TRUE(connect_result.isSuccess());
 
-    const auto set_result = camera->getZoom();
-    EXPECT_TRUE(set_result.isSuccess());
-    ASSERT_EQ(set_result.value<types::zoom>(), expected_value);
+    const auto get_result = camera->getZoom();
+    EXPECT_TRUE(get_result.isSuccess());
+
+    constexpr auto expected_normalized_value = 20u;
+    ASSERT_EQ(get_result.value<types::zoom>(), expected_normalized_value);
 }
 
 TEST_F(CameraTests, GetInvalidZoomFail) {
@@ -201,48 +217,66 @@ TEST_F(CameraTests, GetInvalidZoomFail) {
 }
 
 TEST_F(CameraTests, SetValidFocusSuccess) {
-    constexpr auto expected_value = 2u;
+    constexpr auto normalized_focus = 2u;
+
+    types::FocusRange focus_limits{.min = 0, .max = 1000};
+    EXPECT_CALL(*camera_hw_, getFocusLimits())
+        .WillRepeatedly(Return(focus_limits));
 
     EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_hw_, setFocus(expected_value))
+
+    constexpr auto expected_hw_value = 20u;
+    EXPECT_CALL(*camera_hw_, setFocus(expected_hw_value))
         .WillOnce(Return(Result<void>::success()));
 
     const auto connect_result = camera->connect();
     ASSERT_TRUE(connect_result.isSuccess());
 
-    const auto set_result = camera->setFocus(expected_value);
+    const auto set_result = camera->setFocus(normalized_focus);
     ASSERT_TRUE(set_result.isSuccess());
 }
 
 TEST_F(CameraTests, GetValidFocusSuccess) {
-    constexpr auto expected_value = 2u;
+    constexpr auto hardware_focus_value = 200u;
+
+    types::FocusRange focus_limits{.min = 0, .max = 1000};
+    EXPECT_CALL(*camera_hw_, getFocusLimits())
+        .WillRepeatedly(Return(focus_limits));
 
     EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera_hw_, getFocus())
-        .WillOnce(Return(Result<types::focus>::success(expected_value)));
+        .WillOnce(Return(Result<types::focus>::success(hardware_focus_value)));
 
     const auto connect_result = camera->connect();
     EXPECT_TRUE(connect_result.isSuccess());
 
-    const auto set_result = camera->getFocus();
-    EXPECT_TRUE(set_result.isSuccess());
-    ASSERT_EQ(set_result.value<types::focus>(), expected_value);
+    const auto get_result = camera->getFocus();
+    EXPECT_TRUE(get_result.isSuccess());
+
+    constexpr auto expected_normalized_value = 20u;
+    ASSERT_EQ(get_result.value<types::focus>(), expected_normalized_value);
 }
 
 TEST_F(CameraTests, SetValidFocusWhenCameraErrorFails) {
-    constexpr auto expected_value = 2u;
+    constexpr auto normalized_focus = 2u;
+
+    types::FocusRange focus_limits{.min = 0, .max = 1000};
+    EXPECT_CALL(*camera_hw_, getFocusLimits())
+        .WillRepeatedly(Return(focus_limits));
 
     EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_hw_, setFocus(expected_value))
+
+    constexpr auto expected_hw_value = 20u;
+    EXPECT_CALL(*camera_hw_, setFocus(expected_hw_value))
         .WillOnce(Return(Result<void>::error("error")));
 
     const auto connect_result = camera->connect();
     EXPECT_TRUE(connect_result.isSuccess());
 
-    const auto set_result = camera->setFocus(expected_value);
+    const auto set_result = camera->setFocus(normalized_focus);
     ASSERT_TRUE(set_result.isError());
 }
 
@@ -286,90 +320,4 @@ TEST_F(CameraTests, GetInvalidFocusFail) {
 
     const auto set_result = camera->getFocus();
     ASSERT_TRUE(set_result.isError());
-}
-
-// SetMinZoom Tests
-TEST_F(CameraTests, SetMinZoomWhenNotConnectedFail) {
-    const auto result = camera->setMinZoom();
-    ASSERT_TRUE(result.isError());
-    EXPECT_EQ(result.error(), "Camera not connected");
-}
-
-TEST_F(CameraTests, SetMinZoomSuccess) {
-    EXPECT_CALL(*camera_hw_, connect())
-        .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_hw_, setZoom(camera_hw_->limits.min_zoom))
-        .WillOnce(Return(Result<void>::success()));
-
-    const auto connect_result = camera->connect();
-    ASSERT_TRUE(connect_result.isSuccess());
-
-    const auto set_result = camera->setMinZoom();
-    ASSERT_TRUE(set_result.isSuccess());
-}
-
-TEST_F(CameraTests, SetMinZoomWhenCameraErrorFails) {
-    EXPECT_CALL(*camera_hw_, connect())
-        .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_hw_, setZoom(camera_hw_->limits.min_zoom))
-        .WillOnce(Return(Result<void>::error("Hardware error")));
-
-    const auto connect_result = camera->connect();
-    ASSERT_TRUE(connect_result.isSuccess());
-
-    const auto set_result = camera->setMinZoom();
-    ASSERT_TRUE(set_result.isError());
-}
-
-// SetMaxZoom Tests
-TEST_F(CameraTests, SetMaxZoomWhenNotConnectedFail) {
-    const auto result = camera->setMaxZoom();
-    ASSERT_TRUE(result.isError());
-    EXPECT_EQ(result.error(), "Camera not connected");
-}
-
-TEST_F(CameraTests, SetMaxZoomSuccess) {
-    EXPECT_CALL(*camera_hw_, connect())
-        .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_hw_, setZoom(camera_hw_->limits.max_zoom))
-        .WillOnce(Return(Result<void>::success()));
-
-    const auto connect_result = camera->connect();
-    ASSERT_TRUE(connect_result.isSuccess());
-
-    const auto set_result = camera->setMaxZoom();
-    ASSERT_TRUE(set_result.isSuccess());
-}
-
-TEST_F(CameraTests, SetMaxZoomWhenCameraErrorFails) {
-    EXPECT_CALL(*camera_hw_, connect())
-        .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_hw_, setZoom(camera_hw_->limits.max_zoom))
-        .WillOnce(Return(Result<void>::error("Hardware error")));
-
-    const auto connect_result = camera->connect();
-    ASSERT_TRUE(connect_result.isSuccess());
-
-    const auto set_result = camera->setMaxZoom();
-    ASSERT_TRUE(set_result.isError());
-}
-
-TEST_F(CameraTests, SetMinMaxZoomSequenceSuccess) {
-    EXPECT_CALL(*camera_hw_, connect())
-        .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_hw_, setZoom(camera_hw_->limits.min_zoom))
-        .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_hw_, setZoom(camera_hw_->limits.max_zoom))
-        .WillOnce(Return(Result<void>::success()));
-
-    const auto connect_result = camera->connect();
-    ASSERT_TRUE(connect_result.isSuccess());
-
-    // Move camera to min zoom position
-    const auto set_min_result = camera->setMinZoom();
-    ASSERT_TRUE(set_min_result.isSuccess());
-
-    // Move camera to max zoom position
-    const auto set_max_result = camera->setMaxZoom();
-    ASSERT_TRUE(set_max_result.isSuccess());
 }

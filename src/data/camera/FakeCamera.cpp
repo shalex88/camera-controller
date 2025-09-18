@@ -31,15 +31,11 @@ namespace camera_service::data {
         return Result<void>::success();
     }
 
-    types::CameraLimits FakeCamera::getLimits() const {
-        return limits_;
+    types::ZoomRange FakeCamera::getZoomLimits() const {
+        return zoom_limits_;
     }
 
-    Result<void> FakeCamera::setMinZoom() const {
-        return setZoom(limits_.min_zoom);
-    }
-
-    Result<void> FakeCamera::setMaxZoom() const {
-        return setZoom(limits_.max_zoom);
+    types::FocusRange FakeCamera::getFocusLimits() const {
+        return focus_limits_;
     }
 }

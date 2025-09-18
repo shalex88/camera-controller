@@ -33,6 +33,8 @@ Don't use raw pointers, use smart pointers instead
 
 Use Result<T, E> for error handling
 
-Variable should always be initialized
+Variables should always be initialized
 
-Variable should be declared as const if possible
+Variables should be declared as const if possible
+
+No need to write comments in the code, the code should be self-explanatory

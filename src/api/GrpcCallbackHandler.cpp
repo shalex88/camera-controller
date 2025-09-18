@@ -112,13 +112,13 @@ namespace camera_service::api {
             });
     }
 
-    grpc::ServerUnaryReactor* GrpcCallbackHandler::SetMinZoom(
+    grpc::ServerUnaryReactor* GrpcCallbackHandler::GoToMinZoom(
         grpc::CallbackServerContext* context,
-        const camera::SetMinZoomRequest* request,
-        camera::SetMinZoomResponse* response) {
+        const camera::GoToMinZoomRequest* request,
+        camera::GoToMinZoomResponse* response) {
         return handleGrpcRequest(context, request, response,
-            [this](const camera::SetMinZoomRequest* req, camera::SetMinZoomResponse* resp) {
-                const auto result = request_handler_->setMinZoom();
+            [this](const camera::GoToMinZoomRequest* req, camera::GoToMinZoomResponse* resp) {
+                const auto result = request_handler_->goToMinZoom();
                 if (result.isSuccess()) {
                     return Result<void>::success();
                 }
@@ -126,13 +126,13 @@ namespace camera_service::api {
             });
     }
 
-    grpc::ServerUnaryReactor* GrpcCallbackHandler::SetMaxZoom(
+    grpc::ServerUnaryReactor* GrpcCallbackHandler::GoToMaxZoom(
         grpc::CallbackServerContext* context,
-        const camera::SetMaxZoomRequest* request,
-        camera::SetMaxZoomResponse* response) {
+        const camera::GoToMaxZoomRequest* request,
+        camera::GoToMaxZoomResponse* response) {
         return handleGrpcRequest(context, request, response,
-            [this](const camera::SetMaxZoomRequest* req, camera::SetMaxZoomResponse* resp) {
-                const auto result = request_handler_->setMaxZoom();
+            [this](const camera::GoToMaxZoomRequest* req, camera::GoToMaxZoomResponse* resp) {
+                const auto result = request_handler_->goToMaxZoom();
                 if (result.isSuccess()) {
                     return Result<void>::success();
                 }

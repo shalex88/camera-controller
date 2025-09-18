@@ -61,7 +61,7 @@ protected:
 };
 
 TEST_F(GrpcIntegrationTests, SetZoomAndGetZoomSuccess) {
-    constexpr uint32_t test_zoom = 3u;  // Use uint32_t instead of double
+    constexpr uint32_t test_zoom = 3u;
 
     EXPECT_CALL(*core, setZoom(test_zoom))
         .WillOnce(Return(Result<void>::success()));
@@ -76,7 +76,7 @@ TEST_F(GrpcIntegrationTests, SetZoomAndGetZoomSuccess) {
 }
 
 TEST_F(GrpcIntegrationTests, RequestFailOnCoreFail) {
-    constexpr uint32_t test_zoom = 3u;  // Use uint32_t instead of double
+    constexpr uint32_t test_zoom = 3u;
 
     EXPECT_CALL(*core, setZoom(test_zoom))
         .WillOnce(Return(Result<void>::error("Fail")));
@@ -85,9 +85,8 @@ TEST_F(GrpcIntegrationTests, RequestFailOnCoreFail) {
 }
 
 TEST_F(GrpcIntegrationTests, RequestFailOnTimeout) {
-    constexpr uint32_t test_zoom = 3u;  // Use uint32_t instead of double
+    constexpr uint32_t test_zoom = 3u;
 
-    // Simulate a timeout by not responding
     EXPECT_CALL(*core, setZoom(test_zoom))
         .WillOnce(Invoke([] {
             std::this_thread::sleep_for(std::chrono::seconds(1));

@@ -66,15 +66,11 @@ namespace camera_service::data {
         return Result<void>::success();
     }
 
-    types::CameraLimits AdimecCamera::getLimits() const {
-        return limits_;
+    types::ZoomRange AdimecCamera::getZoomLimits() const {
+        return zoom_limits_;
     }
 
-    Result<void> AdimecCamera::setMinZoom() const {
-        return setZoom(limits_.min_zoom);
-    }
-
-    Result<void> AdimecCamera::setMaxZoom() const {
-        return setZoom(limits_.max_zoom);
+    types::FocusRange AdimecCamera::getFocusLimits() const {
+        return focus_limits_;
     }
 }

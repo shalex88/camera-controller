@@ -1,9 +1,13 @@
 #pragma once
 #include "common/types/Result.h"
-#include "common/types/ICameraCapabilities.h"
+#include "common/types/IZoomCapable.h"
+#include "common/types/IFocusCapable.h"
+#include "common/types/IInfoCapable.h"
 
 namespace camera_service::data {
-    class ICameraHal : public api::ICameraCapabilities {
+    class ICameraHal : public capabilities::IZoomCapable,
+                       public capabilities::IFocusCapable,
+                       public capabilities::IInfoCapable {
     public:
         ~ICameraHal() override = default;
 

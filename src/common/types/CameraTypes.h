@@ -7,10 +7,13 @@ namespace camera_service::types {
     using focus = uint32_t;
     using info = std::string;
 
-    struct CameraLimits {
-        zoom min_zoom;
-        zoom max_zoom;
-        focus min_focus;
-        focus max_focus;
+    struct ZoomRange {
+        zoom min;
+        zoom max;
+    };
+
+    struct FocusRange {
+        focus min;
+        focus max;
     };
 }

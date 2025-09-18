@@ -1,34 +1,49 @@
 #pragma once
 
 #include "../ICameraHw.h"
+#include "common/types/IZoomCapable.h"
+#include "common/types/IFocusCapable.h"
+#include "common/types/IInfoCapable.h"
 
 namespace camera_service::data {
-    class FakeCamera final : public ICameraHw {
+    class FakeCamera final : public ICameraHw,
+                             public capabilities::IZoomCapable,
+                             public capabilities::IFocusCapable,
+                             public capabilities::IInfoCapable {
     public:
         FakeCamera() = default;
         ~FakeCamera() override = default;
 
+        // IZoomCapable implementation
         Result<void> setZoom(types::zoom zoom) const override;
         Result<types::zoom> getZoom() const override;
+        types::ZoomRange getZoomLimits() const override;
+
+        // IFocusCapable implementation
         Result<void> setFocus(types::focus focus) const override;
         Result<types::focus> getFocus() const override;
+        types::FocusRange getFocusLimits() const override;
+
+        // IInfoCapable implementation
         Result<types::info> getInfo() const override;
-        Result<void> setMinZoom() const override;
-        Result<void> setMaxZoom() const override;
+
+        // ICameraHw implementation
         Result<void> connect() override;
         Result<void> disconnect() override;
-        types::CameraLimits getLimits() const override;
 
     private:
-        types::CameraLimits limits_ {
-            .min_zoom = 0,
-            .max_zoom = 100,
-            .min_focus = 0,
-            .max_focus = 100,
+        types::ZoomRange zoom_limits_{
+            .min = 0x0,
+            .max = 0xFF
         };
 
-        mutable types::zoom zoom_ = limits_.min_zoom;
-        mutable types::focus focus_ = limits_.min_focus;
+        types::FocusRange focus_limits_{
+            .min = 0x0,
+            .max = 0xFF
+        };
+
+        mutable types::zoom zoom_ = zoom_limits_.min;
+        mutable types::focus focus_ = focus_limits_.min;
         types::info info_ = "Fake Camera";
     };
 }
