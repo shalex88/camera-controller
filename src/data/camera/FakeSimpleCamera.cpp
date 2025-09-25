@@ -25,4 +25,17 @@ namespace camera_service::data {
     types::ZoomRange FakeSimpleCamera::getZoomLimits() const {
         return zoom_limits_;
     }
+
+    Result<void> FakeSimpleCamera::setFocus(const types::focus focus) const {
+        focus_ = focus;
+        return Result<void>::success();
+    }
+
+    Result<types::focus> FakeSimpleCamera::getFocus() const {
+        return Result<types::focus>::success(focus_);
+    }
+
+    types::FocusRange FakeSimpleCamera::getFocusLimits() const {
+        return focus_limits_;
+    }
 }

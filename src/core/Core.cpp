@@ -75,11 +75,11 @@ namespace camera_service::core {
     }
 
     Result<void> Core::goToMinZoom() const {
-        return setZoom(0);
+        return setZoom(types::kMinNormalizedZoom);
     }
 
     Result<void> Core::goToMaxZoom() const {
-        return setZoom(100);
+        return setZoom(types::kMaxNormalizedZoom);
     }
 
     Result<void> Core::setFocus(const types::focus focus_value) const {
@@ -96,6 +96,22 @@ namespace camera_service::core {
         }
 
         return camera_->getFocus();
+    }
+
+    Result<void> Core::enableAutoFocus(const bool on) const {
+        if (!isInitialized()) {
+            return Result<void>::error("Core is not initialized");
+        }
+
+        return camera_->enableAutoFocus(on);
+    }
+
+    Result<bool> Core::isAutoFocusEnabled() const {
+        if (!isInitialized()) {
+            return Result<bool>::error("Core is not initialized");
+        }
+
+        return camera_->isAutoFocusEnabled();
     }
 
     Result<types::info> Core::getInfo() const {

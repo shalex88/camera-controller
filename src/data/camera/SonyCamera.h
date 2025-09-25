@@ -1,15 +1,14 @@
 #pragma once
 
 #include "../ICameraHw.h"
-#include "common/types/IZoomCapable.h"
-#include "common/types/IFocusCapable.h"
-#include "common/types/IInfoCapable.h"
 #include "../../../../libVISCA2/visca/libvisca.h"
+#include "common/types/CameraCapabilities.h"
 
 namespace camera_service::data {
     class SonyCamera final : public ICameraHw,
                              public capabilities::IZoomCapable,
                              public capabilities::IFocusCapable,
+                             public capabilities::IAutoFocusCapable,
                              public capabilities::IInfoCapable {
     public:
         explicit SonyCamera(std::string device_path);
@@ -24,6 +23,10 @@ namespace camera_service::data {
         Result<void> setFocus(types::focus focus) const override;
         Result<types::focus> getFocus() const override;
         types::FocusRange getFocusLimits() const override;
+
+        // IAutoFocusCapable implementation
+        Result<void> enableAutoFocus(bool on) const override;
+        Result<bool> isAutoFocusEnabled() const override;
 
         // IInfoCapable implementation
         Result<types::info> getInfo() const override;
@@ -48,7 +51,6 @@ namespace camera_service::data {
         mutable VISCAInterface_t interface_ {};
         mutable VISCACamera_t camera_ {};
 
-        static Result<void> sendCommand(const std::function<uint32_t()>& command);
-        static Result<uint16_t> sendInquiry(const std::function<uint32_t(uint16_t*)>& inquiry);
+        static std::string getViscaErrorMessage(uint32_t error_code);
     };
 }

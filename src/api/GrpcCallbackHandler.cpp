@@ -139,4 +139,29 @@ namespace camera_service::api {
                 return Result<void>::error(result.error());
             });
     }
+
+    grpc::ServerUnaryReactor* GrpcCallbackHandler::EnableAutoFocus(
+    grpc::CallbackServerContext* context,
+    const camera::EnableAutoFocusRequest* request,
+    camera::EnableAutoFocusResponse* response) {
+        return handleGrpcRequest(context, request, response,
+            [this](const camera::EnableAutoFocusRequest* req, camera::EnableAutoFocusResponse* resp) {
+                return request_handler_->enableAutoFocus(req->enable());
+            });
+    }
+
+    grpc::ServerUnaryReactor* GrpcCallbackHandler::IsAutoFocusEnabled(
+    grpc::CallbackServerContext* context,
+    const camera::IsAutoFocusEnabledRequest* request,
+    camera::IsAutoFocusEnabledResponse* response) {
+        return handleGrpcRequest(context, request, response,
+            [this](const camera::IsAutoFocusEnabledRequest* req, camera::IsAutoFocusEnabledResponse* resp) {
+                const auto result = request_handler_->isAutoFocusEnabled();
+                if (result.isSuccess()) {
+                    resp->set_autofocus(result.value());
+                    return Result<void>::success();
+                }
+                return Result<void>::error(result.error());
+            });
+    }
 }

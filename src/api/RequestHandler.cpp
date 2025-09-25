@@ -2,9 +2,6 @@
 
 #include "core/Core.h"
 #include "common/Logger/Logger.h"
-#include "common/types/IZoomCapable.h"
-#include "common/types/IFocusCapable.h"
-#include "common/types/IInfoCapable.h"
 
 namespace camera_service::api {
     RequestHandler::RequestHandler(std::unique_ptr<core::ICore> core, std::shared_ptr<LayerLogger> logger)
@@ -151,6 +148,40 @@ namespace camera_service::api {
 
         auto operation = core_->getFocus();
 
+        if (operation.isError()) {
+            logger_->error("Response: {}", operation.error());
+        } else {
+            logger_->debug("Response: {}", operation.value());
+        }
+
+        return operation;
+    }
+
+    Result<void> RequestHandler::enableAutoFocus(bool on) const {
+        if (!isRunning()) {
+            return Result<void>::error("Request Handler is not running");
+        }
+
+        logger_->debug("Request: {} {}", __func__, on);
+
+        auto operation = core_->enableAutoFocus(on);
+        if (operation.isError()) {
+            logger_->error("Response: {}", operation.error());
+        } else {
+            logger_->debug("Response: Success");
+        }
+
+        return operation;
+    }
+
+    Result<bool> RequestHandler::isAutoFocusEnabled() const {
+        if (!isRunning()) {
+            return Result<bool>::error("Request Handler is not running");
+        }
+
+        logger_->debug("Request: {}", __func__);
+
+        auto operation = core_->isAutoFocusEnabled();
         if (operation.isError()) {
             logger_->error("Response: {}", operation.error());
         } else {

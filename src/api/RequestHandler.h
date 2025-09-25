@@ -25,6 +25,8 @@ namespace camera_service::api {
 
         Result<void> setFocus(types::focus focus_value) const override;
         Result<types::focus> getFocus() const override;
+        Result<void> enableAutoFocus(bool on) const override;
+        Result<bool> isAutoFocusEnabled() const override;
 
         Result<types::info> getInfo() const override;
 

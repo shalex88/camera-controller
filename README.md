@@ -43,3 +43,24 @@ grpcui -plaintext 0.0.0.0:50051
 ```bash
 ./camera-service-system-tests
 ```
+
+## Add new functionality
+
+### Camera
+
+1. Add new functionality in `src/common/types/CameraCapabilities.h`
+2. Extend ICameraHal with the new capability
+3. Implement the capability in CameraHal class
+4. Implement the new capability in the concrete camera class
+
+### Core
+
+1. Add new function in ICore interface
+2. Implement new function in Core class
+
+### API
+
+1. Add new function in IRequestHandler interface
+2. Implement new function in RequestHandler class
+3. Define new RPC in `proto/camera_service.proto`
+4. Create new RPC in GrpcCallbackHandler class

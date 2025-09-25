@@ -20,24 +20,12 @@ namespace camera_service::data {
         }
     }
 
-    capabilities::IZoomCapable* CameraHal::isZoomCapable() const {
-        return dynamic_cast<IZoomCapable*>(camera_hw_.get());
-    }
-
-    capabilities::IFocusCapable* CameraHal::isFocusCapable() const {
-        return dynamic_cast<IFocusCapable*>(camera_hw_.get());
-    }
-
-    capabilities::IInfoCapable* CameraHal::isInfoCapable() const {
-        return dynamic_cast<IInfoCapable*>(camera_hw_.get());
-    }
-
     Result<void> CameraHal::setZoom(const types::zoom normalized_zoom) const {
         if (!isConnected()) {
             return Result<void>::error(logger_,"Camera not connected");
         }
 
-        const auto* zoom_capable_camera = isZoomCapable();
+        const auto* zoom_capable_camera = getCapability<capabilities::IZoomCapable>();
         if (!zoom_capable_camera) {
             return Result<void>::error(logger_, "Camera doesn't support zoom");
         }
@@ -60,7 +48,7 @@ namespace camera_service::data {
             return Result<types::zoom>::error(logger_, "Camera not connected");
         }
 
-        const auto* zoom_capable_camera = isZoomCapable();
+        const auto* zoom_capable_camera = getCapability<capabilities::IZoomCapable>();
         if (!zoom_capable_camera) {
             return Result<types::zoom>::error(logger_, "Camera doesn't support zoom");
         }
@@ -89,7 +77,7 @@ namespace camera_service::data {
             return Result<void>::error(logger_, "Camera not connected");
         }
 
-        const auto* focus_capable = isFocusCapable();
+        const auto* focus_capable = getCapability<capabilities::IFocusCapable>();
         if (!focus_capable) {
             return Result<void>::error(logger_, "Camera doesn't support focus");
         }
@@ -112,7 +100,7 @@ namespace camera_service::data {
             return Result<types::focus>::error(logger_, "Camera not connected");
         }
 
-        const auto* focus_capable = isFocusCapable();
+        const auto* focus_capable = getCapability<capabilities::IFocusCapable>();
         if (!focus_capable) {
             return Result<types::focus>::error(logger_, "Camera doesn't support focus");
         }
@@ -136,12 +124,47 @@ namespace camera_service::data {
         return Result<types::focus>::success(normalized_focus);
     }
 
+    Result<void> CameraHal::enableAutoFocus(const bool on) const {
+        if (!isConnected()) {
+            return Result<void>::error(logger_, "Camera not connected");
+        }
+
+        const auto* auto_focus_capable = getCapability<capabilities::IAutoFocusCapable>();
+        if (!auto_focus_capable) {
+            return Result<void>::error(logger_, "Camera doesn't support auto focus");
+        }
+
+        logger_->debug(__func__);
+
+        return auto_focus_capable->enableAutoFocus(on);
+    }
+
+    Result<bool> CameraHal::isAutoFocusEnabled() const {
+        if (!isConnected()) {
+            return Result<bool>::error(logger_, "Camera not connected");
+        }
+
+        const auto* focus_capable = getCapability<capabilities::IAutoFocusCapable>();
+        if (!focus_capable) {
+            return Result<bool>::error(logger_, "Camera doesn't support auto focus");
+        }
+
+        logger_->debug(__func__);
+
+        const auto is_autofocus_result = focus_capable->isAutoFocusEnabled();
+        if (is_autofocus_result.isError()) {
+            return Result<bool>::error(logger_, is_autofocus_result.error());
+        }
+
+        return Result<bool>::success(is_autofocus_result.value());
+    }
+
     Result<types::info> CameraHal::getInfo() const {
         if (!isConnected()) {
             return Result<types::info>::error(logger_, "Camera not connected");
         }
 
-        const auto* info_capable = isInfoCapable();
+        const auto* info_capable = getCapability<capabilities::IInfoCapable>();
         if (!info_capable) {
             return Result<types::info>::error(logger_, "Camera doesn't support info");
         }
@@ -191,7 +214,7 @@ namespace camera_service::data {
     }
 
     types::ZoomRange CameraHal::getZoomLimits() const {
-        const auto* zoom_capable_camera = isZoomCapable();
+        const auto* zoom_capable_camera = getCapability<capabilities::IZoomCapable>();
         if (!zoom_capable_camera) {
             throw std::runtime_error("Camera doesn't support zoom"); //FIXME: think of a better solution
         }
@@ -199,7 +222,7 @@ namespace camera_service::data {
     }
 
     types::FocusRange CameraHal::getFocusLimits() const {
-        const auto* focus_capable = isFocusCapable();
+        const auto* focus_capable = getCapability<capabilities::IFocusCapable>();
         if (!focus_capable) {
             throw std::runtime_error("Camera doesn't support focus"); //FIXME: think of a better solution
         }

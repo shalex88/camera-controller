@@ -12,56 +12,59 @@ namespace camera_service::data {
     }
 
     Result<void> SonyCamera::setZoom(const types::zoom zoom) const {
-        return sendCommand([this, zoom]() {
-            return VISCA_set_zoom_value(&interface_, &camera_, static_cast<uint16_t>(zoom));
-        });
+        const uint32_t result = VISCA_set_zoom_value(&interface_, &camera_, static_cast<uint16_t>(zoom));
+        if (result == VISCA_SUCCESS) {
+            return Result<void>::success();
+        }
+        return Result<void>::error(getViscaErrorMessage(result));
     }
 
     Result<types::zoom> SonyCamera::getZoom() const {
-        const auto result = sendInquiry([this](uint16_t* value) {
-            return VISCA_get_zoom_value(&interface_, &camera_, value);
-        });
+        uint16_t value = 0;
+        const uint32_t result = VISCA_get_zoom_value(&interface_, &camera_, &value);
 
-        if (result.isError()) {
-            return Result<types::zoom>::error("Failed to get zoom value: " + result.error());
+        if (result == VISCA_SUCCESS) {
+            return Result<types::zoom>::success(static_cast<types::zoom>(value));
         }
 
-        return Result<types::zoom>::success(static_cast<types::zoom>(result.value()));
+        return Result<types::zoom>::error("Failed to get zoom value: " + getViscaErrorMessage(result));
     }
 
     Result<void> SonyCamera::setFocus(const types::focus focus) const {
-        const auto manual_result = sendCommand([this]() {
-            return VISCA_set_focus_auto(&interface_, &camera_, VISCA_OFF);
-        });
-
-        if (manual_result.isError()) {
-            return Result<void>::error("Failed to set manual focus mode: " + manual_result.error());
+        if (const auto auto_focus_result = isAutoFocusEnabled(); auto_focus_result.isError()) {
+            return Result<void>::error("Failed to get focus mode: " + auto_focus_result.error());
+        } else if (auto_focus_result.isSuccess()) {
+            return Result<void>::error("Cannot set focus value while auto focus is enabled");
         }
 
-        return sendCommand([this, focus]() {
-            return VISCA_set_focus_value(&interface_, &camera_, static_cast<uint16_t>(focus));
-        });
+        const auto result = VISCA_set_focus_value(&interface_, &camera_, static_cast<uint16_t>(focus));
+        if (result == VISCA_SUCCESS) {
+            return Result<void>::success();
+        }
+        return Result<void>::error(getViscaErrorMessage(result));
     }
 
     Result<types::focus> SonyCamera::getFocus() const {
-        const auto result = sendInquiry([this](uint16_t* value) {
-            return VISCA_get_focus_value(&interface_, &camera_, value);
-        });
-
-        if (result.isError()) {
-            return Result<types::focus>::error("Failed to get focus value: " + result.error());
+        if (const auto auto_focus_result = isAutoFocusEnabled(); auto_focus_result.isError()) {
+            return Result<types::focus>::error("Failed to get focus mode: " + auto_focus_result.error());
+        } else if (auto_focus_result.isSuccess()) {
+            return Result<types::focus>::error("Cannot get focus value while auto focus is enabled");
         }
 
-        return Result<types::focus>::success(static_cast<types::focus>(result.value()));
+        uint16_t value = 0;
+        const uint32_t result = VISCA_get_focus_value(&interface_, &camera_, &value);
+
+        if (result == VISCA_SUCCESS) {
+            return Result<types::focus>::success(static_cast<types::focus>(value));
+        }
+
+        return Result<types::focus>::error("Failed to get focus value: " + getViscaErrorMessage(result));
     }
 
     Result<types::info> SonyCamera::getInfo() const {
-        const auto info_result = sendCommand([this]() {
-            return VISCA_get_camera_info(&interface_, &camera_);
-        });
-
-        if (info_result.isError()) {
-            return Result<types::info>::error("Failed to get camera info: " + info_result.error());
+        const uint32_t result = VISCA_get_camera_info(&interface_, &camera_);
+        if (result != VISCA_SUCCESS) {
+            return Result<types::info>::error("Failed to get camera info: " + getViscaErrorMessage(result));
         }
 
         std::string info_str = "Sony VISCA Camera - ";
@@ -119,73 +122,41 @@ namespace camera_service::data {
         return focus_limits_;
     }
 
-    Result<void> SonyCamera::sendCommand(const std::function<uint32_t()>& command) {
-        const uint32_t result = command();
+    Result<void> SonyCamera::enableAutoFocus(const bool on) const {
+        const uint32_t result = VISCA_set_focus_auto(&interface_, &camera_, on ? VISCA_ON : VISCA_OFF);
         if (result == VISCA_SUCCESS) {
             return Result<void>::success();
         }
-
-        std::string error_msg;
-        switch (result) {
-            case VISCA_ERROR_MESSAGE_LENGTH:
-                error_msg = "Invalid message length";
-                break;
-            case VISCA_ERROR_SYNTAX:
-                error_msg = "Syntax error";
-                break;
-            case VISCA_ERROR_CMD_BUFFER_FULL:
-                error_msg = "Command buffer full";
-                break;
-            case VISCA_ERROR_CMD_CANCELLED:
-                error_msg = "Command cancelled";
-                break;
-            case VISCA_ERROR_NO_SOCKET:
-                error_msg = "No socket available";
-                break;
-            case VISCA_ERROR_CMD_NOT_EXECUTABLE:
-                error_msg = "Command not executable";
-                break;
-            default:
-                error_msg = "Unknown VISCA error: " + std::to_string(result);
-                break;
-        }
-
-        return Result<void>::error(error_msg);
+        return Result<void>::error(getViscaErrorMessage(result));
     }
 
-    Result<uint16_t> SonyCamera::sendInquiry(const std::function<uint32_t(uint16_t*)>& inquiry) {
-        uint16_t value = 0;
-        const uint32_t result = inquiry(&value);
+    Result<bool> SonyCamera::isAutoFocusEnabled() const {
+        uint8_t value = 0;
+        const uint32_t result = VISCA_get_focus_auto(&interface_, &camera_, &value);
 
         if (result == VISCA_SUCCESS) {
-            return Result<uint16_t>::success(value);
+            return Result<bool>::success(value == VISCA_ON);
         }
 
-        std::string error_msg;
-        switch (result) {
+        return Result<bool>::error("Failed to get auto focus status: " + getViscaErrorMessage(result));
+    }
+
+    std::string SonyCamera::getViscaErrorMessage(const uint32_t error_code) {
+        switch (error_code) {
             case VISCA_ERROR_MESSAGE_LENGTH:
-                error_msg = "Invalid message length";
-                break;
+                return "Invalid message length";
             case VISCA_ERROR_SYNTAX:
-                error_msg = "Syntax error";
-                break;
+                return "Syntax error";
             case VISCA_ERROR_CMD_BUFFER_FULL:
-                error_msg = "Command buffer full";
-                break;
+                return "Command buffer full";
             case VISCA_ERROR_CMD_CANCELLED:
-                error_msg = "Command cancelled";
-                break;
+                return "Command cancelled";
             case VISCA_ERROR_NO_SOCKET:
-                error_msg = "No socket available";
-                break;
+                return "No socket available";
             case VISCA_ERROR_CMD_NOT_EXECUTABLE:
-                error_msg = "Command not executable";
-                break;
+                return "Command not executable";
             default:
-                error_msg = "Unknown VISCA error: " + std::to_string(result);
-                break;
+                return "Unknown VISCA error: " + std::to_string(error_code);
         }
-
-        return Result<uint16_t>::error(error_msg);
     }
 }

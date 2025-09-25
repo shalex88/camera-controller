@@ -3,8 +3,6 @@ applyTo: "**/*.cpp, **/*.h, **/CMakeLists.txt, **/*.cmake"
 description: C++ guidelines
 ---
 
-Add a header comment to C++ files: 'Follows C++ guidelines'
-
 Use C++20
 
 Support only GCC compiler

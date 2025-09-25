@@ -44,6 +44,16 @@ namespace camera_service::api {
             const camera::GoToMaxZoomRequest* request,
             camera::GoToMaxZoomResponse* response) override;
 
+        grpc::ServerUnaryReactor* EnableAutoFocus(
+            grpc::CallbackServerContext* context,
+            const camera::EnableAutoFocusRequest* request,
+            camera::EnableAutoFocusResponse* response) override;
+
+        grpc::ServerUnaryReactor* IsAutoFocusEnabled(
+            grpc::CallbackServerContext* context,
+            const camera::IsAutoFocusEnabledRequest* request,
+            camera::IsAutoFocusEnabledResponse* response) override;
+
     private:
         std::shared_ptr<IRequestHandler> request_handler_;
     };

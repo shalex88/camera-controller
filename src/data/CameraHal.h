@@ -1,15 +1,13 @@
 #pragma once
-#include "ICameraHal.h"
 
+#include "ICameraHal.h"
 #include <memory>
 
 #include "ICameraHw.h"
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
 #include "common/Logger/Logger.h"
-#include "common/types/IZoomCapable.h"
-#include "common/types/IFocusCapable.h"
-#include "common/types/IInfoCapable.h"
+#include "common/types/CameraCapabilities.h"
 
 namespace camera_service::data {
     class CameraHal final : public ICameraHal {
@@ -18,15 +16,15 @@ namespace camera_service::data {
                           std::shared_ptr<LayerLogger> logger);
         ~CameraHal() override;
 
-        // IZoomCapable implementation
         Result<void> setZoom(types::zoom normalized_zoom) const override;
         Result<types::zoom> getZoom() const override;
 
-        // IFocusCapable implementation
         Result<void> setFocus(types::focus normalized_focus) const override;
         Result<types::focus> getFocus() const override;
 
-        // IInfoCapable implementation
+        Result<void> enableAutoFocus(bool on) const override;
+        Result<bool> isAutoFocusEnabled() const override;
+
         Result<types::info> getInfo() const override;
 
         // ICameraHal specific methods
@@ -48,11 +46,12 @@ namespace camera_service::data {
         types::zoom denormalizeZoom(types::zoom normalized_zoom) const;
         types::focus denormalizeFocus(types::focus normalized_focus) const;
 
-        IZoomCapable* isZoomCapable() const;
-        IFocusCapable* isFocusCapable() const;
-        IInfoCapable* isInfoCapable() const;
-
         types::ZoomRange getZoomLimits() const override;
         types::FocusRange getFocusLimits() const override;
+
+        template <typename Capability>
+        Capability* getCapability() const {
+            return dynamic_cast<Capability*>(camera_hw_.get());
+        }
     };
 }

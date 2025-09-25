@@ -9,9 +9,7 @@
 #include "data/ICameraHal.h"
 #include "data/ICameraHw.h"
 #include "data/hw_interface/mmio/IRegisterImpl.h"
-#include "common/types/IZoomCapable.h"
-#include "common/types/IFocusCapable.h"
-#include "common/types/IInfoCapable.h"
+#include "common/types/CameraCapabilities.h"
 
 using namespace camera_service;
 using namespace testing;
@@ -32,6 +30,8 @@ public:
     MOCK_METHOD(Result<types::zoom>, getZoom, (), (const, override));
     MOCK_METHOD(Result<void>, setFocus, (types::focus), (const, override));
     MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
+    MOCK_METHOD(Result<void>, enableAutoFocus, (bool), (const, override));
+    MOCK_METHOD(Result<bool>, isAutoFocusEnabled, (), (const, override));
     MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
     MOCK_METHOD(Result<void>, goToMinZoom, (), (const, override));
     MOCK_METHOD(Result<void>, goToMaxZoom, (), (const, override));
@@ -49,6 +49,8 @@ public:
     MOCK_METHOD(Result<void>, setFocus, (types::focus), (const, override));
     MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
     MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
+    MOCK_METHOD(Result<void>, enableAutoFocus, (bool), (const, override));
+    MOCK_METHOD(Result<bool>, isAutoFocusEnabled, (), (const, override));
 };
 
 class MockCameraHal : public data::ICameraHal {
@@ -67,6 +69,10 @@ public:
     MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
     MOCK_METHOD(types::FocusRange, getFocusLimits, (), (const, override));
 
+    // IAutoFocusCapable implementation
+    MOCK_METHOD(Result<void>, enableAutoFocus, (bool), (const, override));
+    MOCK_METHOD(Result<bool>, isAutoFocusEnabled, (), (const, override));
+
     // IInfoCapable implementation
     MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
 };
@@ -74,6 +80,7 @@ public:
 class MockCameraHw: public data::ICameraHw,
                      public capabilities::IZoomCapable,
                      public capabilities::IFocusCapable,
+                     public capabilities::IAutoFocusCapable,
                      public capabilities::IInfoCapable {
 public:
     MOCK_METHOD(Result<void>, connect, (), (override));
@@ -88,6 +95,10 @@ public:
     MOCK_METHOD(Result<void>, setFocus, (types::focus), (const, override));
     MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
     MOCK_METHOD(types::FocusRange, getFocusLimits, (), (const, override));
+
+    // IAutoFocusCapable implementation
+    MOCK_METHOD(Result<void>, enableAutoFocus, (bool), (const, override));
+    MOCK_METHOD(Result<bool>, isAutoFocusEnabled, (), (const, override));
 
     // IInfoCapable implementation
     MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));

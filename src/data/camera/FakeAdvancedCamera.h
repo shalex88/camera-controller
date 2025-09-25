@@ -1,14 +1,13 @@
 #pragma once
 
 #include "../ICameraHw.h"
-#include "common/types/IZoomCapable.h"
-#include "common/types/IFocusCapable.h"
-#include "common/types/IInfoCapable.h"
+#include "common/types/CameraCapabilities.h"
 
 namespace camera_service::data {
     class FakeAdvancedCamera final : public ICameraHw,
                              public capabilities::IZoomCapable,
                              public capabilities::IFocusCapable,
+                             public capabilities::IAutoFocusCapable,
                              public capabilities::IInfoCapable {
     public:
         FakeAdvancedCamera() = default;
@@ -31,6 +30,10 @@ namespace camera_service::data {
         Result<void> connect() override;
         Result<void> disconnect() override;
 
+        // IAutoFocusCapable implementation
+        Result<void> enableAutoFocus(bool on) const override;
+        Result<bool> isAutoFocusEnabled() const override;
+
     private:
         types::ZoomRange zoom_limits_{
             .min = 0x0,
@@ -44,6 +47,7 @@ namespace camera_service::data {
 
         mutable types::zoom zoom_ = zoom_limits_.min;
         mutable types::focus focus_ = focus_limits_.min;
+        mutable bool auto_focus_enabled_ = false;
         types::info info_ = "Fake Advanced Camera";
     };
 }

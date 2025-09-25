@@ -1,9 +1,7 @@
 #pragma once
 
 #include "../ICameraHw.h"
-#include "common/types/IZoomCapable.h"
-#include "common/types/IFocusCapable.h"
-#include "common/types/IInfoCapable.h"
+#include "common/types/CameraCapabilities.h"
 
 #include "data/hw_interface/mmio/RegistersMapManager.h"
 #include <memory>

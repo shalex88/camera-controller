@@ -10,6 +10,8 @@ service CameraService {
   rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {}
   rpc GoToMinZoom (GoToMinZoomRequest) returns (GoToMinZoomResponse) {}
   rpc GoToMaxZoom (GoToMaxZoomRequest) returns (GoToMaxZoomResponse) {}
+  rpc EnableAutoFocus (EnableAutoFocusRequest) returns (EnableAutoFocusResponse) {}
+  rpc IsAutoFocusEnabled (IsAutoFocusEnabledRequest) returns (IsAutoFocusEnabledResponse) {}
 }
 
 message SetZoomRequest {
@@ -32,7 +34,7 @@ message SetFocusRequest {
 }
 
 message SetFocusResponse {
-  uint32 focus = 1;
+  uint32 focus = 1; //TODO: no need to return a value
 }
 
 message GetFocusRequest {
@@ -59,4 +61,18 @@ message GoToMaxZoomRequest {
 }
 
 message GoToMaxZoomResponse {
+}
+
+message EnableAutoFocusRequest {
+  bool enable = 1;
+}
+
+message EnableAutoFocusResponse {
+}
+
+message IsAutoFocusEnabledRequest {
+}
+
+message IsAutoFocusEnabledResponse {
+  bool autofocus = 1;
 }

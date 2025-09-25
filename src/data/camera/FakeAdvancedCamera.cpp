@@ -11,11 +11,17 @@ namespace camera_service::data {
     }
 
     Result<void> FakeAdvancedCamera::setFocus(const types::focus focus) const {
+        if (auto_focus_enabled_) {
+            return Result<void>::error("Cannot set focus value while auto focus is enabled");
+        }
         focus_ = focus;
         return Result<void>::success();
     }
 
     Result<types::focus> FakeAdvancedCamera::getFocus() const {
+        if (auto_focus_enabled_) {
+            return Result<types::focus>::error("Cannot get focus value while auto focus is enabled");
+        }
         return Result<types::focus>::success(focus_);
     }
 
@@ -29,6 +35,15 @@ namespace camera_service::data {
 
     Result<void> FakeAdvancedCamera::disconnect() {
         return Result<void>::success();
+    }
+
+    Result<void> FakeAdvancedCamera::enableAutoFocus(const bool on) const {
+        auto_focus_enabled_ = on;
+        return Result<void>::success();
+    }
+
+    Result<bool> FakeAdvancedCamera::isAutoFocusEnabled() const {
+        return Result<bool>::success(auto_focus_enabled_);
     }
 
     types::ZoomRange FakeAdvancedCamera::getZoomLimits() const {

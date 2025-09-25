@@ -27,6 +27,8 @@ namespace camera_service::core {
         // Business methods for focus operations
         virtual Result<void> setFocus(types::focus focus_value) const = 0;
         virtual Result<types::focus> getFocus() const = 0;
+        virtual Result<void> enableAutoFocus(bool on) const = 0;
+        virtual Result<bool> isAutoFocusEnabled() const = 0;
 
         // Business methods for info operations
         virtual Result<types::info> getInfo() const = 0;
