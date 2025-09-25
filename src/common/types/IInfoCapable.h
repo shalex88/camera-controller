@@ -1,4 +1,3 @@
-//Follows C++ guidelines
 #pragma once
 
 #include "common/types/CameraTypes.h"

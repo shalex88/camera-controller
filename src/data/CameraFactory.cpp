@@ -3,7 +3,8 @@
 #include "data/CameraHal.h"
 #include "data/camera/AdimecCamera.h"
 #include "data/camera/SonyCamera.h"
-#include "data/camera/FakeCamera.h"
+#include "data/camera/FakeAdvancedCamera.h"
+#include "data/camera/FakeSimpleCamera.h"
 #include "data/hw_interface/mmio/RegisterImplUio.h"
 
 namespace camera_service::data {
@@ -24,8 +25,13 @@ namespace camera_service::data {
             return std::make_unique<CameraHal>(std::move(camera_hw), std::move(logger));
         }
 
-        if (config.camera == "fake") {
-            auto camera_hw = std::make_unique<FakeCamera>();
+        if (config.camera == "fake_advanced") {
+            auto camera_hw = std::make_unique<FakeAdvancedCamera>();
+            return std::make_unique<CameraHal>(std::move(camera_hw), std::move(logger));
+        }
+
+        if (config.camera == "fake_simple") {
+            auto camera_hw = std::make_unique<FakeSimpleCamera>();
             return std::make_unique<CameraHal>(std::move(camera_hw), std::move(logger));
         }
 

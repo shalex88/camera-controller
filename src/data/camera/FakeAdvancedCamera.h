@@ -6,13 +6,13 @@
 #include "common/types/IInfoCapable.h"
 
 namespace camera_service::data {
-    class FakeCamera final : public ICameraHw,
+    class FakeAdvancedCamera final : public ICameraHw,
                              public capabilities::IZoomCapable,
                              public capabilities::IFocusCapable,
                              public capabilities::IInfoCapable {
     public:
-        FakeCamera() = default;
-        ~FakeCamera() override = default;
+        FakeAdvancedCamera() = default;
+        ~FakeAdvancedCamera() override = default;
 
         // IZoomCapable implementation
         Result<void> setZoom(types::zoom zoom) const override;
@@ -44,6 +44,6 @@ namespace camera_service::data {
 
         mutable types::zoom zoom_ = zoom_limits_.min;
         mutable types::focus focus_ = focus_limits_.min;
-        types::info info_ = "Fake Camera";
+        types::info info_ = "Fake Advanced Camera";
     };
 }

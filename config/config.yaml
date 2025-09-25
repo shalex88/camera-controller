@@ -7,5 +7,5 @@ app:
   core:
     camera: wfov
   data:
-    camera: fake
+    camera: fake_advanced
     device: fake
