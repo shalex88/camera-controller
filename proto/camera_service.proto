@@ -19,7 +19,6 @@ message SetZoomRequest {
 }
 
 message SetZoomResponse {
-  uint32 zoom = 1;
 }
 
 message GetZoomRequest {
@@ -34,7 +33,6 @@ message SetFocusRequest {
 }
 
 message SetFocusResponse {
-  uint32 focus = 1; //TODO: no need to return a value
 }
 
 message GetFocusRequest {
