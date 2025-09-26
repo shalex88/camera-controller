@@ -29,6 +29,6 @@ namespace camera_service::data::uart {
 
         DeviceType detectDeviceType() const;
         Result<void> setTerminalAttributes(int baud_rate, int data_bits, int stop_bits, char parity);
-        int getBaudRateFlag(int baud_rate);
+        static int getBaudRateFlag(int baud_rate);
     };
 }

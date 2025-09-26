@@ -4,10 +4,8 @@
 #include "../../Mocks.h"
 #include "data/camera/AdimecCamera.h"
 #include "data/ICameraHal.h"
-#include "data/ICameraHw.h"
 #include "common/types/Result.h"
 #include "data/CameraHal.h"
-#include "data/hw_interface/mmio/IRegisterImpl.h"
 #include "data/hw_interface/mmio/RegistersMapManager.h"
 
 using namespace camera_service;
@@ -114,7 +112,7 @@ TEST_F(CameraTests, GetFocusWhenNotConnectedFail) {
 TEST_F(CameraTests, SetValidZoomSuccess) {
     constexpr auto normalized_zoom = 50;
 
-    types::ZoomRange zoom_limits{.min = 0, .max = 100};
+    const types::ZoomRange zoom_limits{.min = 0, .max = 100};
     EXPECT_CALL(*camera_hw_, getZoomLimits())
         .WillRepeatedly(Return(zoom_limits));
 
@@ -148,7 +146,7 @@ TEST_F(CameraTests, SetInvalidZoomFail) {
 TEST_F(CameraTests, SetValidZoomWhenCameraErrorFails) {
     constexpr auto normalized_zoom = 2;
 
-    types::ZoomRange zoom_limits{.min = 0, .max = 1000};
+    const types::ZoomRange zoom_limits{.min = 0, .max = 1000};
     EXPECT_CALL(*camera_hw_, getZoomLimits())
         .WillRepeatedly(Return(zoom_limits));
 
@@ -182,7 +180,7 @@ TEST_F(CameraTests, GetValidZoomWhenCameraErrorFails) {
 TEST_F(CameraTests, GetValidZoomSuccess) {
     constexpr auto hardware_zoom_value = 200u;
 
-    types::ZoomRange zoom_limits{.min = 0, .max = 1000};
+    const types::ZoomRange zoom_limits{.min = 0, .max = 1000};
     EXPECT_CALL(*camera_hw_, getZoomLimits())
         .WillRepeatedly(Return(zoom_limits));
 
@@ -219,7 +217,7 @@ TEST_F(CameraTests, GetInvalidZoomFail) {
 TEST_F(CameraTests, SetValidFocusSuccess) {
     constexpr auto normalized_focus = 2u;
 
-    types::FocusRange focus_limits{.min = 0, .max = 1000};
+    const types::FocusRange focus_limits{.min = 0, .max = 1000};
     EXPECT_CALL(*camera_hw_, getFocusLimits())
         .WillRepeatedly(Return(focus_limits));
 
@@ -240,7 +238,7 @@ TEST_F(CameraTests, SetValidFocusSuccess) {
 TEST_F(CameraTests, GetValidFocusSuccess) {
     constexpr auto hardware_focus_value = 200u;
 
-    types::FocusRange focus_limits{.min = 0, .max = 1000};
+    const types::FocusRange focus_limits{.min = 0, .max = 1000};
     EXPECT_CALL(*camera_hw_, getFocusLimits())
         .WillRepeatedly(Return(focus_limits));
 
@@ -262,7 +260,7 @@ TEST_F(CameraTests, GetValidFocusSuccess) {
 TEST_F(CameraTests, SetValidFocusWhenCameraErrorFails) {
     constexpr auto normalized_focus = 2u;
 
-    types::FocusRange focus_limits{.min = 0, .max = 1000};
+    const types::FocusRange focus_limits{.min = 0, .max = 1000};
     EXPECT_CALL(*camera_hw_, getFocusLimits())
         .WillRepeatedly(Return(focus_limits));
 

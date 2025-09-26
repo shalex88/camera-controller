@@ -1,8 +1,6 @@
 #pragma once
 
 #include "IUartInterface.h"
-#include <string>
-#include <map>
 #include <vector>
 
 namespace camera_service::data::uart {

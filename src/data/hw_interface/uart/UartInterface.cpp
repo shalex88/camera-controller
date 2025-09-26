@@ -18,7 +18,7 @@ UartInterface::UartInterface(std::string  device_path)
 
 UartInterface::~UartInterface() {
     if (isOpen()) {
-        auto result = close();
+        const auto result = close();
         (void)result; // Acknowledge we're ignoring the result in destructor
     }
 }
@@ -51,7 +51,7 @@ Result<void> UartInterface::close() {
     return Result<void>::success();
 }
 
-Result<void> UartInterface::configure(int baud_rate, int data_bits, int stop_bits, char parity) {
+Result<void> UartInterface::configure(const int baud_rate, const int data_bits, const int stop_bits, const char parity) {
     if (!isOpen()) {
         return Result<void>::error("UART device is not open");
     }
@@ -68,7 +68,7 @@ Result<size_t> UartInterface::write(const std::vector<char>& data) {
         return Result<size_t>::success(static_cast<size_t>(0));
     }
 
-    ssize_t bytes_written = ::write(fd_, data.data(), data.size());
+    const ssize_t bytes_written = ::write(fd_, data.data(), data.size());
     if (bytes_written < 0) {
         return Result<size_t>::error("Failed to write to UART: " + std::string(strerror(errno)));
     }
@@ -92,7 +92,7 @@ Result<std::vector<char>> UartInterface::read() {
     timeout.tv_sec = timeout_ms / 1000;
     timeout.tv_usec = (timeout_ms % 1000) * 1000;
 
-    int select_result = select(fd_ + 1, &read_fds, nullptr, nullptr, &timeout);
+    const int select_result = select(fd_ + 1, &read_fds, nullptr, nullptr, &timeout);
 
     if (select_result < 0) {
         return Result<std::vector<char>>::error("Select failed: " + std::string(strerror(errno)));
@@ -103,7 +103,7 @@ Result<std::vector<char>> UartInterface::read() {
     }
 
     std::vector<char> buffer(max_bytes);
-    ssize_t bytes_read = ::read(fd_, buffer.data(), max_bytes);
+    const ssize_t bytes_read = ::read(fd_, buffer.data(), max_bytes);
 
     if (bytes_read < 0) {
         return Result<std::vector<char>>::error("Failed to read from UART: " + std::string(strerror(errno)));
@@ -117,7 +117,7 @@ bool UartInterface::isOpen() const {
     return fd_ >= 0;
 }
 
-Result<void> UartInterface::setTerminalAttributes(int baud_rate, int data_bits, int stop_bits, char parity) {
+Result<void> UartInterface::setTerminalAttributes(const int baud_rate, const int data_bits, const int stop_bits, const char parity) {
     termios tty = {};
 
     if (tcgetattr(fd_, &tty) != 0) {
@@ -166,7 +166,7 @@ Result<void> UartInterface::setTerminalAttributes(int baud_rate, int data_bits, 
         }
     } else {
         // Configure baud rate (only for real UART devices)
-        int baud_flag = getBaudRateFlag(baud_rate);
+        const int baud_flag = getBaudRateFlag(baud_rate);
         if (baud_flag == -1) {
             return Result<void>::error("Unsupported baud rate: " + std::to_string(baud_rate));
         }
@@ -234,7 +234,7 @@ Result<void> UartInterface::setTerminalAttributes(int baud_rate, int data_bits, 
     return Result<void>::success();
 }
 
-int UartInterface::getBaudRateFlag(int baud_rate) {
+int UartInterface::getBaudRateFlag(const int baud_rate) {
     switch (baud_rate) {
         case 9600:   return B9600;
         case 19200:  return B19200;

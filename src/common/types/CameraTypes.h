@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <cstdint>
 
 namespace camera_service::types {
     using zoom = uint32_t;

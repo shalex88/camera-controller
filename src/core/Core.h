@@ -17,7 +17,7 @@ namespace camera_service::core {
                      std::shared_ptr<LayerLogger> logger);
         ~Core() override;
 
-        // ICameraService implementation
+        // ICore implementation
         Result<void> initialize() override;
         Result<void> shutdown() override;
 
@@ -35,9 +35,6 @@ namespace camera_service::core {
 
         // Business methods for info operations
         Result<types::info> getInfo() const override;
-
-    protected:
-        // No longer needed - Core delegates directly to HAL business methods
 
     private:
         bool isInitialized() const;

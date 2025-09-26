@@ -85,7 +85,7 @@ public:
         return Result(std::move(error));
     }
 
-    static Result error(std::shared_ptr<LayerLogger> logger, E error) {
+    static Result error(const std::shared_ptr<LayerLogger>& logger, E error) {
         logger->error("{}", error);
         return Result(std::move(error));
     }

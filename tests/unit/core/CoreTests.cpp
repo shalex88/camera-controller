@@ -2,7 +2,6 @@
 #include <gmock/gmock.h>
 /* Add your project include files here */
 #include "core/Core.h"
-#include "data/ICameraHal.h"
 #include "../../Mocks.h"
 #include "common/types/Result.h"
 
@@ -91,7 +90,7 @@ TEST_F(CoreTests, ZoomOperationsSuccess) {
 }
 
 TEST_F(CoreTests, ZoomOperationsFailWhenNotInitialized) {
-    core::Core core(std::move(camera), logger_impl_);
+    const core::Core core(std::move(camera), logger_impl_);
 
     // Operations should fail when not initialized
     const auto set_result = core.setZoom(50);
@@ -131,7 +130,7 @@ TEST_F(CoreTests, FocusOperations) {
 }
 
 TEST_F(CoreTests, FocusOperationsFailWhenNotInitialized) {
-    core::Core core(std::move(camera), logger_impl_);
+    const core::Core core(std::move(camera), logger_impl_);
 
     // Operations should fail when not initialized
     const auto set_result = core.setFocus(50);

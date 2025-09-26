@@ -1,7 +1,6 @@
 #pragma once
 
 #include "IRegisterImpl.h"
-#include <memory>
 #include <string>
 
 namespace camera_service::data {

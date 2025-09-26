@@ -24,7 +24,7 @@ namespace camera_service::data::uart {
         return Result<void>::success();
     }
 
-    Result<void> FakeUartInterface::configure(int baud_rate, int data_bits, int stop_bits, char parity) {
+    Result<void> FakeUartInterface::configure(const int baud_rate, const int data_bits, const int stop_bits, const char parity) {
         if (!is_open_) {
             return Result<void>::error("Fake UART device is not open");
         }

@@ -1,12 +1,14 @@
 #include "ApiController.h"
 
+#include <utility>
+
 #include "api/RequestHandler.h"
 #include "api/ITransport.h"
 #include "common/Logger/Logger.h"
 
 namespace camera_service::api {
-    ApiController::ApiController(std::shared_ptr<IRequestHandler> request_handler, std::unique_ptr<ITransport> transport, const std::string& server_address, std::shared_ptr<LayerLogger> logger)
-        : request_handler_(std::move(request_handler)), transport_(std::move(transport)), server_address_(server_address), running_(false), logger_(std::move(logger)) {
+    ApiController::ApiController(std::shared_ptr<IRequestHandler> request_handler, std::unique_ptr<ITransport> transport, std::string  server_address, std::shared_ptr<LayerLogger> logger)
+        : request_handler_(std::move(request_handler)), transport_(std::move(transport)), server_address_(std::move(server_address)), running_(false), logger_(std::move(logger)) {
         if (!request_handler_) {
             throw std::invalid_argument("Request Handler cannot be null");
         }

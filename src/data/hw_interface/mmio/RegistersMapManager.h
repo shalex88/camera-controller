@@ -10,7 +10,7 @@ namespace camera_service::data {
     public:
         explicit RegistersMapManager(std::unique_ptr<IRegisterImpl> impl) :
             register_(std::move(impl)) {
-        };
+        }
 
         ~RegistersMapManager() = default;
 
