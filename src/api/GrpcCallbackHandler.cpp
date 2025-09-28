@@ -150,18 +150,13 @@ namespace camera_service::api {
             });
     }
 
-    grpc::ServerUnaryReactor* GrpcCallbackHandler::IsAutoFocusEnabled(
+    grpc::ServerUnaryReactor* GrpcCallbackHandler::Stabilize(
     grpc::CallbackServerContext* context,
-    const camera::IsAutoFocusEnabledRequest* request,
-    camera::IsAutoFocusEnabledResponse* response) {
+    const camera::EnableStabilizationRequest* request,
+    camera::EnableStabilizationResponse* response) {
         return handleGrpcRequest(context, request, response,
-            [this](const camera::IsAutoFocusEnabledRequest* req, camera::IsAutoFocusEnabledResponse* resp) {
-                const auto result = request_handler_->isAutoFocusEnabled();
-                if (result.isSuccess()) {
-                    resp->set_autofocus(result.value());
-                    return Result<void>::success();
-                }
-                return Result<void>::error(result.error());
+            [this](const camera::EnableStabilizationRequest* req, camera::EnableStabilizationResponse* resp) {
+                return request_handler_->stabilize(req->enable());
             });
     }
 }

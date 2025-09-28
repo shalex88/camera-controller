@@ -49,10 +49,10 @@ namespace camera_service::api {
             const camera::EnableAutoFocusRequest* request,
             camera::EnableAutoFocusResponse* response) override;
 
-        grpc::ServerUnaryReactor* IsAutoFocusEnabled(
+        grpc::ServerUnaryReactor* Stabilize(
             grpc::CallbackServerContext* context,
-            const camera::IsAutoFocusEnabledRequest* request,
-            camera::IsAutoFocusEnabledResponse* response) override;
+            const camera::EnableStabilizationRequest* request,
+            camera::EnableStabilizationResponse* response) override;
 
     private:
         std::shared_ptr<IRequestHandler> request_handler_;

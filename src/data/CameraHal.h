@@ -21,11 +21,11 @@ namespace camera_service::data {
 
         Result<void> setFocus(types::focus normalized_focus) const override;
         Result<types::focus> getFocus() const override;
-
         Result<void> enableAutoFocus(bool on) const override;
-        Result<bool> isAutoFocusEnabled() const override;
 
         Result<types::info> getInfo() const override;
+
+        Result<void> stabilize(bool on) const override;
 
         // ICameraHal specific methods
         Result<void> connect() override;

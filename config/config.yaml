@@ -1,5 +1,5 @@
 app:
-  name: demo
+  name: fake
   log_level: debug
   api:
     api_type: grpc
@@ -7,5 +7,5 @@ app:
   core:
     camera: wfov
   data:
-    camera: fake_simple
+    camera: fake_advanced
     device: fake

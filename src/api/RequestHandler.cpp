@@ -174,23 +174,6 @@ namespace camera_service::api {
         return operation;
     }
 
-    Result<bool> RequestHandler::isAutoFocusEnabled() const {
-        if (!isRunning()) {
-            return Result<bool>::error("Request Handler is not running");
-        }
-
-        logger_->debug("Request: {}", __func__);
-
-        auto operation = core_->isAutoFocusEnabled();
-        if (operation.isError()) {
-            logger_->error("Response: {}", operation.error());
-        } else {
-            logger_->debug("Response: {}", operation.value());
-        }
-
-        return operation;
-    }
-
     Result<types::info> RequestHandler::getInfo() const {
         if (!isRunning()) {
             return Result<types::info>::error("Request Handler is not running");
@@ -204,6 +187,23 @@ namespace camera_service::api {
             logger_->error("Response: {}", operation.error());
         } else {
             logger_->debug("Response: {}", operation.value());
+        }
+
+        return operation;
+    }
+
+    Result<void> RequestHandler::stabilize(const bool on) const {
+        if (!isRunning()) {
+            return Result<void>::error("Request Handler is not running");
+        }
+
+        logger_->debug("Request: {} {}", __func__, on);
+
+        auto operation = core_->stabilize(on);
+        if (operation.isError()) {
+            logger_->error("Response: {}", operation.error());
+        } else {
+            logger_->debug("Response: Success");
         }
 
         return operation;

@@ -159,4 +159,12 @@ namespace camera_service::data {
                 return "Unknown VISCA error: " + std::to_string(error_code);
         }
     }
+
+    Result<void> SonyCamera::stabilize(const bool on) const {
+        const uint32_t result = VISCA_set_cam_stabilizer(&interface_, &camera_, on ? VISCA_CAM_STABILIZER_ON : VISCA_CAM_STABILIZER_OFF);
+        if (result == VISCA_SUCCESS) {
+            return Result<void>::success();
+        }
+        return Result<void>::error(getViscaErrorMessage(result));
+    }
 }

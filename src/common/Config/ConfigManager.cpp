@@ -21,7 +21,7 @@ void ApiConfig::validate() const {
 }
 
 void CoreConfig::validate() const {
-    static const std::set<std::string> valid_cameras{"nfov", "wfov"};
+    static const std::set<std::string> valid_cameras{"nfov", "wfov", "mwir"};
 
     if (camera.empty()) {
         throw ConfigException("Camera type cannot be empty");
@@ -29,7 +29,7 @@ void CoreConfig::validate() const {
 }
 
 void DataConfig::validate() const {
-    static const std::set<std::string> valid_cameras{"sony", "adimec", "fake_advanced", "fake_simple"};
+    static const std::set<std::string> valid_cameras{"sony", "adimec", "fake_advanced", "fake_simple", "mwir"};
 
     if (camera.empty()) {
         throw ConfigException("Data camera type cannot be empty");

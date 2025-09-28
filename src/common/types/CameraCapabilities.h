@@ -27,7 +27,6 @@ namespace camera_service::capabilities {
         virtual ~IAutoFocusCapable() = default;
 
         virtual Result<void> enableAutoFocus(bool on) const = 0;
-        virtual Result<bool> isAutoFocusEnabled() const = 0;
     };
 
     class IInfoCapable {
@@ -35,5 +34,12 @@ namespace camera_service::capabilities {
         virtual ~IInfoCapable() = default;
 
         virtual Result<types::info> getInfo() const = 0;
+    };
+
+    class IStabilizeCapable {
+    public:
+        virtual ~IStabilizeCapable() = default;
+
+        virtual Result<void> stabilize(bool on) const = 0;
     };
 }

@@ -139,26 +139,6 @@ namespace camera_service::data {
         return auto_focus_capable->enableAutoFocus(on);
     }
 
-    Result<bool> CameraHal::isAutoFocusEnabled() const {
-        if (!isConnected()) {
-            return Result<bool>::error(logger_, "Camera not connected");
-        }
-
-        const auto* focus_capable = getCapability<capabilities::IAutoFocusCapable>();
-        if (!focus_capable) {
-            return Result<bool>::error(logger_, "Camera doesn't support auto focus");
-        }
-
-        logger_->debug(__func__);
-
-        const auto is_autofocus_result = focus_capable->isAutoFocusEnabled();
-        if (is_autofocus_result.isError()) {
-            return Result<bool>::error(logger_, is_autofocus_result.error());
-        }
-
-        return Result<bool>::success(is_autofocus_result.value());
-    }
-
     Result<types::info> CameraHal::getInfo() const {
         if (!isConnected()) {
             return Result<types::info>::error(logger_, "Camera not connected");
@@ -176,6 +156,21 @@ namespace camera_service::data {
 
         logger_->debug("{} {}", __func__, info_result.value());
         return info_result;
+    }
+
+    Result<void> CameraHal::stabilize(const bool on) const {
+        if (!isConnected()) {
+            return Result<void>::error(logger_, "Camera not connected");
+        }
+
+        const auto* stabilize_capable = getCapability<capabilities::IStabilizeCapable>();
+        if (!stabilize_capable) {
+            return Result<void>::error(logger_, "Camera doesn't support auto focus");
+        }
+
+        logger_->debug(__func__);
+
+        return stabilize_capable->stabilize(on);
     }
 
     Result<void> CameraHal::connect() {
@@ -238,26 +233,26 @@ namespace camera_service::data {
     }
 
     bool CameraHal::isValidNormalizedZoom(const types::zoom value) {
-        return value >= 0 && value <= 100;
+        return value >= 0 && value <= 100; //FIXME: use constants
     }
 
     bool CameraHal::isValidNormalizedFocus(const types::focus value) {
-        return value >= 0 && value <= 100;
+        return value >= 0 && value <= 100; //FIXME: use constants
     }
 
     types::zoom CameraHal::normalizeZoom(const types::zoom camera_zoom) const {
-        return (camera_zoom - getZoomLimits().min) * 100 / (getZoomLimits().max - getZoomLimits().min);
+        return (camera_zoom - getZoomLimits().min) * 100 / (getZoomLimits().max - getZoomLimits().min); //FIXME: use constants
     }
 
     types::focus CameraHal::normalizeFocus(const types::focus camera_focus) const {
-        return (camera_focus - getFocusLimits().min) * 100 / (getFocusLimits().max - getFocusLimits().min);
+        return (camera_focus - getFocusLimits().min) * 100 / (getFocusLimits().max - getFocusLimits().min); //FIXME: use constants
     }
 
     types::zoom CameraHal::denormalizeZoom(const types::zoom normalized_zoom) const {
-        return getZoomLimits().min + (normalized_zoom * (getZoomLimits().max - getZoomLimits().min)) / 100;
+        return getZoomLimits().min + (normalized_zoom * (getZoomLimits().max - getZoomLimits().min)) / 100; //FIXME: use constants
     }
 
     types::focus CameraHal::denormalizeFocus(const types::focus normalized_focus) const {
-        return getFocusLimits().min + (normalized_focus * (getFocusLimits().max - getFocusLimits().min)) / 100;
+        return getFocusLimits().min + (normalized_focus * (getFocusLimits().max - getFocusLimits().min)) / 100; //FIXME: use constants
     }
 }

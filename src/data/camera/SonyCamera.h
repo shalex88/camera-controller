@@ -9,6 +9,7 @@ namespace camera_service::data {
                              public capabilities::IZoomCapable,
                              public capabilities::IFocusCapable,
                              public capabilities::IAutoFocusCapable,
+                             public capabilities::IStabilizeCapable,
                              public capabilities::IInfoCapable {
     public:
         explicit SonyCamera(std::string device_path);
@@ -26,10 +27,13 @@ namespace camera_service::data {
 
         // IAutoFocusCapable implementation
         Result<void> enableAutoFocus(bool on) const override;
-        Result<bool> isAutoFocusEnabled() const override;
+        Result<bool> isAutoFocusEnabled() const;
 
         // IInfoCapable implementation
         Result<types::info> getInfo() const override;
+
+        // IStabilizeCapable implementation
+        Result<void> stabilize(bool on) const override;
 
         // ICameraHw implementation
         Result<void> connect() override;

@@ -106,19 +106,19 @@ namespace camera_service::core {
         return camera_->enableAutoFocus(on);
     }
 
-    Result<bool> Core::isAutoFocusEnabled() const {
-        if (!isInitialized()) {
-            return Result<bool>::error("Core is not initialized");
-        }
-
-        return camera_->isAutoFocusEnabled();
-    }
-
     Result<types::info> Core::getInfo() const {
         if (!isInitialized()) {
             return Result<types::info>::error("Core is not initialized");
         }
 
         return camera_->getInfo();
+    }
+
+    Result<void> Core::stabilize(const bool on) const {
+        if (!isInitialized()) {
+            return Result<void>::error("Core is not initialized");
+        }
+
+        return camera_->stabilize(on);
     }
 }

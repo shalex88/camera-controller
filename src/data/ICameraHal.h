@@ -7,6 +7,7 @@ namespace camera_service::data {
     class ICameraHal : public capabilities::IZoomCapable,
                        public capabilities::IFocusCapable,
                        public capabilities::IAutoFocusCapable,
+                       public capabilities::IStabilizeCapable,
                        public capabilities::IInfoCapable {
     public:
         ~ICameraHal() override = default;

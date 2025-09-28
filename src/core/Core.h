@@ -31,10 +31,12 @@ namespace camera_service::core {
         Result<void> setFocus(types::focus focus_value) const override;
         Result<types::focus> getFocus() const override;
         Result<void> enableAutoFocus(bool on) const override;
-        Result<bool> isAutoFocusEnabled() const override;
 
         // Business methods for info operations
         Result<types::info> getInfo() const override;
+
+        // Business methods for advanced operations
+        Result<void> stabilize(bool on) const override;
 
     private:
         bool isInitialized() const;

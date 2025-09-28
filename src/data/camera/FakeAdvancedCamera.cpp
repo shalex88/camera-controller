@@ -46,6 +46,11 @@ namespace camera_service::data {
         return Result<bool>::success(auto_focus_enabled_);
     }
 
+    Result<void> FakeAdvancedCamera::stabilize(const bool on) const {
+        stabilize_enabled_ = on;
+        return Result<void>::success();
+    }
+
     types::ZoomRange FakeAdvancedCamera::getZoomLimits() const {
         return zoom_limits_;
     }

@@ -11,7 +11,7 @@ service CameraService {
   rpc GoToMinZoom (GoToMinZoomRequest) returns (GoToMinZoomResponse) {}
   rpc GoToMaxZoom (GoToMaxZoomRequest) returns (GoToMaxZoomResponse) {}
   rpc EnableAutoFocus (EnableAutoFocusRequest) returns (EnableAutoFocusResponse) {}
-  rpc IsAutoFocusEnabled (IsAutoFocusEnabledRequest) returns (IsAutoFocusEnabledResponse) {}
+  rpc Stabilize (EnableStabilizationRequest) returns (EnableStabilizationResponse) {}
 }
 
 message SetZoomRequest {
@@ -68,9 +68,9 @@ message EnableAutoFocusRequest {
 message EnableAutoFocusResponse {
 }
 
-message IsAutoFocusEnabledRequest {
+message EnableStabilizationRequest {
+  bool enable = 1;
 }
 
-message IsAutoFocusEnabledResponse {
-  bool autofocus = 1;
+message EnableStabilizationResponse {
 }
