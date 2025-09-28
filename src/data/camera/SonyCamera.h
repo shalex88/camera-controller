@@ -40,12 +40,12 @@ namespace camera_service::data {
         Result<void> disconnect() override;
 
     private:
-        types::ZoomRange zoom_limits_{
+        const types::ZoomRange zoom_limits_{
             .min = 0x0000,
             .max = 0x4000
         };
 
-        types::FocusRange focus_limits_{
+        const types::FocusRange focus_limits_{
             .min = 0x1000,
             .max = 0xF000
         };

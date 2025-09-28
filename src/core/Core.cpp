@@ -75,11 +75,11 @@ namespace camera_service::core {
     }
 
     Result<void> Core::goToMinZoom() const {
-        return setZoom(types::kMinNormalizedZoom);
+        return setZoom(types::MIN_NORMALIZED_ZOOM);
     }
 
     Result<void> Core::goToMaxZoom() const {
-        return setZoom(types::kMaxNormalizedZoom);
+        return setZoom(types::MAX_NORMALIZED_ZOOM);
     }
 
     Result<void> Core::setFocus(const types::focus focus_value) const {

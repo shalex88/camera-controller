@@ -7,11 +7,11 @@ namespace camera_service::types {
     using focus = uint32_t;
     using info = std::string;
 
-    inline zoom kMinNormalizedZoom = 0; //FIXME: const
-    inline zoom kMaxNormalizedZoom = 100;
+    inline constexpr zoom MIN_NORMALIZED_ZOOM = 0;
+    inline constexpr zoom MAX_NORMALIZED_ZOOM = 100;
 
-    inline focus kMinNormalizedFocus = 0;
-    inline focus kMaxNormalizedFocus = 100;
+    inline constexpr focus MIN_NORMALIZED_FOCUS = 0;
+    inline constexpr focus MAX_NORMALIZED_FOCUS = 100;
 
     struct ZoomRange {
         zoom min;

@@ -10,6 +10,12 @@ namespace camera_service::data {
         if (!logger_) {
             throw std::invalid_argument("Logger cannot be null");
         }
+        if (getZoomLimits().min >= getZoomLimits().max) {
+            throw std::runtime_error("Invalid zoom limits from camera");
+        }
+        if (getFocusLimits().min >= getFocusLimits().max) {
+            throw std::runtime_error("Invalid focus limits from camera");
+        }
     }
 
     CameraHal::~CameraHal() {
@@ -217,11 +223,11 @@ namespace camera_service::data {
     }
 
     types::FocusRange CameraHal::getFocusLimits() const {
-        const auto* focus_capable = getCapability<capabilities::IFocusCapable>();
-        if (!focus_capable) {
+        const auto* focus_capable_camera = getCapability<capabilities::IFocusCapable>();
+        if (!focus_capable_camera) {
             throw std::runtime_error("Camera doesn't support focus"); //FIXME: think of a better solution
         }
-        return focus_capable->getFocusLimits();
+        return focus_capable_camera->getFocusLimits();
     }
 
     bool CameraHal::isValidCameraZoom(const types::zoom value) const {
@@ -233,26 +239,58 @@ namespace camera_service::data {
     }
 
     bool CameraHal::isValidNormalizedZoom(const types::zoom value) {
-        return value >= 0 && value <= 100; //FIXME: use constants
+        return value >= types::MIN_NORMALIZED_ZOOM && value <= types::MAX_NORMALIZED_ZOOM;
     }
 
     bool CameraHal::isValidNormalizedFocus(const types::focus value) {
-        return value >= 0 && value <= 100; //FIXME: use constants
+        return value >= types::MIN_NORMALIZED_FOCUS && value <= types::MAX_NORMALIZED_FOCUS;
     }
 
     types::zoom CameraHal::normalizeZoom(const types::zoom camera_zoom) const {
-        return (camera_zoom - getZoomLimits().min) * 100 / (getZoomLimits().max - getZoomLimits().min); //FIXME: use constants
+        const auto [min, max] = getZoomLimits();
+        const auto range = max - min;
+
+        const long long numerator = static_cast<long long>(camera_zoom - min) * types::MAX_NORMALIZED_ZOOM;
+        const long long rounded = (numerator >= 0)
+            ? (numerator + range / 2) / range
+            : -(((-numerator) + range / 2) / range);
+
+        return static_cast<types::zoom>(rounded);
     }
 
     types::focus CameraHal::normalizeFocus(const types::focus camera_focus) const {
-        return (camera_focus - getFocusLimits().min) * 100 / (getFocusLimits().max - getFocusLimits().min); //FIXME: use constants
+        const auto [min, max] = getFocusLimits();
+        const auto range = max - min;
+
+        const long long numerator = static_cast<long long>(camera_focus - min) * types::MAX_NORMALIZED_FOCUS;
+        const long long rounded = (numerator >= 0)
+            ? (numerator + range / 2) / range
+            : -(((-numerator) + range / 2) / range);
+
+        return static_cast<types::focus>(rounded);
     }
 
     types::zoom CameraHal::denormalizeZoom(const types::zoom normalized_zoom) const {
-        return getZoomLimits().min + (normalized_zoom * (getZoomLimits().max - getZoomLimits().min)) / 100; //FIXME: use constants
+        const auto [min, max] = getZoomLimits();
+        const auto range = max - min;
+
+        const long long numerator = static_cast<long long>(normalized_zoom) * range;
+        const long long rounded = (numerator >= 0)
+            ? (numerator + types::MAX_NORMALIZED_ZOOM / 2) / types::MAX_NORMALIZED_ZOOM
+            : -(((-numerator) + types::MAX_NORMALIZED_ZOOM / 2) / types::MAX_NORMALIZED_ZOOM);
+
+        return static_cast<types::zoom>(min + rounded);
     }
 
     types::focus CameraHal::denormalizeFocus(const types::focus normalized_focus) const {
-        return getFocusLimits().min + (normalized_focus * (getFocusLimits().max - getFocusLimits().min)) / 100; //FIXME: use constants
+        const auto [min, max] = getFocusLimits();
+        const auto range = max - min;
+
+        const long long numerator = static_cast<long long>(normalized_focus) * range;
+        const long long rounded = (numerator >= 0)
+            ? (numerator + types::MAX_NORMALIZED_FOCUS / 2) / types::MAX_NORMALIZED_FOCUS
+            : -(((-numerator) + types::MAX_NORMALIZED_FOCUS / 2) / types::MAX_NORMALIZED_FOCUS);
+
+        return static_cast<types::focus>(min + rounded);
     }
 }

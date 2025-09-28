@@ -39,19 +39,19 @@ namespace camera_service::data {
         Result<void> stabilize(bool on) const override;
 
     private:
-        types::ZoomRange zoom_limits_{
+        const types::ZoomRange zoom_limits_{
             .min = 0x0,
             .max = 0xFF
         };
 
-        types::FocusRange focus_limits_{
+        const types::FocusRange focus_limits_{
             .min = 0x0,
             .max = 0xFF
         };
 
         mutable types::zoom zoom_ = zoom_limits_.min;
         mutable types::focus focus_ = focus_limits_.min;
-        mutable bool auto_focus_enabled_ = false;
+        mutable bool auto_focus_enabled_ = true;
         mutable bool stabilize_enabled_ = false;
         types::info info_ = "Fake Advanced Camera";
     };

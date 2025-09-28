@@ -7,7 +7,6 @@
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
 #include "common/Logger/Logger.h"
-#include "common/types/CameraCapabilities.h"
 
 namespace camera_service::data {
     class CameraHal final : public ICameraHal {
@@ -27,7 +26,6 @@ namespace camera_service::data {
 
         Result<void> stabilize(bool on) const override;
 
-        // ICameraHal specific methods
         Result<void> connect() override;
         Result<void> disconnect() override;
         bool isConnected() const override;
