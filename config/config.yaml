@@ -1,11 +1,11 @@
 app:
-  name: fake
+  name: simulator
   log_level: debug
   api:
     api_type: grpc
     server_address: 0.0.0.0:50051
   core:
-    camera: wfov
+    camera: core
   data:
     camera: fake_advanced
     device: fake

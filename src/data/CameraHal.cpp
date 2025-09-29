@@ -171,7 +171,7 @@ namespace camera_service::data {
 
         const auto* stabilize_capable = getCapability<capabilities::IStabilizeCapable>();
         if (!stabilize_capable) {
-            return Result<void>::error(logger_, "Camera doesn't support auto focus");
+            return Result<void>::error(logger_, "Camera doesn't support stabilization");
         }
 
         logger_->debug(__func__);

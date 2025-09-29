@@ -5,11 +5,7 @@
 namespace camera_service::core {
     std::unique_ptr<ICore> CoreFactory::createCore(std::unique_ptr<data::ICameraHal> camera,
                                                    std::shared_ptr<LayerLogger> logger, const CoreConfig& config) {
-        if (config.camera == "nfov") {
-            return std::make_unique<Core>(std::move(camera), std::move(logger));
-        }
-
-        if (config.camera == "wfov") {
+        if (config.camera == "core") {
             return std::make_unique<Core>(std::move(camera), std::move(logger));
         }
 

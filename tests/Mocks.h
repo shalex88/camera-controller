@@ -31,10 +31,10 @@ public:
     MOCK_METHOD(Result<void>, setFocus, (types::focus), (const, override));
     MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
     MOCK_METHOD(Result<void>, enableAutoFocus, (bool), (const, override));
-    MOCK_METHOD(Result<bool>, isAutoFocusEnabled, (), (const, override));
     MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
     MOCK_METHOD(Result<void>, goToMinZoom, (), (const, override));
     MOCK_METHOD(Result<void>, goToMaxZoom, (), (const, override));
+    MOCK_METHOD(Result<void>, stabilize, (bool), (const, override));
 };
 
 class CoreMock: public core::ICore {
@@ -50,7 +50,7 @@ public:
     MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
     MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
     MOCK_METHOD(Result<void>, enableAutoFocus, (bool), (const, override));
-    MOCK_METHOD(Result<bool>, isAutoFocusEnabled, (), (const, override));
+    MOCK_METHOD(Result<void>, stabilize, (bool), (const, override));
 };
 
 class MockCameraHal : public data::ICameraHal {
@@ -71,16 +71,19 @@ public:
 
     // IAutoFocusCapable implementation
     MOCK_METHOD(Result<void>, enableAutoFocus, (bool), (const, override));
-    MOCK_METHOD(Result<bool>, isAutoFocusEnabled, (), (const, override));
 
     // IInfoCapable implementation
     MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
+
+    // IStabilizationCapable implementation
+    MOCK_METHOD(Result<void>, stabilize, (bool), (const, override));
 };
 
 class MockCameraHw: public data::ICameraHw,
                      public capabilities::IZoomCapable,
                      public capabilities::IFocusCapable,
                      public capabilities::IAutoFocusCapable,
+                     public capabilities::IStabilizeCapable,
                      public capabilities::IInfoCapable {
 public:
     MOCK_METHOD(Result<void>, connect, (), (override));
@@ -98,10 +101,12 @@ public:
 
     // IAutoFocusCapable implementation
     MOCK_METHOD(Result<void>, enableAutoFocus, (bool), (const, override));
-    MOCK_METHOD(Result<bool>, isAutoFocusEnabled, (), (const, override));
 
     // IInfoCapable implementation
     MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
+
+    // IStabilizationCapable implementation
+    MOCK_METHOD(Result<void>, stabilize, (bool), (const, override));
 };
 
 class MockRegisterImpl: public data::IRegisterImpl {

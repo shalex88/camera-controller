@@ -1,11 +1,11 @@
 app:
   name: mwir
-  log_level: debug
+  log_level: info
   api:
     api_type: grpc
     server_address: 0.0.0.0:50051
   core:
     camera: core
   data:
-    camera: sony
-    device: /dev/ttyPS1
+    camera: mwir
+    device: 192.168.1.51:2017

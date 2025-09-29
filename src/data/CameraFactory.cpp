@@ -3,9 +3,11 @@
 #include "data/CameraHal.h"
 #include "data/camera/AdimecCamera.h"
 #include "data/camera/SonyCamera.h"
+#include "data/camera/MwirCamera.h"
 #include "data/camera/FakeAdvancedCamera.h"
 #include "data/camera/FakeSimpleCamera.h"
 #include "data/hw_interface/mmio/RegisterImplUio.h"
+#include "data/hw_interface/ethernet/TcpClient.h"
 
 namespace camera_service::data {
     std::unique_ptr<ICameraHal> CameraFactory::createCamera(
@@ -22,6 +24,12 @@ namespace camera_service::data {
 
         if (config.camera == "sony") {
             auto camera_hw = std::make_unique<SonyCamera>(config.device);
+            return std::make_unique<CameraHal>(std::move(camera_hw), std::move(logger));
+        }
+
+        if (config.camera == "mwir") {
+            auto tcp_client = std::make_unique<TcpClient>(config.device);
+            auto camera_hw = std::make_unique<MwirCamera>(std::move(tcp_client));
             return std::make_unique<CameraHal>(std::move(camera_hw), std::move(logger));
         }
 
