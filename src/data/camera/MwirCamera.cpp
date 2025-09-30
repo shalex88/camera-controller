@@ -1,13 +1,11 @@
 #include "MwirCamera.h"
 
-#include "CLI/TypeTools.hpp"
-#include "data/hw_interface/ethernet/EthernetClient.h"
-#include "data/hw_interface/ethernet/MwirOpcodes.h"
+#include "data/transport/ethernet/MwirOpcodes.h"
 
 namespace camera_service::data {
-    MwirCamera::MwirCamera(std::unique_ptr<EthernetClient> transport) : transport_(std::move(transport)) {
-        if (!transport_) {
-            throw std::invalid_argument("Transport cannot be null");
+    MwirCamera::MwirCamera(std::unique_ptr<ItlProtocol> protocol) : protocol_(std::move(protocol)) {
+        if (!protocol_) {
+            throw std::invalid_argument("Protocol cannot be null");
         }
     }
 
@@ -38,7 +36,7 @@ namespace camera_service::data {
     Result<types::info> MwirCamera::getInfo() const {
         constexpr std::vector<uint8_t> payload;
 
-        const auto info = transport_->sendPayload(MWIR_GET_VERSION, payload);
+        const auto info = protocol_->sendPayload(MWIR_GET_VERSION, payload);
         if (info.isError()) {
             return Result<types::info>::error(info.error());
         }
@@ -50,17 +48,17 @@ namespace camera_service::data {
     }
 
     Result<void> MwirCamera::connect() {
-        if (const auto result = transport_->connect(); result.isError()) {
-            return Result<void>::error("Failed to connect to camera transport: " + result.error());
+        if (const auto result = protocol_->connect(); result.isError()) {
+            return Result<void>::error(result.error());
         }
         return Result<void>::success();
     }
 
     Result<void> MwirCamera::disconnect() {
-        if (const auto result = transport_->disconnect(); !result.isError()) {
-            return Result<void>::error("Failed to connect to camera transport: " + result.error());
+        if (const auto result = protocol_->disconnect(); !result.isError()) {
+            return Result<void>::success();
         }
-        return Result<void>::success();
+        return Result<void>::error("Failed to disconnect");
     }
 
     Result<void> MwirCamera::enableAutoFocus(const bool on) const {

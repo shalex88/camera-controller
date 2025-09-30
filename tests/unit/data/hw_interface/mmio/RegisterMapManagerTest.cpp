@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 /* Add your project include files here */
-#include "data/hw_interface/mmio/RegistersMapManager.h"
+#include "data/transport/mmio/RegistersMapManager.h"
 #include "../../../../Mocks.h"
 #include <thread>
 

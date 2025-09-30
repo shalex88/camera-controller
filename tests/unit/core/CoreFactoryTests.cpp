@@ -20,7 +20,7 @@ protected:
 
 TEST_F(CoreFactoryTests, CreateCameraCoreSuccess) {
     CoreConfig config;
-    config.camera = "nfov";  // Valid camera type
+    config.camera = "core";
 
     const auto core = core::CoreFactory::createCore(std::move(core_), logger_impl_, config);
     ASSERT_NE(nullptr, core);

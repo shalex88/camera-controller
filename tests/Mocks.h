@@ -8,7 +8,7 @@
 #include "core/ICore.h"
 #include "data/ICameraHal.h"
 #include "data/ICameraHw.h"
-#include "data/hw_interface/mmio/IRegisterImpl.h"
+#include "data/transport/mmio/IRegisterImpl.h"
 #include "common/types/CameraCapabilities.h"
 
 using namespace camera_service;
@@ -86,6 +86,17 @@ class MockCameraHw: public data::ICameraHw,
                      public capabilities::IStabilizeCapable,
                      public capabilities::IInfoCapable {
 public:
+    MockCameraHw() {
+        // Set up default behavior for zoom and focus limits to prevent constructor validation failures
+        const types::ZoomRange default_zoom_limits{.min = 0, .max = 1000};
+        const types::FocusRange default_focus_limits{.min = 0, .max = 1000};
+
+        ON_CALL(*this, getZoomLimits())
+            .WillByDefault(Return(default_zoom_limits));
+        ON_CALL(*this, getFocusLimits())
+            .WillByDefault(Return(default_focus_limits));
+    }
+
     MOCK_METHOD(Result<void>, connect, (), (override));
     MOCK_METHOD(Result<void>, disconnect, (), (override));
 

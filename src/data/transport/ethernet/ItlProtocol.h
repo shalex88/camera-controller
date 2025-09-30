@@ -1,31 +1,40 @@
 #pragma once
 
-#include <string>
 #include <vector>
+#include <memory>
 
 #include "common/types/Result.h"
+#include "TcpClient.h"
 
 namespace camera_service::data {
-    struct ItlHeader;
-    struct ItlMessage;
+    struct __attribute__((packed)) ItlHeader {
+        uint32_t opcode = 0;
+        uint8_t id[4] = {'F', 'R', 'T', 'R'};
+        uint16_t length = 0;
+        uint16_t counter = 0;
+        uint32_t time_stamp = 0;
+        uint8_t source = 0;
+        uint8_t destination = 0;
+        uint16_t checksum = 0;
+    };
 
-    class TcpClient {
+    struct ItlMessage {
+        ItlHeader header;
+        std::vector<uint8_t> payload;
+    };
+
+    class ItlProtocol {
     public:
-        explicit TcpClient(const std::string& device_path);
-        ~TcpClient();
+        explicit ItlProtocol(std::unique_ptr<TcpClient> transport);
+        ~ItlProtocol() = default;
 
-        Result<void> connect();
-        Result<void> disconnect();
+        Result<void> connect() const;
+        Result<void> disconnect() const;
         Result<std::vector<uint8_t>> sendPayload(uint32_t opcode, const std::vector<uint8_t>& payload) const;
 
     private:
-        std::string ip_;
-        uint16_t port_ = 0;
-        int socket_fd_ = -1;
-        bool is_connected_ = false;
+        std::unique_ptr<TcpClient> transport_;
 
-        Result<void> send(const std::vector<uint8_t>& payload) const;
-        Result<std::vector<uint8_t>> receive() const;
         static std::vector<uint8_t> createMessage(uint32_t opcode, const std::vector<uint8_t>& payload);
         static std::vector<uint8_t> serialize(ItlMessage message);
         static std::vector<uint8_t> serializeHeader(const ItlHeader& header);

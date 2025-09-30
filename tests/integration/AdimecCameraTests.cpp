@@ -4,8 +4,8 @@
 #include "common/Config/ConfigManager.h"
 #include "data/CameraHal.h"
 #include "data/camera/AdimecCamera.h"
-#include "data/hw_interface/mmio/RegistersMapManager.h"
-#include "data/hw_interface/mmio/RegisterImplUio.h"
+#include "data/transport/mmio/RegistersMapManager.h"
+#include "data/transport/mmio/RegisterImplUio.h"
 #include "common/types/Result.h"
 
 using namespace camera_service;

@@ -2,7 +2,8 @@
 
 #include "../ICameraHw.h"
 #include "common/types/CameraCapabilities.h"
-#include "data/hw_interface/ethernet/TcpClient.h"
+#include "common/types/CameraTypes.h"
+#include "data/transport/ethernet/ItlProtocol.h"
 
 namespace camera_service::data {
     class MwirCamera final : public ICameraHw,
@@ -11,7 +12,7 @@ namespace camera_service::data {
                              public capabilities::IAutoFocusCapable,
                              public capabilities::IInfoCapable {
     public:
-        explicit MwirCamera(std::unique_ptr<TcpClient> transport);
+        explicit MwirCamera(std::unique_ptr<ItlProtocol> protocol);
         ~MwirCamera() override = default;
 
         // IZoomCapable implementation
@@ -49,6 +50,6 @@ namespace camera_service::data {
         mutable types::zoom zoom_ = zoom_limits_.min;
         mutable types::focus focus_ = focus_limits_.min;
         mutable bool auto_focus_enabled_ = true;
-        std::unique_ptr<TcpClient> transport_;
+        std::unique_ptr<ItlProtocol> protocol_;
     };
 }
