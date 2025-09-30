@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../ICameraHw.h"
-#include "../../../../libVISCA2/visca/libvisca.h"
+#include "visca/libvisca.h"
 #include "common/types/CameraCapabilities.h"
 
 namespace camera_service::data {
