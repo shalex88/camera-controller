@@ -1,19 +1,16 @@
 #pragma once
 
-#include "../ICameraHw.h"
-#include "visca/libvisca.h"
+#include "../hal/ICameraHw.h"
 #include "common/types/CameraCapabilities.h"
 
 namespace camera_service::data {
-    class SonyCamera final : public ICameraHw,
+    class FakeSimpleCamera final : public ICameraHw,
                              public capabilities::IZoomCapable,
                              public capabilities::IFocusCapable,
-                             public capabilities::IAutoFocusCapable,
-                             public capabilities::IStabilizeCapable,
                              public capabilities::IInfoCapable {
     public:
-        explicit SonyCamera(std::string device_path);
-        ~SonyCamera() override = default;
+        FakeSimpleCamera() = default;
+        ~FakeSimpleCamera() override = default;
 
         // IZoomCapable implementation
         Result<void> setZoom(types::zoom zoom) const override;
@@ -25,15 +22,8 @@ namespace camera_service::data {
         Result<types::focus> getFocus() const override;
         types::FocusRange getFocusLimits() const override;
 
-        // IAutoFocusCapable implementation
-        Result<void> enableAutoFocus(bool on) const override;
-        Result<bool> isAutoFocusEnabled() const;
-
         // IInfoCapable implementation
         Result<types::info> getInfo() const override;
-
-        // IStabilizeCapable implementation
-        Result<void> stabilize(bool on) const override;
 
         // ICameraHw implementation
         Result<void> connect() override;
@@ -41,20 +31,17 @@ namespace camera_service::data {
 
     private:
         const types::ZoomRange zoom_limits_{
-            .min = 0x0000,
-            .max = 0x4000
+            .min = 0x0,
+            .max = 0xFF
         };
 
         const types::FocusRange focus_limits_{
-            .min = 0x1000,
-            .max = 0xF000
+            .min = 0x0,
+            .max = 0xFF
         };
 
-        std::string device_path_ {};
-        mutable int32_t camera_address_ {};
-        mutable VISCAInterface_t interface_ {};
-        mutable VISCACamera_t camera_ {};
-
-        static std::string getViscaErrorMessage(uint32_t error_code);
+        mutable types::zoom zoom_ = zoom_limits_.min;
+        mutable types::focus focus_ = focus_limits_.min;
+        types::info info_ = "Fake Simple Camera";
     };
 }

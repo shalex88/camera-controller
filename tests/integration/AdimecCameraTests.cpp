@@ -2,10 +2,10 @@
 #include <gmock/gmock.h>
 /* Add your project include files here */
 #include "common/Config/ConfigManager.h"
-#include "data/CameraHal.h"
-#include "data/camera/AdimecCamera.h"
-#include "data/transport/mmio/RegistersMapManager.h"
-#include "data/transport/mmio/RegisterImplUio.h"
+#include "infrastructure/camera/hal/CameraHal.h"
+#include "infrastructure/camera/devices/AdimecCamera.h"
+#include "infrastructure/camera/transport/mmio/RegistersMapManager.h"
+#include "infrastructure/camera/transport/mmio/RegisterImplUio.h"
 #include "common/types/Result.h"
 
 using namespace camera_service;

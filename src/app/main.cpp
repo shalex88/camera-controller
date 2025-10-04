@@ -5,7 +5,7 @@
 
 #include <CLI/CLI.hpp>
 
-#include "data/CameraFactory.h"
+#include "../infrastructure/camera/CameraFactory.h"
 #include "api/ApiControllerFactory.h"
 #include "api/ApiController.h"
 #include "core/CoreFactory.h"

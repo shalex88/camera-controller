@@ -6,9 +6,9 @@
 #include "api/ITransport.h"
 #include "api/IRequestHandler.h"
 #include "core/ICore.h"
-#include "data/ICameraHal.h"
-#include "data/ICameraHw.h"
-#include "data/transport/mmio/IRegisterImpl.h"
+#include "infrastructure/camera/hal/ICameraHal.h"
+#include "infrastructure/camera/hal/ICameraHw.h"
+#include "infrastructure/camera/transport/mmio/IRegisterImpl.h"
 #include "common/types/CameraCapabilities.h"
 
 using namespace camera_service;

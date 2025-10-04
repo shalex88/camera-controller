@@ -2,7 +2,7 @@
 #include <memory>
 
 #include "common/Config/ConfigManager.h"
-#include "data/ICameraHal.h"
+#include "../infrastructure/camera/hal/ICameraHal.h"
 #include "core/ICore.h"
 #include "common/Logger/Logger.h"
 

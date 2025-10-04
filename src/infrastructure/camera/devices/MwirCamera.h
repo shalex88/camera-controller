@@ -1,18 +1,19 @@
 #pragma once
 
-#include "../ICameraHw.h"
+#include "../hal/ICameraHw.h"
+#include "infrastructure/camera/transport/ethernet/ItlProtocol.h"
 #include "common/types/CameraCapabilities.h"
+#include "common/types/CameraTypes.h"
 
 namespace camera_service::data {
-    class FakeAdvancedCamera final : public ICameraHw,
+    class MwirCamera final : public ICameraHw,
                              public capabilities::IZoomCapable,
                              public capabilities::IFocusCapable,
                              public capabilities::IAutoFocusCapable,
-                             public capabilities::IStabilizeCapable,
                              public capabilities::IInfoCapable {
     public:
-        FakeAdvancedCamera() = default;
-        ~FakeAdvancedCamera() override = default;
+        explicit MwirCamera(std::unique_ptr<ItlProtocol> protocol);
+        ~MwirCamera() override = default;
 
         // IZoomCapable implementation
         Result<void> setZoom(types::zoom zoom) const override;
@@ -35,16 +36,13 @@ namespace camera_service::data {
         Result<void> enableAutoFocus(bool on) const override;
         Result<bool> isAutoFocusEnabled() const;
 
-        // IStabilizeCapable implementation
-        Result<void> stabilize(bool on) const override;
-
     private:
-        const types::ZoomRange zoom_limits_{
+        const types::ZoomRange zoom_limits_{ //TODO: define real limits
             .min = 0x0,
             .max = 0xFF
         };
 
-        const types::FocusRange focus_limits_{
+        const types::FocusRange focus_limits_{ //TODO: define real limits
             .min = 0x0,
             .max = 0xFF
         };
@@ -52,7 +50,6 @@ namespace camera_service::data {
         mutable types::zoom zoom_ = zoom_limits_.min;
         mutable types::focus focus_ = focus_limits_.min;
         mutable bool auto_focus_enabled_ = true;
-        mutable bool stabilize_enabled_ = false;
-        types::info info_ = "Fake Advanced Camera";
+        std::unique_ptr<ItlProtocol> protocol_;
     };
 }

@@ -1,19 +1,19 @@
 #pragma once
 
-#include "../ICameraHw.h"
+#include "../hal/ICameraHw.h"
 #include "common/types/CameraCapabilities.h"
-#include "common/types/CameraTypes.h"
-#include "data/transport/ethernet/ItlProtocol.h"
+#include "visca/libvisca.h"
 
 namespace camera_service::data {
-    class MwirCamera final : public ICameraHw,
+    class SonyCamera final : public ICameraHw,
                              public capabilities::IZoomCapable,
                              public capabilities::IFocusCapable,
                              public capabilities::IAutoFocusCapable,
+                             public capabilities::IStabilizeCapable,
                              public capabilities::IInfoCapable {
     public:
-        explicit MwirCamera(std::unique_ptr<ItlProtocol> protocol);
-        ~MwirCamera() override = default;
+        explicit SonyCamera(std::string device_path);
+        ~SonyCamera() override = default;
 
         // IZoomCapable implementation
         Result<void> setZoom(types::zoom zoom) const override;
@@ -25,31 +25,36 @@ namespace camera_service::data {
         Result<types::focus> getFocus() const override;
         types::FocusRange getFocusLimits() const override;
 
+        // IAutoFocusCapable implementation
+        Result<void> enableAutoFocus(bool on) const override;
+        Result<bool> isAutoFocusEnabled() const;
+
         // IInfoCapable implementation
         Result<types::info> getInfo() const override;
+
+        // IStabilizeCapable implementation
+        Result<void> stabilize(bool on) const override;
 
         // ICameraHw implementation
         Result<void> connect() override;
         Result<void> disconnect() override;
 
-        // IAutoFocusCapable implementation
-        Result<void> enableAutoFocus(bool on) const override;
-        Result<bool> isAutoFocusEnabled() const;
-
     private:
-        const types::ZoomRange zoom_limits_{ //TODO: define real limits
-            .min = 0x0,
-            .max = 0xFF
+        const types::ZoomRange zoom_limits_{
+            .min = 0x0000,
+            .max = 0x4000
         };
 
-        const types::FocusRange focus_limits_{ //TODO: define real limits
-            .min = 0x0,
-            .max = 0xFF
+        const types::FocusRange focus_limits_{
+            .min = 0x1000,
+            .max = 0xF000
         };
 
-        mutable types::zoom zoom_ = zoom_limits_.min;
-        mutable types::focus focus_ = focus_limits_.min;
-        mutable bool auto_focus_enabled_ = true;
-        std::unique_ptr<ItlProtocol> protocol_;
+        std::string device_path_ {};
+        mutable int32_t camera_address_ {};
+        mutable VISCAInterface_t interface_ {};
+        mutable VISCACamera_t camera_ {};
+
+        static std::string getViscaErrorMessage(uint32_t error_code);
     };
 }

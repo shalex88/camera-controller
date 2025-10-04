@@ -1,6 +1,6 @@
 #include "MwirCamera.h"
 
-#include "data/transport/ethernet/MwirOpcodes.h"
+#include "infrastructure/camera/transport/ethernet/MwirOpcodes.h"
 
 namespace camera_service::data {
     MwirCamera::MwirCamera(std::unique_ptr<ItlProtocol> protocol) : protocol_(std::move(protocol)) {

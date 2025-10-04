@@ -1,14 +1,14 @@
 #include "CameraFactory.h"
 
-#include "data/CameraHal.h"
-#include "data/camera/AdimecCamera.h"
-#include "data/camera/SonyCamera.h"
-#include "data/camera/MwirCamera.h"
-#include "data/camera/FakeAdvancedCamera.h"
-#include "data/camera/FakeSimpleCamera.h"
-#include "data/transport/mmio/RegisterImplUio.h"
-#include "data/transport/ethernet/TcpClient.h"
-#include "data/transport/ethernet/ItlProtocol.h"
+#include "hal/CameraHal.h"
+#include "infrastructure/camera/devices/AdimecCamera.h"
+#include "infrastructure/camera/devices/SonyCamera.h"
+#include "infrastructure/camera/devices/MwirCamera.h"
+#include "infrastructure/camera/devices/FakeAdvancedCamera.h"
+#include "infrastructure/camera/devices/FakeSimpleCamera.h"
+#include "infrastructure/camera/transport/mmio/RegisterImplUio.h"
+#include "infrastructure/camera/transport/ethernet/TcpClient.h"
+#include "infrastructure/camera/transport/ethernet/ItlProtocol.h"
 
 namespace camera_service::data {
     std::unique_ptr<ICameraHal> CameraFactory::createCamera(

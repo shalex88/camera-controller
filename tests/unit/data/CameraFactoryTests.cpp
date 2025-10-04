@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 /* Add your project include files here */
-#include "data/CameraFactory.h"
+#include "../../../src/infrastructure/camera/CameraFactory.h"
 #include "common/Config/ConfigManager.h"
 
 using namespace camera_service;

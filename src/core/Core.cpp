@@ -1,5 +1,5 @@
 #include "Core.h"
-#include "data/ICameraHal.h"
+#include "../infrastructure/camera/hal/ICameraHal.h"
 
 namespace camera_service::core {
     Core::Core(std::unique_ptr<data::ICameraHal> camera,

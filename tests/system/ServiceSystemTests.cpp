@@ -7,7 +7,7 @@
 #include "api/ApiControllerFactory.h"
 #include "api/ApiController.h"
 #include "core/CoreFactory.h"
-#include "data/CameraFactory.h"
+#include "infrastructure/camera/CameraFactory.h"
 #include "common/Config/ConfigManager.h"
 #include "common/types/Result.h"
 #include "../../utils/GrpcClient.h"

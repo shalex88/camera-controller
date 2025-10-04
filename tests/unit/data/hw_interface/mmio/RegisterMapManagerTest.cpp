@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 /* Add your project include files here */
-#include "data/transport/mmio/RegistersMapManager.h"
+#include "infrastructure/camera/transport/mmio/RegistersMapManager.h"
 #include "../../../../Mocks.h"
 #include <thread>
 

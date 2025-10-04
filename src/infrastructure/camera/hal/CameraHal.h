@@ -1,9 +1,9 @@
 #pragma once
 
-#include "ICameraHal.h"
 #include <memory>
 
-#include "ICameraHw.h"
+#include "infrastructure/camera/hal/ICameraHw.h"
+#include "infrastructure/camera/hal/ICameraHal.h"
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
 #include "common/Logger/Logger.h"

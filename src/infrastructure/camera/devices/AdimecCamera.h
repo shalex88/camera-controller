@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../ICameraHw.h"
+#include "../hal/ICameraHw.h"
 #include "common/types/CameraCapabilities.h"
-#include "data/transport/mmio/RegistersMapManager.h"
+#include "infrastructure/camera/transport/mmio/RegistersMapManager.h"
 #include <memory>
 
 namespace camera_service::data {

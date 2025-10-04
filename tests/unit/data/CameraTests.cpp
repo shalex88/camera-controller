@@ -2,10 +2,10 @@
 #include <gmock/gmock.h>
 /* Add your project include files here */
 #include "../../Mocks.h"
-#include "data/ICameraHal.h"
 #include "common/types/Result.h"
-#include "data/CameraHal.h"
-#include "data/camera/FakeAdvancedCamera.h"
+#include "infrastructure/camera/hal/ICameraHal.h"
+#include "infrastructure/camera/hal/CameraHal.h"
+#include "infrastructure/camera/devices/FakeAdvancedCamera.h"
 
 using namespace camera_service;
 using namespace testing;

@@ -1,7 +1,7 @@
 #pragma once
 #include <memory>
 
-#include "ICameraHal.h"
+#include "hal/ICameraHal.h"
 #include "common/Config/ConfigManager.h"
 #include "common/Logger/Logger.h"
 
