@@ -5,15 +5,12 @@
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
 #include "common/Logger/Logger.h"
-
-namespace camera_service::data {
-    class ICameraHal;
-}
+#include "infrastructure/camera/hal/ICameraHal.h"
 
 namespace camera_service::core {
     class Core final : public ICore {
     public:
-        explicit Core(std::unique_ptr<data::ICameraHal> camera,
+        explicit Core(std::unique_ptr<infrastructure::ICameraHal> camera,
                      std::shared_ptr<LayerLogger> logger);
         ~Core() override;
 
@@ -40,7 +37,7 @@ namespace camera_service::core {
 
     private:
         bool isInitialized() const;
-        std::unique_ptr<data::ICameraHal> camera_;
+        std::unique_ptr<infrastructure::ICameraHal> camera_;
         std::shared_ptr<LayerLogger> logger_;
         bool is_initialized_;
     };

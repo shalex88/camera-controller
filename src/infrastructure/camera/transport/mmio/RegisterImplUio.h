@@ -3,7 +3,7 @@
 #include "IRegisterImpl.h"
 #include <string>
 
-namespace camera_service::data {
+namespace camera_service::infrastructure {
 
 class RegisterImplUio final : public IRegisterImpl {
 public:
@@ -42,4 +42,4 @@ private:
     uint64_t base_address_{0};
 };
 
-} // namespace camera_service::data
+} // namespace camera_service::infrastructure

@@ -5,7 +5,7 @@
 #include "common/types/CameraCapabilities.h"
 #include "common/types/CameraTypes.h"
 
-namespace camera_service::data {
+namespace camera_service::infrastructure {
     class MwirCamera final : public ICameraHw,
                              public capabilities::IZoomCapable,
                              public capabilities::IFocusCapable,

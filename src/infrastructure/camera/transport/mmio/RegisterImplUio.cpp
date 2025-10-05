@@ -9,7 +9,7 @@
 #include <regex>
 #include <utility>
 
-namespace camera_service::data {
+namespace camera_service::infrastructure {
 
 RegisterImplUio::RegisterImplUio(std::string device_path)
     : device_path_(std::move(device_path)) {

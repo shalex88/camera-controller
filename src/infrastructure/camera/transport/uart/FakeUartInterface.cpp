@@ -1,7 +1,7 @@
 #include "FakeUartInterface.h"
 #include "common/Logger/Logger.h"
 
-namespace camera_service::data::uart {
+namespace camera_service::infrastructure::uart {
     Result<void> FakeUartInterface::open() {
         if (is_open_) {
             return Result<void>::error("Fake UART device is already open");

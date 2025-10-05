@@ -4,7 +4,7 @@
 
 #include "common/types/Result.h"
 
-namespace camera_service::data::uart {
+namespace camera_service::infrastructure::uart {
     class IUartInterface {
     public:
         virtual ~IUartInterface() = default;

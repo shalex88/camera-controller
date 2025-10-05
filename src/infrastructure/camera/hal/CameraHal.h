@@ -8,7 +8,7 @@
 #include "common/types/Result.h"
 #include "common/Logger/Logger.h"
 
-namespace camera_service::data {
+namespace camera_service::infrastructure {
     class CameraHal final : public ICameraHal {
     public:
         explicit CameraHal(std::unique_ptr<ICameraHw> camera_strategy,

@@ -7,7 +7,7 @@
 
 #define NFOV_CAMERA_LOCK_TIMEOUT_MS 200 //TODO: remove when real async camera control is implemented
 
-namespace camera_service::data {
+namespace camera_service::infrastructure {
     AdimecCamera::AdimecCamera(std::unique_ptr<RegistersMapManager> fpga_manager) : fpga_(std::move(fpga_manager)) {
     }
 

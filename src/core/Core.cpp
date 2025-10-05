@@ -2,7 +2,7 @@
 #include "../infrastructure/camera/hal/ICameraHal.h"
 
 namespace camera_service::core {
-    Core::Core(std::unique_ptr<data::ICameraHal> camera,
+    Core::Core(std::unique_ptr<infrastructure::ICameraHal> camera,
                std::shared_ptr<LayerLogger> logger)
         : camera_(std::move(camera)), logger_(std::move(logger)), is_initialized_(false) {
         if (!camera_) {

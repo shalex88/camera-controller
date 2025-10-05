@@ -14,21 +14,21 @@ using namespace testing;
 class AdimecCameraTests : public Test {
 protected:
     AdimecCameraTests() : config_(std::make_unique<ConfigManager>("../../config/config-nfov.yaml")) {
-        auto register_impl = std::make_unique<data::RegisterImplUio>(config_->getDataConfig().device);
-        auto registers_manager = std::make_unique<data::RegistersMapManager>(std::move(register_impl));
-        auto camera_hw = std::make_unique<data::AdimecCamera>(std::move(registers_manager));
+        auto register_impl = std::make_unique<infrastructure::RegisterImplUio>(config_->getDataConfig().device);
+        auto registers_manager = std::make_unique<infrastructure::RegistersMapManager>(std::move(register_impl));
+        auto camera_hw = std::make_unique<infrastructure::AdimecCamera>(std::move(registers_manager));
         auto logger = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "");
-        camera_ = std::make_unique<data::CameraHal>(std::move(camera_hw), std::move(logger));
+        camera_ = std::make_unique<infrastructure::CameraHal>(std::move(camera_hw), std::move(logger));
     }
 
-    std::unique_ptr<data::CameraHal> camera_;
+    std::unique_ptr<infrastructure::CameraHal> camera_;
     std::unique_ptr<ConfigManager> config_;
 };
 
 TEST_F(AdimecCameraTests, CanBeConstructed) {
-    auto register_impl = std::make_unique<data::RegisterImplUio>(config_->getDataConfig().device);
-    auto registers_manager = std::make_unique<data::RegistersMapManager>(std::move(register_impl));
-    const auto camera = std::make_unique<data::AdimecCamera>(std::move(registers_manager));
+    auto register_impl = std::make_unique<infrastructure::RegisterImplUio>(config_->getDataConfig().device);
+    auto registers_manager = std::make_unique<infrastructure::RegistersMapManager>(std::move(register_impl));
+    const auto camera = std::make_unique<infrastructure::AdimecCamera>(std::move(registers_manager));
     ASSERT_NE(nullptr, camera);
 }
 

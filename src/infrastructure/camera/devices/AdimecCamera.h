@@ -1,11 +1,12 @@
 #pragma once
 
-#include "../hal/ICameraHw.h"
-#include "common/types/CameraCapabilities.h"
-#include "infrastructure/camera/transport/mmio/RegistersMapManager.h"
 #include <memory>
 
-namespace camera_service::data {
+#include "common/types/CameraCapabilities.h"
+#include "infrastructure/camera/hal/ICameraHw.h"
+#include "infrastructure/camera/transport/mmio/RegistersMapManager.h"
+
+namespace camera_service::infrastructure {
     class AdimecCamera final : public ICameraHw,
                                public capabilities::IZoomCapable,
                                public capabilities::IFocusCapable,

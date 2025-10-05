@@ -53,7 +53,7 @@ public:
     MOCK_METHOD(Result<void>, stabilize, (bool), (const, override));
 };
 
-class MockCameraHal : public data::ICameraHal {
+class MockCameraHal : public infrastructure::ICameraHal {
 public:
     MOCK_METHOD(Result<void>, connect, (), (override));
     MOCK_METHOD(Result<void>, disconnect, (), (override));
@@ -79,7 +79,7 @@ public:
     MOCK_METHOD(Result<void>, stabilize, (bool), (const, override));
 };
 
-class MockCameraHw: public data::ICameraHw,
+class MockCameraHw: public infrastructure::ICameraHw,
                      public capabilities::IZoomCapable,
                      public capabilities::IFocusCapable,
                      public capabilities::IAutoFocusCapable,
@@ -120,7 +120,7 @@ public:
     MOCK_METHOD(Result<void>, stabilize, (bool), (const, override));
 };
 
-class MockRegisterImpl: public data::IRegisterImpl {
+class MockRegisterImpl: public infrastructure::IRegisterImpl {
 public:
     MOCK_METHOD(Result<void>, set, (uint32_t address, uint32_t value), (override));
     MOCK_METHOD(Result<uint32_t>, get, (uint32_t address), (const, override));

@@ -3,7 +3,7 @@
 #include "IUartInterface.h"
 #include <string>
 
-namespace camera_service::data::uart {
+namespace camera_service::infrastructure::uart {
     enum class DeviceType {
         UART,
         PTS

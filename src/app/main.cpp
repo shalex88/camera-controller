@@ -54,7 +54,7 @@ int main(const int argc, char* argv[]) {
 
         LOG_INFO("{} v{}.{}.{}{}", APP_NAME, APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH, APP_VERSION_DIRTY);
 
-        auto camera = camera_service::data::CameraFactory::createCamera(data_logger, config->getDataConfig());
+        auto camera = camera_service::infrastructure::CameraFactory::createCamera(data_logger, config->getDataConfig());
         auto core = camera_service::core::CoreFactory::createCore(std::move(camera), core_logger, config->getCoreConfig());
         const auto api_controller = camera_service::api::ApiControllerFactory::createController(std::move(core), api_logger, config->getApiConfig());
 

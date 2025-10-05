@@ -3,7 +3,7 @@
 #include "common/types/Result.h"
 #include "common/types/CameraCapabilities.h"
 
-namespace camera_service::data {
+namespace camera_service::infrastructure {
     class ICameraHal : public capabilities::IZoomCapable,
                        public capabilities::IFocusCapable,
                        public capabilities::IAutoFocusCapable,

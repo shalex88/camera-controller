@@ -80,8 +80,8 @@ package camera_service {
     }
 
     class Core {
-      - camera_: std::unique_ptr<data::ICameraHal>
-      + Core(std::unique_ptr<data::ICameraHal>)
+      - camera_: std::unique_ptr<infrastructure::ICameraHal>
+      + Core(std::unique_ptr<infrastructure::ICameraHal>)
       + initialize(): Result<void>
       + shutdown(): Result<void>
       + setZoom(zoom_level: types::zoom): Result<void>
@@ -91,7 +91,7 @@ package camera_service {
     }
 
     class CoreFactory {
-      + {static} createCore(camera_type: std::string, std::unique_ptr<data::ICameraHal> camera): std::unique_ptr<ICore>
+      + {static} createCore(camera_type: std::string, std::unique_ptr<infrastructure::ICameraHal> camera): std::unique_ptr<ICore>
     }
   }
 

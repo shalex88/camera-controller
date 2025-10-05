@@ -20,7 +20,7 @@ TEST_F(CameraFactoryTests, CreateSonyCameraSuccess) {
     config.camera = "sony";  // Valid camera type
     config.device = "fake";  // Valid device type
 
-    const auto camera = data::CameraFactory::createCamera(logger_impl_, config);
+    const auto camera = infrastructure::CameraFactory::createCamera(logger_impl_, config);
     ASSERT_NE(nullptr, camera);
     ASSERT_TRUE(camera.get() != nullptr);
 }
@@ -30,7 +30,7 @@ TEST_F(CameraFactoryTests, ThrowsOnUnknownType) {
     config.camera = "invalid_camera";  // Invalid camera type to trigger exception
     config.device = "fake";  // Valid device type
 
-    EXPECT_THROW(data::CameraFactory::createCamera(logger_impl_, config), std::invalid_argument);
+    EXPECT_THROW(infrastructure::CameraFactory::createCamera(logger_impl_, config), std::invalid_argument);
 }
 
 TEST_F(CameraFactoryTests, ThrowsOnEmptyType) {
@@ -38,5 +38,5 @@ TEST_F(CameraFactoryTests, ThrowsOnEmptyType) {
     config.camera = "";  // Empty camera type to trigger exception
     config.device = "fake";  // Valid device type
 
-    EXPECT_THROW(data::CameraFactory::createCamera(logger_impl_, config), std::invalid_argument);
+    EXPECT_THROW(infrastructure::CameraFactory::createCamera(logger_impl_, config), std::invalid_argument);
 }

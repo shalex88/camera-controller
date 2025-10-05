@@ -6,7 +6,7 @@
 #include "common/types/Result.h"
 #include "TcpClient.h"
 
-namespace camera_service::data {
+namespace camera_service::infrastructure {
     struct __attribute__((packed)) ItlHeader {
         uint32_t opcode = 0;
         uint8_t id[4] = {'F', 'R', 'T', 'R'};

@@ -5,7 +5,7 @@
 #include "common/Config/ConfigManager.h"
 #include "common/Logger/Logger.h"
 
-namespace camera_service::data {
+namespace camera_service::infrastructure {
     class CameraFactory {
     public:
         static std::unique_ptr<ICameraHal> createCamera(

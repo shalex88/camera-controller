@@ -32,7 +32,7 @@ protected:
         server_address_config = api_config_obj.server_address;
         camera_config = core_config_obj.camera;
 
-        EXPECT_NO_THROW(camera = data::CameraFactory::createCamera(logger_impl_, data_config_obj));
+        EXPECT_NO_THROW(camera = infrastructure::CameraFactory::createCamera(logger_impl_, data_config_obj));
         ASSERT_NE(nullptr, camera);
 
         EXPECT_NO_THROW(core = core::CoreFactory::createCore(std::move(camera), logger_impl_, core_config_obj));
@@ -47,7 +47,7 @@ protected:
     }
 
     std::unique_ptr<ConfigManager> config;
-    std::unique_ptr<data::ICameraHal> camera;
+    std::unique_ptr<infrastructure::ICameraHal> camera;
     std::unique_ptr<core::ICore> core;
     std::unique_ptr<api::ApiController> service;
     std::string api_config;

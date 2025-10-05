@@ -1,6 +1,6 @@
 #include "CameraHal.h"
 
-namespace camera_service::data {
+namespace camera_service::infrastructure {
     CameraHal::CameraHal(std::unique_ptr<ICameraHw> camera_strategy,
                         std::shared_ptr<LayerLogger> logger)
         : camera_hw_(std::move(camera_strategy)), logger_(std::move(logger)) {

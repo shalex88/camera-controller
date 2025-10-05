@@ -4,7 +4,7 @@
 
 #include "RegistersMap.h"
 
-using namespace camera_service::data;
+using namespace camera_service::infrastructure;
 
 Result<uint32_t> RegistersMapManager::getValue(const REG reg) const {
     std::lock_guard lock(mutex_);

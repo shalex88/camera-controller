@@ -10,7 +10,7 @@ namespace camera_service::core {
     class CoreFactory {
     public:
         static std::unique_ptr<ICore> createCore(
-            std::unique_ptr<data::ICameraHal> camera,
+            std::unique_ptr<infrastructure::ICameraHal> camera,
             std::shared_ptr<LayerLogger> logger, const CoreConfig& config);
     };
 }

@@ -5,7 +5,7 @@
 #include "common/types/Result.h"
 #include <memory>
 
-namespace camera_service::data {
+namespace camera_service::infrastructure {
     class RegistersMapManager {
     public:
         explicit RegistersMapManager(std::unique_ptr<IRegisterImpl> impl) :

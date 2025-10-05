@@ -5,7 +5,7 @@
 
 #include "common/types/Result.h"
 
-namespace camera_service::data {
+namespace camera_service::infrastructure {
     class TcpClient {
     public:
         explicit TcpClient(const std::string& device_path);

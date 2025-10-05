@@ -1,7 +1,7 @@
 #pragma once
 #include "common/types/Result.h"
 
-namespace camera_service::data {
+namespace camera_service::infrastructure {
     class ICameraHw {
     public:
         virtual ~ICameraHw() = default;

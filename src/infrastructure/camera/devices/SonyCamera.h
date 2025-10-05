@@ -1,10 +1,10 @@
 #pragma once
 
-#include "../hal/ICameraHw.h"
 #include "common/types/CameraCapabilities.h"
-#include "infrastructure/camera/transport/visca/libvisca.h"
+#include "infrastructure/camera/hal/ICameraHw.h"
+#include "infrastructure/camera/transport/visca/Visca.h"
 
-namespace camera_service::data {
+namespace camera_service::infrastructure {
     class SonyCamera final : public ICameraHw,
                              public capabilities::IZoomCapable,
                              public capabilities::IFocusCapable,
@@ -52,8 +52,8 @@ namespace camera_service::data {
 
         std::string device_path_ {};
         mutable int32_t camera_address_ {};
-        mutable VISCAInterface_t interface_ {};
-        mutable VISCACamera_t camera_ {};
+        mutable Visca::ViscaInterface interface_ {};
+        mutable Visca::ViscaCamera camera_ {};
 
         static std::string getViscaErrorMessage(uint32_t error_code);
     };

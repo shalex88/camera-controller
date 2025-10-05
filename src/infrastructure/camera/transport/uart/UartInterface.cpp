@@ -10,7 +10,7 @@
 
 #include "common/Logger/Logger.h"
 
-namespace camera_service::data::uart {
+namespace camera_service::infrastructure::uart {
 
 UartInterface::UartInterface(std::string  device_path)
     : device_path_(std::move(device_path)), device_type_(detectDeviceType()) {

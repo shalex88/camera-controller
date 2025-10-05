@@ -5,7 +5,7 @@
 #include "../../../../Mocks.h"
 #include <thread>
 
-using namespace camera_service::data;
+using namespace camera_service::infrastructure;
 
 class RegisterMapManagerTest : public Test {
 public:

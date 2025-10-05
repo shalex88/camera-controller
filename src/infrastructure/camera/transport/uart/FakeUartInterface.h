@@ -3,7 +3,7 @@
 #include "IUartInterface.h"
 #include <vector>
 
-namespace camera_service::data::uart {
+namespace camera_service::infrastructure::uart {
     class FakeUartInterface final : public IUartInterface {
     public:
         FakeUartInterface() = default;

@@ -10,7 +10,7 @@
 #include "infrastructure/camera/transport/ethernet/TcpClient.h"
 #include "infrastructure/camera/transport/ethernet/ItlProtocol.h"
 
-namespace camera_service::data {
+namespace camera_service::infrastructure {
     std::unique_ptr<ICameraHal> CameraFactory::createCamera(
         std::shared_ptr<LayerLogger> logger, const DataConfig& config) {
         logger->info("Camera: {}", config.camera);

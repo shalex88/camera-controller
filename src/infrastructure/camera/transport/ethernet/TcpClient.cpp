@@ -6,7 +6,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
-namespace camera_service::data {
+namespace camera_service::infrastructure {
     TcpClient::TcpClient(const std::string& device_path) {
         if (device_path.empty()) {
             throw std::invalid_argument("Device path cannot be empty");
