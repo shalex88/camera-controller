@@ -46,12 +46,6 @@ elseif(TARGET yaml-cpp)
     set(YAML_CPP_TARGET yaml-cpp)
 endif()
 
-if (CMAKE_CROSSCOMPILING)
-    set(LIBVISCA_LIB libvisca.a.arm64)
-else()
-    set(LIBVISCA_LIB libvisca.a.amd64)
-endif()
-
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
 include(resources/registers/GenerateRegistersMap.cmake)
@@ -66,8 +60,6 @@ function(link_common_libraries target)
             ${YAML_CPP_TARGET}
             registers
             CLI11::CLI11
-#            PkgConfig::LIBVISCA
-            ${CMAKE_SOURCE_DIR}/3dparty/visca/${LIBVISCA_LIB}
     )
 endfunction(link_common_libraries)
 

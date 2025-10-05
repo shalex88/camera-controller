@@ -2,7 +2,7 @@
 
 #include "../hal/ICameraHw.h"
 #include "common/types/CameraCapabilities.h"
-#include "visca/libvisca.h"
+#include "infrastructure/camera/transport/visca/libvisca.h"
 
 namespace camera_service::data {
     class SonyCamera final : public ICameraHw,
