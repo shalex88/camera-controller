@@ -55,6 +55,6 @@ namespace camera_service::infrastructure {
         mutable Visca::ViscaInterface interface_ {};
         mutable Visca::ViscaCamera camera_ {};
 
-        static std::string getViscaErrorMessage(uint32_t error_code);
+        static std::string getViscaErrorMessage(ERROR_CODE error_code);
     };
 }
