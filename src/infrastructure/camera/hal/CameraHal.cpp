@@ -137,7 +137,7 @@ namespace camera_service::infrastructure {
 
         const auto* auto_focus_capable = getCapability<capabilities::IAutoFocusCapable>();
         if (!auto_focus_capable) {
-            return Result<void>::error(logger_, "Camera doesn't support auto focus");
+            return Result<void>::error(logger_, "Camera doesn't support autofocus");
         }
 
         logger_->debug(__func__);
@@ -155,7 +155,7 @@ namespace camera_service::infrastructure {
             return Result<types::info>::error(logger_, "Camera doesn't support info");
         }
 
-        const auto info_result = info_capable->getInfo();
+        auto info_result = info_capable->getInfo();
         if (info_result.isError()) {
             return Result<types::info>::error(logger_, info_result.error());
         }
