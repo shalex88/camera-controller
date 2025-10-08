@@ -7,7 +7,7 @@ namespace camera_service::infrastructure {
 
 class RegisterImplUio final : public IRegisterImpl {
 public:
-    explicit RegisterImplUio(std::string device_path);
+    explicit RegisterImplUio(const std::string& device_path);
     ~RegisterImplUio() override;
 
     // Delete copy constructor and assignment operator

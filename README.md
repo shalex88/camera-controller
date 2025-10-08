@@ -64,3 +64,8 @@ grpcui -plaintext 0.0.0.0:50051
 2. Implement new function in RequestHandler class
 3. Define new RPC in `proto/camera_service.proto`
 4. Create new RPC in GrpcCallbackHandler class
+
+## TODO
+
+1. Use string_view instead of string where possible
+2. Use span instead of other containers

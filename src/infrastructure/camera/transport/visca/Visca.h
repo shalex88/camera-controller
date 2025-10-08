@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cstdint>
-#include <termios.h>
+#include <memory>
+
+#include "infrastructure/camera/transport/uart/UartTransport.h"
 
 using error_code = uint32_t;
 
@@ -305,26 +307,10 @@ enum class ResponseType : error_code {
 
 /* timeout in us */
 inline constexpr uint32_t VISCA_SERIAL_WAIT = 100000;
-/* size of the local packet buffer */
-inline constexpr uint32_t VISCA_INPUT_BUFFER_SIZE = 1024;
 
 namespace camera_service::infrastructure {
     class Visca {
     public:
-        struct ViscaInterface {
-            // RS232 data:
-            int port_fd;
-            termios options;
-            uint32_t baud;
-            // VISCA data:
-            uint32_t address;
-            uint32_t broadcast;
-            // RS232 input buffer
-            uint8_t ibuf[VISCA_INPUT_BUFFER_SIZE];
-            uint32_t bytes;
-            ResponseType type;
-        };
-
         struct ViscaCamera {
             // VISCA data:
             int address;
@@ -340,259 +326,239 @@ namespace camera_service::infrastructure {
             uint32_t hposition;
             uint32_t color;
             uint32_t blink;
-            uint8_t title[20];
+            std::array<uint8_t, 20> title;
         };
 
         struct ViscaPacket {
-            uint8_t bytes[32];
+            std::array<uint8_t, 32> data;
             uint32_t length;
         };
 
-        Visca() = default;
+        explicit Visca(std::unique_ptr<UartTransport> transport);
         ~Visca() = default;
 
-        static ErrorCode setAddress(ViscaInterface* iface, int* camera_num);
-        static ErrorCode clear(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode getCameraInfo(ViscaInterface* iface, ViscaCamera* camera);
-        static ErrorCode openSerial(ViscaInterface* iface, const char* device_name);
-        static ErrorCode closeSerial(ViscaInterface* iface);
+        ErrorCode setAddress(int* camera_num);
+        ErrorCode clear();
+        ErrorCode getCameraInfo(ViscaCamera* camera);
+        ErrorCode connect() const;
+        ErrorCode disconnect() const;
         /* COMMANDS */
-        static ErrorCode setPower(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setKeylock(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setCameraId(ViscaInterface* iface, const ViscaCamera* camera, uint16_t id);
-        static ErrorCode setZoomTele(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setZoomWide(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setZoomStop(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setZoomTeleSpeed(ViscaInterface* iface, const ViscaCamera* camera, uint32_t speed);
-        static ErrorCode setZoomWideSpeed(ViscaInterface* iface, const ViscaCamera* camera, uint32_t speed);
-        static ErrorCode setZoomValue(ViscaInterface* iface, const ViscaCamera* camera, uint32_t zoom);
-        static ErrorCode setZoomAndFocusValue(ViscaInterface* iface, const ViscaCamera* camera, uint32_t zoom,
-                                              uint32_t focus);
-        static ErrorCode setDzoom(ViscaInterface* iface, const ViscaCamera* camera, uint32_t power);
-        static ErrorCode setDzoomLimit(ViscaInterface* iface, const ViscaCamera* camera, uint32_t limit);
-        static ErrorCode setDzoomMode(ViscaInterface* iface, const ViscaCamera* camera, uint32_t power);
-        static ErrorCode setFocusFar(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setFocusNear(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setFocusStop(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setFocusFarSpeed(ViscaInterface* iface, const ViscaCamera* camera, uint32_t speed);
-        static ErrorCode setFocusNearSpeed(ViscaInterface* iface, const ViscaCamera* camera, uint32_t speed);
-        static ErrorCode setFocusValue(ViscaInterface* iface, const ViscaCamera* camera, uint32_t focus);
-        static ErrorCode setFocusAuto(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setFocusOnePush(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setFocusInfinity(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setFocusAutosenseHigh(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setFocusAutosenseLow(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setFocusNearLimit(ViscaInterface* iface, const ViscaCamera* camera, uint32_t limit);
-        static ErrorCode setWhitebalMode(ViscaInterface* iface, const ViscaCamera* camera, uint32_t mode);
-        static ErrorCode setWhitebalOnePush(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setRgainUp(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setRgainDown(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setRgainReset(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setRgainValue(ViscaInterface* iface, const ViscaCamera* camera, uint32_t value);
-        static ErrorCode setBgainUp(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setBgainDown(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setBgainReset(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setBgainValue(ViscaInterface* iface, const ViscaCamera* camera, uint32_t value);
-        static ErrorCode setShutterUp(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setShutterDown(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setShutterReset(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setShutterValue(ViscaInterface* iface, const ViscaCamera* camera, uint32_t value);
-        static ErrorCode setIrisUp(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setIrisDown(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setIrisReset(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setIrisValue(ViscaInterface* iface, const ViscaCamera* camera, uint32_t value);
-        static ErrorCode setGainUp(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setGainDown(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setGainReset(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setGainValue(ViscaInterface* iface, const ViscaCamera* camera, uint32_t value);
-        static ErrorCode setBrightUp(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setBrightDown(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setBrightReset(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setBrightValue(ViscaInterface* iface, const ViscaCamera* camera, uint32_t value);
-        static ErrorCode setApertureUp(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setApertureDown(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setApertureReset(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setApertureValue(ViscaInterface* iface, const ViscaCamera* camera, uint32_t value);
-        static ErrorCode setExpCompUp(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setExpCompDown(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setExpCompReset(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setExpCompValue(ViscaInterface* iface, const ViscaCamera* camera, uint32_t value);
-        static ErrorCode setExpCompPower(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setAutoExpMode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t mode);
-        static ErrorCode setSlowShutterAuto(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setBacklightComp(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setZeroLuxShot(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setIrLed(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setWideMode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t mode);
-        static ErrorCode setMirror(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setFreeze(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setPictureEffect(ViscaInterface* iface, const ViscaCamera* camera, uint8_t mode);
-        static ErrorCode setDigitalEffect(ViscaInterface* iface, const ViscaCamera* camera, uint8_t mode);
-        static ErrorCode setDigitalEffectLevel(ViscaInterface* iface, const ViscaCamera* camera, uint8_t level);
-        static ErrorCode setCamStabilizer(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode memorySet(ViscaInterface* iface, const ViscaCamera* camera, uint8_t channel);
-        static ErrorCode memoryRecall(ViscaInterface* iface, const ViscaCamera* camera, uint8_t channel);
-        static ErrorCode memoryReset(ViscaInterface* iface, const ViscaCamera* camera, uint8_t channel);
-        static ErrorCode setDisplay(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setDateTime(ViscaInterface* iface, const ViscaCamera* camera, uint32_t year, uint32_t month,
-                                     uint32_t day, uint32_t hour, uint32_t minute);
-        static ErrorCode setDateDisplay(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setTimeDisplay(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setTitleDisplay(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setTitleClear(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setTitleParams(ViscaInterface* iface, const ViscaCamera* camera, const ViscaTitleData* title);
-        static ErrorCode setTitle(ViscaInterface* iface, const ViscaCamera* camera, const ViscaTitleData* title);
-        static ErrorCode setIrreceiveOn(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setIrreceiveOff(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setIrreceiveOnoff(ViscaInterface* iface, const ViscaCamera* camera);
+        ErrorCode setPower(uint8_t power);
+        ErrorCode setKeylock(uint8_t power);
+        ErrorCode setCameraId(uint16_t id);
+        ErrorCode setZoomTele();
+        ErrorCode setZoomWide();
+        ErrorCode setZoomStop();
+        ErrorCode setZoomTeleSpeed(uint32_t speed);
+        ErrorCode setZoomWideSpeed(uint32_t speed);
+        ErrorCode setZoomValue(uint32_t zoom);
+        ErrorCode setZoomAndFocusValue(uint32_t zoom, uint32_t focus);
+        ErrorCode setDzoom(uint32_t power);
+        ErrorCode setDzoomLimit(uint32_t limit);
+        ErrorCode setDzoomMode(uint32_t power);
+        ErrorCode setFocusFar();
+        ErrorCode setFocusNear();
+        ErrorCode setFocusStop();
+        ErrorCode setFocusFarSpeed(uint32_t speed);
+        ErrorCode setFocusNearSpeed(uint32_t speed);
+        ErrorCode setFocusValue(uint32_t focus);
+        ErrorCode setFocusAuto(uint8_t power);
+        ErrorCode setFocusOnePush();
+        ErrorCode setFocusInfinity();
+        ErrorCode setFocusAutosenseHigh();
+        ErrorCode setFocusAutosenseLow();
+        ErrorCode setFocusNearLimit(uint32_t limit);
+        ErrorCode setWhitebalMode(uint32_t mode);
+        ErrorCode setWhitebalOnePush();
+        ErrorCode setRgainUp();
+        ErrorCode setRgainDown();
+        ErrorCode setRgainReset();
+        ErrorCode setRgainValue(uint32_t value);
+        ErrorCode setBgainUp();
+        ErrorCode setBgainDown();
+        ErrorCode setBgainReset();
+        ErrorCode setBgainValue(uint32_t value);
+        ErrorCode setShutterUp();
+        ErrorCode setShutterDown();
+        ErrorCode setShutterReset();
+        ErrorCode setShutterValue(uint32_t value);
+        ErrorCode setIrisUp();
+        ErrorCode setIrisDown();
+        ErrorCode setIrisReset();
+        ErrorCode setIrisValue(uint32_t value);
+        ErrorCode setGainUp();
+        ErrorCode setGainDown();
+        ErrorCode setGainReset();
+        ErrorCode setGainValue(uint32_t value);
+        ErrorCode setBrightUp();
+        ErrorCode setBrightDown();
+        ErrorCode setBrightReset();
+        ErrorCode setBrightValue(uint32_t value);
+        ErrorCode setApertureUp();
+        ErrorCode setApertureDown();
+        ErrorCode setApertureReset();
+        ErrorCode setApertureValue(uint32_t value);
+        ErrorCode setExpCompUp();
+        ErrorCode setExpCompDown();
+        ErrorCode setExpCompReset();
+        ErrorCode setExpCompValue(uint32_t value);
+        ErrorCode setExpCompPower(uint8_t power);
+        ErrorCode setAutoExpMode(uint8_t mode);
+        ErrorCode setSlowShutterAuto(uint8_t power);
+        ErrorCode setBacklightComp(uint8_t power);
+        ErrorCode setZeroLuxShot(uint8_t power);
+        ErrorCode setIrLed(uint8_t power);
+        ErrorCode setWideMode(uint8_t mode);
+        ErrorCode setMirror(uint8_t power);
+        ErrorCode setFreeze(uint8_t power);
+        ErrorCode setPictureEffect(uint8_t mode);
+        ErrorCode setDigitalEffect(uint8_t mode);
+        ErrorCode setDigitalEffectLevel(uint8_t level);
+        ErrorCode setCamStabilizer(uint8_t power);
+        ErrorCode memorySet(uint8_t channel);
+        ErrorCode memoryRecall(uint8_t channel);
+        ErrorCode memoryReset(uint8_t channel);
+        ErrorCode setDisplay(uint8_t power);
+        ErrorCode setDateTime(uint32_t year, uint32_t month, uint32_t day, uint32_t hour, uint32_t minute);
+        ErrorCode setDateDisplay(uint8_t power);
+        ErrorCode setTimeDisplay(uint8_t power);
+        ErrorCode setTitleDisplay(uint8_t power);
+        ErrorCode setTitleClear();
+        ErrorCode setTitleParams(const ViscaTitleData* title);
+        ErrorCode setTitle(const ViscaTitleData* title);
+        ErrorCode setIrreceiveOn();
+        ErrorCode setIrreceiveOff();
+        ErrorCode setIrreceiveOnoff();
         /*  pan_speed should be in the range 01 - 18.
             tilt_speed should be in the range 01 - 14 */
-        static ErrorCode setPantiltUp(ViscaInterface* iface, const ViscaCamera* camera, uint32_t pan_speed,
-                                      uint32_t tilt_speed);
-        static ErrorCode setPantiltDown(ViscaInterface* iface, const ViscaCamera* camera, uint32_t pan_speed,
-                                        uint32_t tilt_speed);
-        static ErrorCode setPantiltLeft(ViscaInterface* iface, const ViscaCamera* camera, uint32_t pan_speed,
-                                        uint32_t tilt_speed);
-        static ErrorCode setPantiltRight(ViscaInterface* iface, const ViscaCamera* camera, uint32_t pan_speed,
-                                         uint32_t tilt_speed);
-        static ErrorCode setPantiltUpleft(ViscaInterface* iface, const ViscaCamera* camera, uint32_t pan_speed,
-                                          uint32_t tilt_speed);
-        static ErrorCode setPantiltUpright(ViscaInterface* iface, const ViscaCamera* camera, uint32_t pan_speed,
-                                           uint32_t tilt_speed);
-        static ErrorCode setPantiltDownleft(ViscaInterface* iface, const ViscaCamera* camera, uint32_t pan_speed,
-                                            uint32_t tilt_speed);
-        static ErrorCode setPantiltDownright(ViscaInterface* iface, const ViscaCamera* camera, uint32_t pan_speed,
-                                             uint32_t tilt_speed);
-        static ErrorCode setPantiltStop(ViscaInterface* iface, const ViscaCamera* camera, uint32_t pan_speed,
-                                        uint32_t tilt_speed);
+        ErrorCode setPantiltUp(uint32_t pan_speed, uint32_t tilt_speed);
+        ErrorCode setPantiltDown(uint32_t pan_speed, uint32_t tilt_speed);
+        ErrorCode setPantiltLeft(uint32_t pan_speed, uint32_t tilt_speed);
+        ErrorCode setPantiltRight(uint32_t pan_speed, uint32_t tilt_speed);
+        ErrorCode setPantiltUpleft(uint32_t pan_speed, uint32_t tilt_speed);
+        ErrorCode setPantiltUpright(uint32_t pan_speed, uint32_t tilt_speed);
+        ErrorCode setPantiltDownleft(uint32_t pan_speed, uint32_t tilt_speed);
+        ErrorCode setPantiltDownright(uint32_t pan_speed, uint32_t tilt_speed);
+        ErrorCode setPantiltStop(uint32_t pan_speed, uint32_t tilt_speed);
         /*  pan_speed should be in the range 01 - 18.
             tilt_speed should be in the range 01 - 14
             pan_position should be in the range -880 - 880 (0xFC90 - 0x370)
             tilt_position should be in range -300 - 300 (0xFED4 - 0x12C)  */
-        static ErrorCode setPantiltAbsolutePosition(ViscaInterface* iface, const ViscaCamera* camera,
-                                                    uint32_t pan_speed, uint32_t tilt_speed, uint32_t pan_position,
-                                                    uint32_t tilt_position);
-        static ErrorCode setPantiltRelativePosition(ViscaInterface* iface, const ViscaCamera* camera,
-                                                    uint32_t pan_speed, uint32_t tilt_speed, uint32_t pan_position,
-                                                    uint32_t tilt_position);
-        static ErrorCode setPantiltHome(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setPantiltReset(ViscaInterface* iface, const ViscaCamera* camera);
+        ErrorCode setPantiltAbsolutePosition(const ViscaCamera* camera, uint32_t pan_speed, uint32_t tilt_speed,
+                                             uint32_t pan_position, uint32_t tilt_position);
+        ErrorCode setPantiltRelativePosition(const ViscaCamera* camera, uint32_t pan_speed, uint32_t tilt_speed,
+                                             uint32_t pan_position, uint32_t tilt_position);
+        ErrorCode setPantiltHome();
+        ErrorCode setPantiltReset();
         /*  pan_limit should be in the range -880 - 880 (0xFC90 - 0x370)
             tilt_limit should be in range -300 - 300 (0xFED4 - 0x12C)  */
-        static ErrorCode setPantiltLimitUpright(ViscaInterface* iface, const ViscaCamera* camera, uint32_t pan_limit,
-                                                uint32_t tilt_limit);
-        static ErrorCode setPantiltLimitDownleft(ViscaInterface* iface, const ViscaCamera* camera, uint32_t pan_limit,
-                                                 uint32_t tilt_limit);
-        static ErrorCode setPantiltLimitDownleftClear(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setPantiltLimitUprightClear(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setDatascreenOn(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setDatascreenOff(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setDatascreenOnoff(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setSpotAeOn(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setSpotAeOff(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setSpotAePosition(ViscaInterface* iface, const ViscaCamera* camera, uint8_t x_position,
-                                           uint8_t y_position);
+        ErrorCode setPantiltLimitUpright(uint32_t pan_limit, uint32_t tilt_limit);
+        ErrorCode setPantiltLimitDownleft(uint32_t pan_limit, uint32_t tilt_limit);
+        ErrorCode setPantiltLimitDownleftClear();
+        ErrorCode setPantiltLimitUprightClear();
+        ErrorCode setDatascreenOn();
+        ErrorCode setDatascreenOff();
+        ErrorCode setDatascreenOnoff();
+        ErrorCode setSpotAeOn();
+        ErrorCode setSpotAeOff();
+        ErrorCode setSpotAePosition(uint8_t x_position, uint8_t y_position);
         /* INQUIRIES */
-        static ErrorCode getPower(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getDzoom(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getDzoomLimit(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* value);
-        static ErrorCode getZoomValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value);
-        static ErrorCode getFocusAuto(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getFocusValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value);
-        static ErrorCode getFocusAutoSense(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode);
-        static ErrorCode getFocusNearLimit(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value);
-        static ErrorCode getWhitebalMode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode);
-        static ErrorCode getRgainValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value);
-        static ErrorCode getBgainValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value);
-        static ErrorCode getAutoExpMode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode);
-        static ErrorCode getSlowShutterAuto(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode);
-        static ErrorCode getShutterValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value);
-        static ErrorCode getIrisValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value);
-        static ErrorCode getGainValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value);
-        static ErrorCode getBrightValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value);
-        static ErrorCode getExpCompPower(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getExpCompValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value);
-        static ErrorCode getBacklightComp(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getApertureValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value);
-        static ErrorCode getZeroLuxShot(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getIrLed(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getWideMode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode);
-        static ErrorCode getMirror(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getFreeze(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getPictureEffect(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode);
-        static ErrorCode getDigitalEffect(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode);
-        static ErrorCode getDigitalEffectLevel(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value);
-        static ErrorCode getMemory(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* channel);
-        static ErrorCode getDisplay(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getId(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* id);
-        static ErrorCode getVideosystem(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* system);
-        static ErrorCode getPantiltMode(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* status);
-        static ErrorCode getPantiltMaxspeed(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* max_pan_speed,
-                                            uint8_t* max_tilt_speed);
-        static ErrorCode getPantiltPosition(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* pan_position,
-                                            uint16_t* tilt_position);
-        static ErrorCode getDatascreen(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* status);
+        ErrorCode getPower(uint8_t* power);
+        ErrorCode getDzoom(uint8_t* power);
+        ErrorCode getDzoomLimit(uint8_t* value);
+        ErrorCode getZoomValue(uint16_t* value);
+        ErrorCode getFocusAuto(uint8_t* power);
+        ErrorCode getFocusValue(uint16_t* value);
+        ErrorCode getFocusAutoSense(uint8_t* mode);
+        ErrorCode getFocusNearLimit(uint16_t* value);
+        ErrorCode getWhitebalMode(uint8_t* mode);
+        ErrorCode getRgainValue(uint16_t* value);
+        ErrorCode getBgainValue(uint16_t* value);
+        ErrorCode getAutoExpMode(uint8_t* mode);
+        ErrorCode getSlowShutterAuto(uint8_t* mode);
+        ErrorCode getShutterValue(uint16_t* value);
+        ErrorCode getIrisValue(uint16_t* value);
+        ErrorCode getGainValue(uint16_t* value);
+        ErrorCode getBrightValue(uint16_t* value);
+        ErrorCode getExpCompPower(uint8_t* power);
+        ErrorCode getExpCompValue(uint16_t* value);
+        ErrorCode getBacklightComp(uint8_t* power);
+        ErrorCode getApertureValue(uint16_t* value);
+        ErrorCode getZeroLuxShot(uint8_t* power);
+        ErrorCode getIrLed(uint8_t* power);
+        ErrorCode getWideMode(uint8_t* mode);
+        ErrorCode getMirror(uint8_t* power);
+        ErrorCode getFreeze(uint8_t* power);
+        ErrorCode getPictureEffect(uint8_t* mode);
+        ErrorCode getDigitalEffect(uint8_t* mode);
+        ErrorCode getDigitalEffectLevel(uint16_t* value);
+        ErrorCode getMemory(uint8_t* channel);
+        ErrorCode getDisplay(uint8_t* power);
+        ErrorCode getId(uint16_t* id);
+        ErrorCode getVideosystem(uint8_t* system);
+        ErrorCode getPantiltMode(uint16_t* status);
+        ErrorCode getPantiltMaxspeed(uint8_t* max_pan_speed, uint8_t* max_tilt_speed);
+        ErrorCode getPantiltPosition(uint16_t* pan_position, uint16_t* tilt_position);
+        ErrorCode getDatascreen(uint8_t* status);
         /* SPECIAL FUNCTIONS FOR D30/31 */
-        static ErrorCode setWideConLens(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setAtModeOnoff(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setAtMode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setAtAeOnoff(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setAtAe(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setAtAutozoomOnoff(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setAtAutozoom(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setAtmdFramedisplayOnoff(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setAtmdFramedisplay(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setAtFrameoffsetOnoff(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setAtFrameoffset(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setAtmdStartstop(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setAtChase(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setAtChaseNext(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setMdModeOnoff(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setMdMode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setMdFrame(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setMdDetect(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setAtEntry(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setAtLostinfo(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setMdLostinfo(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setMdAdjustYlevel(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setMdAdjustHuelevel(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setMdAdjustSize(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setMdAdjustDisptime(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setMdAdjustRefmode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setMdAdjustReftime(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setMdMeasureMode1Onoff(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setMdMeasureMode1(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode setMdMeasureMode2Onoff(ViscaInterface* iface, const ViscaCamera* camera);
-        static ErrorCode setMdMeasureMode2(ViscaInterface* iface, const ViscaCamera* camera, uint8_t power);
-        static ErrorCode getKeylock(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getWideConLens(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getAtmdMode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getAtMode(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value);
-        static ErrorCode getAtEntry(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getMdMode(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value);
-        static ErrorCode getMdYlevel(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getMdHuelevel(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getMdSize(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getMdDisptime(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getMdRefmode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getMdReftime(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power);
-        static ErrorCode getAtObjPos(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* xpos, uint8_t* ypos,
-                                     uint8_t* status);
-        static ErrorCode getMdObjPos(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* xpos, uint8_t* ypos,
-                                     uint8_t* status);
-        static ErrorCode setRegister(ViscaInterface* iface, const ViscaCamera* camera, uint8_t reg_num,
-                                     uint8_t reg_val);
-        static ErrorCode getRegister(ViscaInterface* iface, const ViscaCamera* camera, uint8_t reg_num,
-                                     uint8_t* reg_val);
+        ErrorCode setWideConLens(uint8_t power);
+        ErrorCode setAtModeOnoff();
+        ErrorCode setAtMode(uint8_t power);
+        ErrorCode setAtAeOnoff();
+        ErrorCode setAtAe(uint8_t power);
+        ErrorCode setAtAutozoomOnoff();
+        ErrorCode setAtAutozoom(uint8_t power);
+        ErrorCode setAtmdFramedisplayOnoff();
+        ErrorCode setAtmdFramedisplay(uint8_t power);
+        ErrorCode setAtFrameoffsetOnoff();
+        ErrorCode setAtFrameoffset(uint8_t power);
+        ErrorCode setAtmdStartstop();
+        ErrorCode setAtChase(uint8_t power);
+        ErrorCode setAtChaseNext();
+        ErrorCode setMdModeOnoff();
+        ErrorCode setMdMode(uint8_t power);
+        ErrorCode setMdFrame();
+        ErrorCode setMdDetect();
+        ErrorCode setAtEntry(uint8_t power);
+        ErrorCode setAtLostinfo();
+        ErrorCode setMdLostinfo();
+        ErrorCode setMdAdjustYlevel(uint8_t power);
+        ErrorCode setMdAdjustHuelevel(uint8_t power);
+        ErrorCode setMdAdjustSize(uint8_t power);
+        ErrorCode setMdAdjustDisptime(uint8_t power);
+        ErrorCode setMdAdjustRefmode(uint8_t power);
+        ErrorCode setMdAdjustReftime(uint8_t power);
+        ErrorCode setMdMeasureMode1Onoff();
+        ErrorCode setMdMeasureMode1(uint8_t power);
+        ErrorCode setMdMeasureMode2Onoff();
+        ErrorCode setMdMeasureMode2(uint8_t power);
+        ErrorCode getKeylock(uint8_t* power);
+        ErrorCode getWideConLens(uint8_t* power);
+        ErrorCode getAtmdMode(uint8_t* power);
+        ErrorCode getAtMode(uint16_t* value);
+        ErrorCode getAtEntry(uint8_t* power);
+        ErrorCode getMdMode(uint16_t* value);
+        ErrorCode getMdYlevel(uint8_t* power);
+        ErrorCode getMdHuelevel(uint8_t* power);
+        ErrorCode getMdSize(uint8_t* power);
+        ErrorCode getMdDisptime(uint8_t* power);
+        ErrorCode getMdRefmode(uint8_t* power);
+        ErrorCode getMdReftime(uint8_t* power);
+        ErrorCode getAtObjPos(uint8_t* xpos, uint8_t* ypos, uint8_t* status);
+        ErrorCode getMdObjPos(uint8_t* xpos, uint8_t* ypos, uint8_t* status);
+        ErrorCode setRegister(uint8_t reg_num, uint8_t reg_val);
+        ErrorCode getRegister(uint8_t reg_num, uint8_t* reg_val);
 
     private:
-        static void appendByte(ViscaPacket* packet, uint8_t byte);
+        std::unique_ptr<UartTransport> transport_;
+        ViscaCamera camera_{};
+        static void appendByte(ViscaPacket* packet, const uint8_t byte);
         static void initPacket(ViscaPacket* packet);
-        static ErrorCode getReply(ViscaInterface* iface);
-        static ErrorCode sendPacketWithReply(ViscaInterface* iface, const ViscaCamera* camera, ViscaPacket* packet);
-        static ErrorCode writePacketData(const ViscaInterface* iface, const ViscaPacket* packet);
-        static ErrorCode sendPacket(const ViscaInterface* iface, const ViscaCamera* camera, ViscaPacket* packet);
-        static ErrorCode getPacket(ViscaInterface* iface);
-        static ErrorCode unreadBytes(const ViscaInterface* iface, uint8_t* buffer, uint32_t* buffer_size);
+        ErrorCode getReply();
+        ErrorCode sendPacketWithReply(ViscaPacket* packet);
+        ErrorCode sendPacket(ViscaPacket* packet) const;
+        ErrorCode getPacket() const;
+        ErrorCode unreadBytes(const uint8_t* buffer, uint32_t* buffer_size) const;
+        ResponseType type_{};
     };
 }

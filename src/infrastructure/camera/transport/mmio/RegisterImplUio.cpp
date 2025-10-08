@@ -11,8 +11,8 @@
 
 namespace camera_service::infrastructure {
 
-RegisterImplUio::RegisterImplUio(std::string device_path)
-    : device_path_(std::move(device_path)) {
+RegisterImplUio::RegisterImplUio(const std::string& device_path)
+    : device_path_(device_path) {
     if (!openDevice()) {
         throw std::runtime_error("Failed to open UIO device: " + device_path_);
     }
