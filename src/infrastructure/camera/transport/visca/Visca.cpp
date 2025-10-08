@@ -5,17 +5,17 @@
 #include <sys/ioctl.h>
 
 namespace camera_service::infrastructure {
-    ERROR_CODE Visca::writePacketData(const ViscaInterface* iface, const ViscaPacket* packet) {
+    ErrorCode Visca::writePacketData(const ViscaInterface* iface, const ViscaPacket* packet) {
         if (const auto err = write(iface->port_fd, packet->bytes, packet->length); err < packet->length) {
-            return ERROR_CODE::FAILURE;
+            return ErrorCode::Failure;
         }
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::sendPacket(const ViscaInterface* iface, const ViscaCamera* camera, ViscaPacket* packet) {
+    ErrorCode Visca::sendPacket(const ViscaInterface* iface, const ViscaCamera* camera, ViscaPacket* packet) {
         // check data:
         if ((iface->address > 7) || (camera->address > 7) || (iface->broadcast > 1)) {
-            return ERROR_CODE::FAILURE;
+            return ErrorCode::Failure;
         }
 
         // build header:
@@ -34,7 +34,7 @@ namespace camera_service::infrastructure {
         return writePacketData(iface, packet);
     }
 
-    ERROR_CODE Visca::getPacket(ViscaInterface* iface) {
+    ErrorCode Visca::getPacket(ViscaInterface* iface) {
         int pos = 0;
 
         // wait for message
@@ -53,19 +53,19 @@ namespace camera_service::infrastructure {
         }
         iface->bytes = pos + 1;
 
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
     /***********************************/
     /*       SYSTEM  FUNCTIONS         */
     /***********************************/
 
-    ERROR_CODE Visca::openSerial(ViscaInterface* iface, const char* device_name) {
+    ErrorCode Visca::openSerial(ViscaInterface* iface, const char* device_name) {
         const auto fd = open(device_name, O_RDWR | O_NDELAY | O_NOCTTY);
 
         if (fd == -1) {
             iface->port_fd = -1;
-            return ERROR_CODE::FAILURE;
+            return ErrorCode::Failure;
         }
         fcntl(fd, F_SETFL, 0);
         /* Setting port parameters */
@@ -97,16 +97,16 @@ namespace camera_service::infrastructure {
         iface->port_fd = fd;
         iface->address = 0;
 
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::closeSerial(ViscaInterface* iface) {
+    ErrorCode Visca::closeSerial(ViscaInterface* iface) {
         if (iface->port_fd != -1) {
             close(iface->port_fd);
             iface->port_fd = -1;
-            return ERROR_CODE::SUCCESS;
+            return ErrorCode::Success;
         }
-        return ERROR_CODE::FAILURE;
+        return ErrorCode::Failure;
     }
 
     void Visca::appendByte(ViscaPacket* packet, const uint8_t byte) {
@@ -120,46 +120,46 @@ namespace camera_service::infrastructure {
         packet->length = 1;
     }
 
-    ERROR_CODE Visca::getReply(ViscaInterface* iface) {
+    ErrorCode Visca::getReply(ViscaInterface* iface) {
         // first message: -------------------
-        if (getPacket(iface) != ERROR_CODE::SUCCESS) {
-            return ERROR_CODE::FAILURE;
+        if (getPacket(iface) != ErrorCode::Success) {
+            return ErrorCode::Failure;
         }
-        iface->type = static_cast<RESPONSE_TYPE>(iface->ibuf[1] & 0xF0);
+        iface->type = static_cast<ResponseType>(iface->ibuf[1] & 0xF0);
 
         // skip ack messages
-        while (iface->type == RESPONSE_TYPE::ACK) {
-            if (getPacket(iface) != ERROR_CODE::SUCCESS) {
-                return ERROR_CODE::FAILURE;
+        while (iface->type == ResponseType::Ack) {
+            if (getPacket(iface) != ErrorCode::Success) {
+                return ErrorCode::Failure;
             }
-            iface->type = static_cast<RESPONSE_TYPE>(iface->ibuf[1] & 0xF0);
+            iface->type = static_cast<ResponseType>(iface->ibuf[1] & 0xF0);
         }
 
         switch (iface->type) {
-        case RESPONSE_TYPE::CLEAR:
-        case RESPONSE_TYPE::ADDRESS:
-        case RESPONSE_TYPE::COMPLETED:
-        case RESPONSE_TYPE::ERROR:
-            return ERROR_CODE::SUCCESS;
+        case ResponseType::Clear:
+        case ResponseType::Address:
+        case ResponseType::Completed:
+        case ResponseType::Error:
+            return ErrorCode::Success;
             break;
         default:
-            return ERROR_CODE::FAILURE;
+            return ErrorCode::Failure;
         }
     }
 
-    ERROR_CODE Visca::sendPacketWithReply(ViscaInterface* iface, const ViscaCamera* camera, ViscaPacket* packet) {
-        if (sendPacket(iface, camera, packet) != ERROR_CODE::SUCCESS) {
-            return ERROR_CODE::FAILURE;
+    ErrorCode Visca::sendPacketWithReply(ViscaInterface* iface, const ViscaCamera* camera, ViscaPacket* packet) {
+        if (sendPacket(iface, camera, packet) != ErrorCode::Success) {
+            return ErrorCode::Failure;
         }
 
-        if (getReply(iface) != ERROR_CODE::SUCCESS) {
-            return ERROR_CODE::FAILURE;
+        if (getReply(iface) != ErrorCode::Success) {
+            return ErrorCode::Failure;
         }
 
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::unreadBytes(const ViscaInterface* iface, unsigned char* buffer, uint32_t* buffer_size) {
+    ErrorCode Visca::unreadBytes(const ViscaInterface* iface, unsigned char* buffer, uint32_t* buffer_size) {
         uint32_t bytes = 0;
         *buffer_size = 0;
 
@@ -168,9 +168,9 @@ namespace camera_service::infrastructure {
             bytes = (bytes > *buffer_size) ? *buffer_size : bytes;
             read(iface->port_fd, &buffer, bytes);
             *buffer_size = bytes;
-            return ERROR_CODE::FAILURE;
+            return ErrorCode::Failure;
         }
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
     /****************************************************************************/
@@ -181,7 +181,7 @@ namespace camera_service::infrastructure {
     /*       SYSTEM  FUNCTIONS         */
     /***********************************/
 
-    ERROR_CODE Visca::setAddress(ViscaInterface* iface, int* camera_num) {
+    ErrorCode Visca::setAddress(ViscaInterface* iface, int* camera_num) {
         ViscaPacket packet{};
         ViscaCamera camera{};
 
@@ -193,14 +193,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, 0x01);
 
         iface->broadcast = 1;
-        if (sendPacket(iface, &camera, &packet) != ERROR_CODE::SUCCESS) {
+        if (sendPacket(iface, &camera, &packet) != ErrorCode::Success) {
             iface->broadcast = backup;
-            return ERROR_CODE::FAILURE;
+            return ErrorCode::Failure;
         }
         iface->broadcast = backup;
 
-        if (getReply(iface) != ERROR_CODE::SUCCESS) {
-            return ERROR_CODE::FAILURE;
+        if (getReply(iface) != ErrorCode::Success) {
+            return ErrorCode::Failure;
         }
         /* We parse the message from the camera here  */
         /* We expect to receive 4*camera_num bytes,
@@ -209,16 +209,16 @@ namespace camera_service::infrastructure {
                ibuf[bytes-2]-1  */
         if ((iface->bytes & 0x3) != 0) {
             /* check multiple of 4 */
-            return ERROR_CODE::FAILURE;
+            return ErrorCode::Failure;
         }
         *camera_num = iface->ibuf[iface->bytes - 2] - 1;
         if ((*camera_num == 0) || (*camera_num > 7)) {
-            return ERROR_CODE::FAILURE;
+            return ErrorCode::Failure;
         }
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::clear(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::clear(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -226,16 +226,16 @@ namespace camera_service::infrastructure {
         appendByte(&packet, 0x00);
         appendByte(&packet, 0x01);
 
-        if (sendPacket(iface, camera, &packet) != ERROR_CODE::SUCCESS) {
-            return ERROR_CODE::FAILURE;
+        if (sendPacket(iface, camera, &packet) != ErrorCode::Success) {
+            return ErrorCode::Failure;
         }
-        if (getReply(iface) != ERROR_CODE::SUCCESS) {
-            return ERROR_CODE::FAILURE;
+        if (getReply(iface) != ErrorCode::Success) {
+            return ErrorCode::Failure;
         }
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getCameraInfo(ViscaInterface* iface, ViscaCamera* camera) {
+    ErrorCode Visca::getCameraInfo(ViscaInterface* iface, ViscaCamera* camera) {
         ViscaPacket packet{};
         packet.bytes[0] = 0x80 | camera->address;
         packet.bytes[1] = 0x09;
@@ -244,29 +244,29 @@ namespace camera_service::infrastructure {
         packet.bytes[4] = VISCA_TERMINATOR;
         packet.length = 5;
 
-        if (writePacketData(iface, &packet) != ERROR_CODE::SUCCESS) {
-            return ERROR_CODE::FAILURE;
+        if (writePacketData(iface, &packet) != ErrorCode::Success) {
+            return ErrorCode::Failure;
         }
-        if (getReply(iface) != ERROR_CODE::SUCCESS) {
-            return ERROR_CODE::FAILURE;
+        if (getReply(iface) != ErrorCode::Success) {
+            return ErrorCode::Failure;
         }
 
         if (iface->bytes != 10) {
             /* we expect 10 bytes as answer */
-            return ERROR_CODE::FAILURE;
+            return ErrorCode::Failure;
         }
         camera->vendor = (iface->ibuf[2] << 8) + iface->ibuf[3];
         camera->model = (iface->ibuf[4] << 8) + iface->ibuf[5];
         camera->rom_version = (iface->ibuf[6] << 8) + iface->ibuf[7];
         camera->socket_num = iface->ibuf[8];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
     /***********************************/
     /*       COMMAND FUNCTIONS         */
     /***********************************/
 
-    ERROR_CODE Visca::setPower(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setPower(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -278,7 +278,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setKeylock(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setKeylock(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -290,7 +290,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setCameraId(ViscaInterface* iface, const ViscaCamera* camera, const uint16_t id) {
+    ErrorCode Visca::setCameraId(ViscaInterface* iface, const ViscaCamera* camera, const uint16_t id) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -305,7 +305,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setZoomTele(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setZoomTele(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -317,7 +317,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setZoomWide(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setZoomWide(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -329,7 +329,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setZoomStop(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setZoomStop(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -341,7 +341,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setZoomTeleSpeed(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t speed) {
+    ErrorCode Visca::setZoomTeleSpeed(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t speed) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -353,7 +353,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setZoomWideSpeed(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t speed) {
+    ErrorCode Visca::setZoomWideSpeed(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t speed) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -365,7 +365,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setZoomValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t zoom) {
+    ErrorCode Visca::setZoomValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t zoom) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -380,7 +380,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setZoomAndFocusValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t zoom,
+    ErrorCode Visca::setZoomAndFocusValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t zoom,
                                            const uint32_t focus) {
         ViscaPacket packet{};
 
@@ -400,7 +400,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setDzoom(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t power) {
+    ErrorCode Visca::setDzoom(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -412,7 +412,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setDzoomLimit(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t limit) {
+    ErrorCode Visca::setDzoomLimit(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t limit) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -424,7 +424,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setDzoomMode(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t power) {
+    ErrorCode Visca::setDzoomMode(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -436,7 +436,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setFocusFar(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setFocusFar(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -448,7 +448,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setFocusNear(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setFocusNear(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -460,7 +460,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setFocusStop(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setFocusStop(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -472,7 +472,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setFocusFarSpeed(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t speed) {
+    ErrorCode Visca::setFocusFarSpeed(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t speed) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -484,7 +484,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setFocusNearSpeed(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t speed) {
+    ErrorCode Visca::setFocusNearSpeed(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t speed) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -496,7 +496,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setFocusValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t focus) {
+    ErrorCode Visca::setFocusValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t focus) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -511,7 +511,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setFocusAuto(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setFocusAuto(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -523,7 +523,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setFocusOnePush(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setFocusOnePush(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -535,7 +535,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setFocusInfinity(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setFocusInfinity(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -547,7 +547,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setFocusAutosenseHigh(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setFocusAutosenseHigh(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -559,7 +559,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setFocusAutosenseLow(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setFocusAutosenseLow(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -571,7 +571,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setFocusNearLimit(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t limit) {
+    ErrorCode Visca::setFocusNearLimit(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t limit) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -586,7 +586,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setWhitebalMode(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t mode) {
+    ErrorCode Visca::setWhitebalMode(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t mode) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -598,7 +598,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setWhitebalOnePush(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setWhitebalOnePush(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -610,7 +610,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setRgainUp(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setRgainUp(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -622,7 +622,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setRgainDown(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setRgainDown(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -634,7 +634,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setRgainReset(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setRgainReset(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -646,7 +646,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setRgainValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t value) {
+    ErrorCode Visca::setRgainValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -661,7 +661,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setBgainUp(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setBgainUp(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -673,7 +673,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setBgainDown(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setBgainDown(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -685,7 +685,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setBgainReset(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setBgainReset(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -697,7 +697,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setBgainValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t value) {
+    ErrorCode Visca::setBgainValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -712,7 +712,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setShutterUp(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setShutterUp(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -724,7 +724,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setShutterDown(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setShutterDown(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -736,7 +736,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setShutterReset(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setShutterReset(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -748,7 +748,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setShutterValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t value) {
+    ErrorCode Visca::setShutterValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -763,7 +763,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setIrisUp(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setIrisUp(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -775,7 +775,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setIrisDown(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setIrisDown(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -787,7 +787,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setIrisReset(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setIrisReset(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -799,7 +799,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setIrisValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t value) {
+    ErrorCode Visca::setIrisValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -814,7 +814,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setGainUp(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setGainUp(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -826,7 +826,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setGainDown(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setGainDown(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -838,7 +838,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setGainReset(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setGainReset(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -850,7 +850,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setGainValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t value) {
+    ErrorCode Visca::setGainValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -865,7 +865,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setBrightUp(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setBrightUp(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -877,7 +877,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setBrightDown(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setBrightDown(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -889,7 +889,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setBrightReset(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setBrightReset(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -901,7 +901,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setBrightValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t value) {
+    ErrorCode Visca::setBrightValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -916,7 +916,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setApertureUp(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setApertureUp(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -928,7 +928,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setApertureDown(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setApertureDown(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -940,7 +940,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setApertureReset(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setApertureReset(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -952,7 +952,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setApertureValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t value) {
+    ErrorCode Visca::setApertureValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -967,7 +967,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setExpCompUp(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setExpCompUp(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -979,7 +979,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setExpCompDown(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setExpCompDown(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -991,7 +991,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setExpCompReset(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setExpCompReset(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1002,10 +1002,10 @@ namespace camera_service::infrastructure {
 
         return sendPacketWithReply(iface, camera, &packet);
 
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::setExpCompValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t value) {
+    ErrorCode Visca::setExpCompValue(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1020,7 +1020,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setExpCompPower(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setExpCompPower(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1032,7 +1032,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setAutoExpMode(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t mode) {
+    ErrorCode Visca::setAutoExpMode(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t mode) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1044,7 +1044,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setSlowShutterAuto(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setSlowShutterAuto(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1056,7 +1056,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setBacklightComp(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setBacklightComp(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1068,7 +1068,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setZeroLuxShot(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setZeroLuxShot(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1080,7 +1080,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setIrLed(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setIrLed(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1092,7 +1092,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setWideMode(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t mode) {
+    ErrorCode Visca::setWideMode(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t mode) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1104,7 +1104,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setMirror(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setMirror(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1116,7 +1116,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setFreeze(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setFreeze(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1128,7 +1128,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setPictureEffect(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t mode) {
+    ErrorCode Visca::setPictureEffect(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t mode) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1140,7 +1140,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setDigitalEffect(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t mode) {
+    ErrorCode Visca::setDigitalEffect(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t mode) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1152,7 +1152,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setDigitalEffectLevel(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t level) {
+    ErrorCode Visca::setDigitalEffectLevel(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t level) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1164,7 +1164,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setCamStabilizer(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setCamStabilizer(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1176,7 +1176,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::memorySet(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t channel) {
+    ErrorCode Visca::memorySet(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t channel) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1189,7 +1189,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::memoryRecall(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t channel) {
+    ErrorCode Visca::memoryRecall(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t channel) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1202,7 +1202,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::memoryReset(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t channel) {
+    ErrorCode Visca::memoryReset(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t channel) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1215,7 +1215,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setDisplay(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setDisplay(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1227,7 +1227,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setDateTime(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t year,
+    ErrorCode Visca::setDateTime(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t year,
                                   const uint32_t month, const uint32_t day, const uint32_t hour,
                                   const uint32_t minute) {
         ViscaPacket packet{};
@@ -1250,7 +1250,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setDateDisplay(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setDateDisplay(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1262,7 +1262,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setTimeDisplay(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setTimeDisplay(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1274,7 +1274,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setTitleDisplay(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setTitleDisplay(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1286,7 +1286,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setTitleClear(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setTitleClear(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1298,7 +1298,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setTitleParams(ViscaInterface* iface, const ViscaCamera* camera, const ViscaTitleData* title) {
+    ErrorCode Visca::setTitleParams(ViscaInterface* iface, const ViscaCamera* camera, const ViscaTitleData* title) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1320,7 +1320,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setTitle(ViscaInterface* iface, const ViscaCamera* camera, const ViscaTitleData* title) {
+    ErrorCode Visca::setTitle(ViscaInterface* iface, const ViscaCamera* camera, const ViscaTitleData* title) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1333,8 +1333,8 @@ namespace camera_service::infrastructure {
             appendByte(&packet, title->title[i]);
         }
 
-        if (sendPacketWithReply(iface, camera, &packet) != ERROR_CODE::SUCCESS) {
-            return ERROR_CODE::FAILURE;
+        if (sendPacketWithReply(iface, camera, &packet) != ErrorCode::Success) {
+            return ErrorCode::Failure;
         }
 
         initPacket(&packet);
@@ -1347,14 +1347,14 @@ namespace camera_service::infrastructure {
             appendByte(&packet, title->title[i + 10]);
         }
 
-        if (sendPacketWithReply(iface, camera, &packet) != ERROR_CODE::SUCCESS) {
-            return ERROR_CODE::FAILURE;
+        if (sendPacketWithReply(iface, camera, &packet) != ErrorCode::Success) {
+            return ErrorCode::Failure;
         }
 
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::setSpotAeOn(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setSpotAeOn(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1366,7 +1366,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setSpotAeOff(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setSpotAeOff(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1378,7 +1378,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setSpotAePosition(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t x_position,
+    ErrorCode Visca::setSpotAePosition(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t x_position,
                                         const uint8_t y_position) {
         ViscaPacket packet{};
 
@@ -1398,49 +1398,49 @@ namespace camera_service::infrastructure {
     /*       INQUIRY FUNCTIONS         */
     /***********************************/
 
-    ERROR_CODE Visca::getPower(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getPower(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_POWER);
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getDzoom(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getDzoom(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_DZOOM);
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getDzoomLimit(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* value) {
+    ErrorCode Visca::getDzoomLimit(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_DZOOM_LIMIT);
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *value = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getZoomValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
+    ErrorCode Visca::getZoomValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1448,14 +1448,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_ZOOM_VALUE);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *value = (iface->ibuf[2] << 12) + (iface->ibuf[3] << 8) + (iface->ibuf[4] << 4) + iface->ibuf[5];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getFocusAuto(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getFocusAuto(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1463,14 +1463,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_FOCUS_AUTO);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getFocusValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
+    ErrorCode Visca::getFocusValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1478,14 +1478,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_FOCUS_VALUE);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *value = (iface->ibuf[2] << 12) + (iface->ibuf[3] << 8) + (iface->ibuf[4] << 4) + iface->ibuf[5];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getFocusAutoSense(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode) {
+    ErrorCode Visca::getFocusAutoSense(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1493,14 +1493,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_FOCUS_AUTO_SENSE);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *mode = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getFocusNearLimit(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
+    ErrorCode Visca::getFocusNearLimit(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1508,14 +1508,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_FOCUS_NEAR_LIMIT);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *value = (iface->ibuf[2] << 12) + (iface->ibuf[3] << 8) + (iface->ibuf[4] << 4) + iface->ibuf[5];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getWhitebalMode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode) {
+    ErrorCode Visca::getWhitebalMode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1523,14 +1523,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_WB);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *mode = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getRgainValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
+    ErrorCode Visca::getRgainValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1538,14 +1538,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_RGAIN_VALUE);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *value = (iface->ibuf[2] << 12) + (iface->ibuf[3] << 8) + (iface->ibuf[4] << 4) + iface->ibuf[5];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getBgainValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
+    ErrorCode Visca::getBgainValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1553,14 +1553,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_BGAIN_VALUE);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *value = (iface->ibuf[2] << 12) + (iface->ibuf[3] << 8) + (iface->ibuf[4] << 4) + iface->ibuf[5];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getAutoExpMode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode) {
+    ErrorCode Visca::getAutoExpMode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1568,14 +1568,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_AUTO_EXP);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *mode = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getSlowShutterAuto(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode) {
+    ErrorCode Visca::getSlowShutterAuto(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1583,14 +1583,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_SLOW_SHUTTER);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *mode = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getShutterValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
+    ErrorCode Visca::getShutterValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1598,14 +1598,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_SHUTTER_VALUE);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *value = (iface->ibuf[2] << 12) + (iface->ibuf[3] << 8) + (iface->ibuf[4] << 4) + iface->ibuf[5];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getIrisValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
+    ErrorCode Visca::getIrisValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1613,14 +1613,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_IRIS_VALUE);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *value = (iface->ibuf[2] << 12) + (iface->ibuf[3] << 8) + (iface->ibuf[4] << 4) + iface->ibuf[5];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getGainValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
+    ErrorCode Visca::getGainValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1628,14 +1628,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_GAIN_VALUE);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *value = (iface->ibuf[2] << 12) + (iface->ibuf[3] << 8) + (iface->ibuf[4] << 4) + iface->ibuf[5];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getBrightValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
+    ErrorCode Visca::getBrightValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1643,14 +1643,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_BRIGHT_VALUE);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *value = (iface->ibuf[2] << 12) + (iface->ibuf[3] << 8) + (iface->ibuf[4] << 4) + iface->ibuf[5];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getExpCompPower(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getExpCompPower(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1658,14 +1658,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_EXP_COMP_POWER);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getExpCompValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
+    ErrorCode Visca::getExpCompValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1673,14 +1673,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_EXP_COMP_VALUE);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *value = (iface->ibuf[2] << 12) + (iface->ibuf[3] << 8) + (iface->ibuf[4] << 4) + iface->ibuf[5];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getBacklightComp(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getBacklightComp(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1688,14 +1688,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_BACKLIGHT_COMP);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getApertureValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
+    ErrorCode Visca::getApertureValue(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1703,14 +1703,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_APERTURE_VALUE);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *value = (iface->ibuf[2] << 12) + (iface->ibuf[3] << 8) + (iface->ibuf[4] << 4) + iface->ibuf[5];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getZeroLuxShot(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getZeroLuxShot(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1718,14 +1718,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_ZERO_LUX);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getIrLed(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getIrLed(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1733,14 +1733,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_IR_LED);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getWideMode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode) {
+    ErrorCode Visca::getWideMode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1748,14 +1748,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_WIDE_MODE);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *mode = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getMirror(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getMirror(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1763,14 +1763,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_MIRROR);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getFreeze(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getFreeze(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1778,14 +1778,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_FREEZE);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getPictureEffect(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode) {
+    ErrorCode Visca::getPictureEffect(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1793,14 +1793,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_PICTURE_EFFECT);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *mode = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getDigitalEffect(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode) {
+    ErrorCode Visca::getDigitalEffect(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* mode) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1808,14 +1808,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_DIGITAL_EFFECT);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *mode = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getDigitalEffectLevel(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
+    ErrorCode Visca::getDigitalEffectLevel(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1823,14 +1823,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_DIGITAL_EFFECT_LEVEL);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *value = (iface->ibuf[2] << 12) + (iface->ibuf[3] << 8) + (iface->ibuf[4] << 4) + iface->ibuf[5];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getMemory(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* channel) {
+    ErrorCode Visca::getMemory(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* channel) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1838,14 +1838,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_MEMORY);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *channel = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getDisplay(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getDisplay(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1853,14 +1853,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_DISPLAY);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getId(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* id) {
+    ErrorCode Visca::getId(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* id) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1868,14 +1868,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_ID);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *id = (iface->ibuf[2] << 12) + (iface->ibuf[3] << 8) + (iface->ibuf[4] << 4) + iface->ibuf[5];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::setIrreceiveOn(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setIrreceiveOn(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1887,7 +1887,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setIrreceiveOff(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setIrreceiveOff(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1899,7 +1899,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setIrreceiveOnoff(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setIrreceiveOnoff(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1911,7 +1911,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setPantiltUp(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_speed,
+    ErrorCode Visca::setPantiltUp(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_speed,
                                    const uint32_t tilt_speed) {
         ViscaPacket packet{};
 
@@ -1926,7 +1926,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setPantiltDown(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_speed,
+    ErrorCode Visca::setPantiltDown(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_speed,
                                      const uint32_t tilt_speed) {
         ViscaPacket packet{};
 
@@ -1941,7 +1941,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setPantiltLeft(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_speed,
+    ErrorCode Visca::setPantiltLeft(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_speed,
                                      const uint32_t tilt_speed) {
         ViscaPacket packet{};
 
@@ -1956,7 +1956,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setPantiltRight(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_speed,
+    ErrorCode Visca::setPantiltRight(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_speed,
                                       const uint32_t tilt_speed) {
         ViscaPacket packet{};
 
@@ -1971,7 +1971,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setPantiltUpleft(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_speed,
+    ErrorCode Visca::setPantiltUpleft(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_speed,
                                        const uint32_t tilt_speed) {
         ViscaPacket packet{};
 
@@ -1986,7 +1986,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setPantiltUpright(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_speed,
+    ErrorCode Visca::setPantiltUpright(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_speed,
                                         const uint32_t tilt_speed) {
         ViscaPacket packet{};
 
@@ -2001,7 +2001,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setPantiltDownleft(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_speed,
+    ErrorCode Visca::setPantiltDownleft(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_speed,
                                          const uint32_t tilt_speed) {
         ViscaPacket packet{};
 
@@ -2016,7 +2016,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setPantiltDownright(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_speed,
+    ErrorCode Visca::setPantiltDownright(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_speed,
                                           const uint32_t tilt_speed) {
         ViscaPacket packet{};
 
@@ -2031,7 +2031,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setPantiltStop(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_speed,
+    ErrorCode Visca::setPantiltStop(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_speed,
                                      const uint32_t tilt_speed) {
         ViscaPacket packet{};
 
@@ -2046,7 +2046,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setPantiltAbsolutePosition(ViscaInterface* iface, const ViscaCamera* camera,
+    ErrorCode Visca::setPantiltAbsolutePosition(ViscaInterface* iface, const ViscaCamera* camera,
                                                  const uint32_t pan_speed, const uint32_t tilt_speed,
                                                  const uint32_t pan_pos, const uint32_t tilt_pos) {
         ViscaPacket packet{};
@@ -2071,7 +2071,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setPantiltRelativePosition(ViscaInterface* iface, const ViscaCamera* camera,
+    ErrorCode Visca::setPantiltRelativePosition(ViscaInterface* iface, const ViscaCamera* camera,
                                                  const uint32_t pan_speed, const uint32_t tilt_speed,
                                                  const uint32_t pan_pos, const uint32_t tilt_pos) {
         ViscaPacket packet{};
@@ -2096,7 +2096,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setPantiltHome(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setPantiltHome(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2106,7 +2106,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setPantiltReset(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setPantiltReset(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2116,7 +2116,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setPantiltLimitUpright(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_pos,
+    ErrorCode Visca::setPantiltLimitUpright(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_pos,
                                              const uint32_t tilt_pos) {
         ViscaPacket packet{};
 
@@ -2139,7 +2139,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setPantiltLimitDownleft(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_pos,
+    ErrorCode Visca::setPantiltLimitDownleft(ViscaInterface* iface, const ViscaCamera* camera, const uint32_t pan_pos,
                                               const uint32_t tilt_pos) {
         ViscaPacket packet{};
 
@@ -2162,7 +2162,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setPantiltLimitDownleftClear(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setPantiltLimitDownleftClear(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         constexpr uint32_t pan_pos = 0x7fff;
@@ -2187,7 +2187,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setPantiltLimitUprightClear(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setPantiltLimitUprightClear(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         constexpr uint32_t pan_pos = 0x7fff;
@@ -2212,7 +2212,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setDatascreenOn(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setDatascreenOn(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2224,7 +2224,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setDatascreenOff(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setDatascreenOff(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2236,7 +2236,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setDatascreenOnoff(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setDatascreenOnoff(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2248,7 +2248,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setRegister(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t reg_num,
+    ErrorCode Visca::setRegister(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t reg_num,
                                   const uint8_t reg_val) {
         ViscaPacket packet{};
 
@@ -2266,7 +2266,7 @@ namespace camera_service::infrastructure {
     /*       INQUIRY FUNCTIONS         */
     /***********************************/
 
-    ERROR_CODE Visca::getVideosystem(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* system) {
+    ErrorCode Visca::getVideosystem(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* system) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2274,14 +2274,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
         appendByte(&packet, VISCA_PT_VIDEOSYSTEM_INQ);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *system = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getPantiltMode(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* status) {
+    ErrorCode Visca::getPantiltMode(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* status) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2289,14 +2289,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
         appendByte(&packet, VISCA_PT_MODE_INQ);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *status = ((iface->ibuf[2] & 0xff) << 8) + (iface->ibuf[3] & 0xff);
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getPantiltMaxspeed(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* max_pan_speed,
+    ErrorCode Visca::getPantiltMaxspeed(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* max_pan_speed,
                                          uint8_t* max_tilt_speed) {
         ViscaPacket packet{};
 
@@ -2305,15 +2305,15 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
         appendByte(&packet, VISCA_PT_MAXSPEED_INQ);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *max_pan_speed = (iface->ibuf[2] & 0xff);
         *max_tilt_speed = (iface->ibuf[3] & 0xff);
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getPantiltPosition(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* pan_position,
+    ErrorCode Visca::getPantiltPosition(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* pan_position,
                                          uint16_t* tilt_position) {
         ViscaPacket packet{};
 
@@ -2322,7 +2322,7 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
         appendByte(&packet, VISCA_PT_POSITION_INQ);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *pan_position = ((iface->ibuf[2] & 0xf) << 12) + ((iface->ibuf[3] & 0xf) << 8) + ((iface->ibuf[4] & 0xf) << 4) +
@@ -2330,10 +2330,10 @@ namespace camera_service::infrastructure {
         *tilt_position = ((iface->ibuf[6] & 0xf) << 12) + ((iface->ibuf[7] & 0xf) << 8) + ((iface->ibuf[8] & 0xf) << 4)
             + (iface->ibuf[9] & 0xf);
 
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getDatascreen(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* status) {
+    ErrorCode Visca::getDatascreen(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* status) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2341,14 +2341,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
         appendByte(&packet, VISCA_PT_DATASCREEN_INQ);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *status = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getRegister(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t reg_num,
+    ErrorCode Visca::getRegister(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t reg_num,
                                   uint8_t* reg_val) {
         ViscaPacket packet{};
 
@@ -2358,18 +2358,18 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_REGISTER_VALUE);
         appendByte(&packet, reg_num);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *reg_val = (iface->ibuf[2] << 4) + iface->ibuf[3];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
     /********************************/
     /* SPECIAL FUNCTIONS FOR D30/31 */
     /********************************/
 
-    ERROR_CODE Visca::setWideConLens(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setWideConLens(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2382,7 +2382,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setAtModeOnoff(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setAtModeOnoff(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2394,7 +2394,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setAtMode(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setAtMode(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2406,7 +2406,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setAtAeOnoff(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setAtAeOnoff(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2418,7 +2418,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setAtAe(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setAtAe(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2430,7 +2430,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setAtAutozoomOnoff(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setAtAutozoomOnoff(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2442,7 +2442,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setAtAutozoom(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setAtAutozoom(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2454,7 +2454,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setAtmdFramedisplayOnoff(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setAtmdFramedisplayOnoff(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2466,7 +2466,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setAtmdFramedisplay(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setAtmdFramedisplay(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2478,7 +2478,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setAtFrameoffsetOnoff(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setAtFrameoffsetOnoff(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2490,7 +2490,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setAtFrameoffset(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setAtFrameoffset(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2502,7 +2502,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setAtmdStartstop(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setAtmdStartstop(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2514,7 +2514,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setAtChase(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setAtChase(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2526,7 +2526,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setAtChaseNext(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setAtChaseNext(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2538,7 +2538,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setMdModeOnoff(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setMdModeOnoff(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2550,7 +2550,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setMdMode(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setMdMode(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2562,7 +2562,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setMdFrame(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setMdFrame(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2573,7 +2573,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setMdDetect(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setMdDetect(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2585,7 +2585,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setAtEntry(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setAtEntry(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2597,7 +2597,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setAtLostinfo(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setAtLostinfo(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2610,7 +2610,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setMdLostinfo(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setMdLostinfo(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2623,7 +2623,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setMdAdjustYlevel(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setMdAdjustYlevel(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2636,7 +2636,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setMdAdjustHuelevel(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setMdAdjustHuelevel(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2649,7 +2649,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setMdAdjustSize(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setMdAdjustSize(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2662,7 +2662,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setMdAdjustDisptime(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setMdAdjustDisptime(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2675,7 +2675,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setMdAdjustRefmode(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setMdAdjustRefmode(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2687,7 +2687,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setMdAdjustReftime(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setMdAdjustReftime(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2700,7 +2700,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setMdMeasureMode1Onoff(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setMdMeasureMode1Onoff(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2712,7 +2712,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setMdMeasureMode1(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setMdMeasureMode1(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2724,7 +2724,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setMdMeasureMode2Onoff(ViscaInterface* iface, const ViscaCamera* camera) {
+    ErrorCode Visca::setMdMeasureMode2Onoff(ViscaInterface* iface, const ViscaCamera* camera) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2736,7 +2736,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::setMdMeasureMode2(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
+    ErrorCode Visca::setMdMeasureMode2(ViscaInterface* iface, const ViscaCamera* camera, const uint8_t power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2748,7 +2748,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(iface, camera, &packet);
     }
 
-    ERROR_CODE Visca::getKeylock(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getKeylock(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2756,14 +2756,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_KEYLOCK);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getWideConLens(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getWideConLens(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2771,14 +2771,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_WIDE_CON_LENS);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getAtmdMode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getAtmdMode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2786,14 +2786,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_ATMD_MODE);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getAtMode(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
+    ErrorCode Visca::getAtMode(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2801,14 +2801,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_AT_MODE_QUERY);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *value = ((iface->ibuf[2] & 0xff) << 8) + (iface->ibuf[3] & 0xff);
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getAtEntry(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getAtEntry(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2816,70 +2816,70 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_AT_ENTRY);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getMdMode(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
+    ErrorCode Visca::getMdMode(ViscaInterface* iface, const ViscaCamera* camera, uint16_t* value) {
         ViscaPacket packet{};
 
         initPacket(&packet);
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_MD_MODE_QUERY);
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *value = ((iface->ibuf[2] & 0xff) << 8) + (iface->ibuf[3] & 0xff);
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getMdYlevel(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getMdYlevel(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_MD_ADJUST_YLEVEL);
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = (iface->ibuf[3] & 0x0f);
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getMdHuelevel(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getMdHuelevel(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_MD_ADJUST_HUELEVEL);
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = (iface->ibuf[3] & 0x0f);
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getMdSize(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getMdSize(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_MD_ADJUST_SIZE);
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = (iface->ibuf[3] & 0x0f);
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getMdDisptime(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getMdDisptime(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2887,14 +2887,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_MD_ADJUST_DISPTIME);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = (iface->ibuf[3] & 0x0f);
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getMdRefmode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getMdRefmode(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2902,14 +2902,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_MD_ADJUST_REFMODE);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = iface->ibuf[2];
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getMdReftime(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
+    ErrorCode Visca::getMdReftime(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* power) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2917,14 +2917,14 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_MD_REFTIME_QUERY);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *power = (iface->ibuf[3] & 0x0f);
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getAtObjPos(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* xpos, uint8_t* ypos,
+    ErrorCode Visca::getAtObjPos(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* xpos, uint8_t* ypos,
                                   uint8_t* status) {
         ViscaPacket packet{};
 
@@ -2933,16 +2933,16 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_AT_POSITION);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *xpos = iface->ibuf[2];
         *ypos = iface->ibuf[3];
         *status = (iface->ibuf[4] & 0x0f);
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 
-    ERROR_CODE Visca::getMdObjPos(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* xpos, uint8_t* ypos,
+    ErrorCode Visca::getMdObjPos(ViscaInterface* iface, const ViscaCamera* camera, uint8_t* xpos, uint8_t* ypos,
                                   uint8_t* status) {
         ViscaPacket packet{};
 
@@ -2951,12 +2951,12 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_MD_POSITION);
 
-        if (const ERROR_CODE err = sendPacketWithReply(iface, camera, &packet); err != ERROR_CODE::SUCCESS) {
+        if (const ErrorCode err = sendPacketWithReply(iface, camera, &packet); err != ErrorCode::Success) {
             return err;
         }
         *xpos = iface->ibuf[2];
         *ypos = iface->ibuf[3];
         *status = (iface->ibuf[4] & 0x0f);
-        return ERROR_CODE::SUCCESS;
+        return ErrorCode::Success;
     }
 }

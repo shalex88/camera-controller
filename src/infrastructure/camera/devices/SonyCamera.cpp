@@ -11,7 +11,7 @@ namespace camera_service::infrastructure {
 
     Result<void> SonyCamera::setZoom(const types::zoom zoom) const {
         const auto result = Visca::setZoomValue(&interface_, &camera_, static_cast<uint16_t>(zoom));
-        if (result == ERROR_CODE::SUCCESS) {
+        if (result == ErrorCode::Success) {
             return Result<void>::success();
         }
         return Result<void>::error(getViscaErrorMessage(result));
@@ -21,7 +21,7 @@ namespace camera_service::infrastructure {
         uint16_t value = 0;
         const auto result = Visca::getZoomValue(&interface_, &camera_, &value);
 
-        if (result == ERROR_CODE::SUCCESS) {
+        if (result == ErrorCode::Success) {
             return Result<types::zoom>::success(static_cast<types::zoom>(value));
         }
 
@@ -40,7 +40,7 @@ namespace camera_service::infrastructure {
         }
 
         const auto result = Visca::setFocusValue(&interface_, &camera_, static_cast<uint16_t>(focus));
-        if (result == ERROR_CODE::SUCCESS) {
+        if (result == ErrorCode::Success) {
             return Result<void>::success();
         }
         return Result<void>::error(getViscaErrorMessage(result));
@@ -56,7 +56,7 @@ namespace camera_service::infrastructure {
         uint16_t value = 0;
         const auto result = Visca::getFocusValue(&interface_, &camera_, &value);
 
-        if (result == ERROR_CODE::SUCCESS) {
+        if (result == ErrorCode::Success) {
             return Result<types::focus>::success(static_cast<types::focus>(value));
         }
 
@@ -69,7 +69,7 @@ namespace camera_service::infrastructure {
 
     Result<void> SonyCamera::enableAutoFocus(const bool on) const {
         const auto result = Visca::setFocusAuto(&interface_, &camera_, on ? VISCA_ON : VISCA_OFF);
-        if (result == ERROR_CODE::SUCCESS) {
+        if (result == ErrorCode::Success) {
             return Result<void>::success();
         }
         return Result<void>::error(getViscaErrorMessage(result));
@@ -79,7 +79,7 @@ namespace camera_service::infrastructure {
         uint8_t value = 0;
         const auto result = Visca::getFocusAuto(&interface_, &camera_, &value);
 
-        if (result == ERROR_CODE::SUCCESS) {
+        if (result == ErrorCode::Success) {
             return Result<bool>::success(value == VISCA_ON);
         }
 
@@ -87,7 +87,7 @@ namespace camera_service::infrastructure {
     }
 
     Result<types::info> SonyCamera::getInfo() const {
-        if (const auto result = Visca::getCameraInfo(&interface_, &camera_); result != ERROR_CODE::SUCCESS) {
+        if (const auto result = Visca::getCameraInfo(&interface_, &camera_); result != ErrorCode::Success) {
             return Result<types::info>::error("Failed to get camera info: " + getViscaErrorMessage(result));
         }
 
@@ -103,7 +103,7 @@ namespace camera_service::infrastructure {
     Result<void> SonyCamera::stabilize(const bool on) const {
         const auto result = Visca::setCamStabilizer(&interface_, &camera_,
                                                         on ? VISCA_CAM_STABILIZER_ON : VISCA_CAM_STABILIZER_OFF);
-        if (result == ERROR_CODE::SUCCESS) {
+        if (result == ErrorCode::Success) {
             return Result<void>::success();
         }
         return Result<void>::error(getViscaErrorMessage(result));
@@ -111,12 +111,12 @@ namespace camera_service::infrastructure {
 
     Result<void> SonyCamera::connect() {
         auto result = Visca::openSerial(&interface_, device_path_.c_str());
-        if (result != ERROR_CODE::SUCCESS) {
+        if (result != ErrorCode::Success) {
             return Result<void>::error("Failed to open serial connection to device: " + device_path_);
         }
 
         result = Visca::setAddress(&interface_, &camera_address_);
-        if (result != ERROR_CODE::SUCCESS) {
+        if (result != ErrorCode::Success) {
             Visca::closeSerial(&interface_);
             return Result<void>::error("Failed to set camera address");
         }
@@ -124,13 +124,13 @@ namespace camera_service::infrastructure {
         camera_.address = camera_address_;
 
         result = Visca::clear(&interface_, &camera_);
-        if (result != ERROR_CODE::SUCCESS) {
+        if (result != ErrorCode::Success) {
             Visca::closeSerial(&interface_);
             return Result<void>::error("Failed to clear camera commands");
         }
 
         result = Visca::getCameraInfo(&interface_, &camera_);
-        if (result != ERROR_CODE::SUCCESS) {
+        if (result != ErrorCode::Success) {
             Visca::closeSerial(&interface_);
             return Result<void>::error("Failed to get camera information");
         }
@@ -139,26 +139,26 @@ namespace camera_service::infrastructure {
     }
 
     Result<void> SonyCamera::disconnect() {
-        if (const auto result = Visca::closeSerial(&interface_); result != ERROR_CODE::SUCCESS) {
+        if (const auto result = Visca::closeSerial(&interface_); result != ErrorCode::Success) {
             return Result<void>::error("Failed to close serial connection");
         }
 
         return Result<void>::success();
     }
 
-    std::string SonyCamera::getViscaErrorMessage(const ERROR_CODE error_code) {
+    std::string SonyCamera::getViscaErrorMessage(const ErrorCode error_code) {
         switch (error_code) {
-            case ERROR_CODE::ERROR_MESSAGE_LENGTH:
+            case ErrorCode::ErrorMessageLength:
                 return "Invalid message length";
-            case ERROR_CODE::ERROR_SYNTAX:
+            case ErrorCode::ErrorSyntax:
                 return "Syntax error";
-            case ERROR_CODE::ERROR_CMD_BUFFER_FULL:
+            case ErrorCode::ErrorCmdBufferFull:
                 return "Command buffer full";
-            case ERROR_CODE::ERROR_CMD_CANCELLED:
+            case ErrorCode::ErrorCmdCancelled:
                 return "Command cancelled";
-            case ERROR_CODE::ERROR_NO_SOCKET:
+            case ErrorCode::ErrorNoSocket:
                 return "No socket available";
-            case ERROR_CODE::ERROR_CMD_NOT_EXECUTABLE:
+            case ErrorCode::ErrorCmdNotExecutable:
                 return "Command not executable";
             default:
                 return "Unknown VISCA error: " + std::to_string(static_cast<uint32_t>(error_code));
