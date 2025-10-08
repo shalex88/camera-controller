@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "common/types/Result.h"
-#include "TcpClient.h"
+#include "TcpClientTransport.h"
 
 namespace camera_service::infrastructure {
     struct __attribute__((packed)) ItlHeader {
@@ -25,7 +25,7 @@ namespace camera_service::infrastructure {
 
     class ItlProtocol {
     public:
-        explicit ItlProtocol(std::unique_ptr<TcpClient> transport);
+        explicit ItlProtocol(std::unique_ptr<TcpClientTransport> transport);
         ~ItlProtocol() = default;
 
         Result<void> connect() const;
@@ -33,7 +33,7 @@ namespace camera_service::infrastructure {
         Result<std::vector<uint8_t>> sendPayload(uint32_t opcode, const std::vector<uint8_t>& payload) const;
 
     private:
-        std::unique_ptr<TcpClient> transport_;
+        std::unique_ptr<TcpClientTransport> transport_;
 
         static std::vector<uint8_t> createMessage(uint32_t opcode, const std::vector<uint8_t>& payload);
         static std::vector<uint8_t> serialize(ItlMessage message);

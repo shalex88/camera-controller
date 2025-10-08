@@ -3,7 +3,7 @@
 #include <cstdio>
 
 namespace camera_service::infrastructure {
-    ItlProtocol::ItlProtocol(std::unique_ptr<TcpClient> transport)
+    ItlProtocol::ItlProtocol(std::unique_ptr<TcpClientTransport> transport)
         : transport_(std::move(transport)) {
     }
 

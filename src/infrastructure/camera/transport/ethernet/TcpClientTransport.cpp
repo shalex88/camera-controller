@@ -1,4 +1,4 @@
-#include "TcpClient.h"
+#include "TcpClientTransport.h"
 
 #include <stdexcept>
 #include <cstring>
@@ -7,7 +7,7 @@
 #include <unistd.h>
 
 namespace camera_service::infrastructure {
-    TcpClient::TcpClient(const std::string& device_path) {
+    TcpClientTransport::TcpClientTransport(const std::string& device_path) {
         if (device_path.empty()) {
             throw std::invalid_argument("Device path cannot be empty");
         }
@@ -29,7 +29,7 @@ namespace camera_service::infrastructure {
         }
     }
 
-    TcpClient::~TcpClient() {
+    TcpClientTransport::~TcpClientTransport() {
         if (is_connected_) {
             if (disconnect().isError()) {
                 // TODO: use layer logger
@@ -37,7 +37,7 @@ namespace camera_service::infrastructure {
         }
     }
 
-    Result<void> TcpClient::connect() {
+    Result<void> TcpClientTransport::connect() {
         if (is_connected_) {
             return Result<void>::success();
         }
@@ -62,7 +62,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> TcpClient::disconnect() {
+    Result<void> TcpClientTransport::disconnect() {
         if (is_connected_ && socket_fd_ >= 0) {
             ::close(socket_fd_);
             socket_fd_ = -1;
@@ -71,7 +71,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> TcpClient::send(const std::vector<uint8_t>& data) const {
+    Result<void> TcpClientTransport::send(const std::vector<uint8_t>& data) const {
         if (!is_connected_ || socket_fd_ < 0) {
             return Result<void>::error("Not connected");
         }
@@ -90,7 +90,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<std::vector<uint8_t>> TcpClient::receive() const {
+    Result<std::vector<uint8_t>> TcpClientTransport::receive() const {
         if (!is_connected_ || socket_fd_ < 0) {
             return Result<std::vector<uint8_t>>::error("Not connected");
         }

@@ -6,10 +6,10 @@
 #include "common/types/Result.h"
 
 namespace camera_service::infrastructure {
-    class TcpClient {
+    class TcpClientTransport {
     public:
-        explicit TcpClient(const std::string& device_path);
-        ~TcpClient();
+        explicit TcpClientTransport(const std::string& device_path);
+        ~TcpClientTransport();
 
         Result<void> connect();
         Result<void> disconnect();
