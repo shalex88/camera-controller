@@ -7,8 +7,10 @@
 #include "infrastructure/camera/devices/FakeAdvancedCamera.h"
 #include "infrastructure/camera/devices/FakeSimpleCamera.h"
 #include "infrastructure/camera/transport/mmio/RegisterImplUio.h"
-#include "infrastructure/camera/transport/ethernet/TcpClient.h"
+#include "infrastructure/camera/transport/ethernet/TcpClientTransport.h"
 #include "infrastructure/camera/transport/ethernet/ItlProtocol.h"
+#include "infrastructure/camera/transport/uart/UartTransport.h"
+#include "infrastructure/camera/transport/visca/ViscaProtocol.h"
 
 namespace camera_service::infrastructure {
     std::unique_ptr<ICameraHal> CameraFactory::createCamera(
@@ -24,12 +26,14 @@ namespace camera_service::infrastructure {
         }
 
         if (config.camera == "sony") {
-            auto camera = std::make_unique<SonyCamera>(config.device);
+            auto transport = std::make_unique<UartTransport>(config.device);
+            auto protocol = std::make_unique<ViscaProtocol>(std::move(transport));
+            auto camera = std::make_unique<SonyCamera>(std::move(protocol));
             return std::make_unique<CameraHal>(std::move(camera), std::move(logger));
         }
 
         if (config.camera == "mwir") {
-            auto transport = std::make_unique<TcpClient>(config.device);
+            auto transport = std::make_unique<TcpClientTransport>(config.device);
             auto protocol = std::make_unique<ItlProtocol>(std::move(transport));
             auto camera = std::make_unique<MwirCamera>(std::move(protocol));
             return std::make_unique<CameraHal>(std::move(camera), std::move(logger));
