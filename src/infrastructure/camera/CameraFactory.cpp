@@ -9,7 +9,7 @@
 #include "infrastructure/camera/transport/mmio/RegisterImplUio.h"
 #include "infrastructure/camera/transport/ethernet/TcpClient.h"
 #include "infrastructure/camera/transport/ethernet/ItlProtocol.h"
-#include "infrastructure/camera/transport/uart/UartTransport.h"
+#include "infrastructure/camera/transport/uart/Uart.h"
 #include "infrastructure/camera/transport/visca/Visca.h"
 
 namespace camera_service::infrastructure {
@@ -26,7 +26,7 @@ namespace camera_service::infrastructure {
         }
 
         if (config.camera == "sony") {
-            auto transport = std::make_unique<UartTransport>(config.device); //TODO: use Uart instead
+            auto transport = std::make_unique<Uart>(config.device);
             auto protocol = std::make_unique<Visca>(std::move(transport));
             auto camera = std::make_unique<SonyCamera>(std::move(protocol));
             return std::make_unique<CameraHal>(std::move(camera), std::move(logger));

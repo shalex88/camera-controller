@@ -1,10 +1,7 @@
 #include "Visca.h"
 
-#include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
-
-#include "infrastructure/camera/transport/uart/UartTransport.h"
 
 namespace camera_service::infrastructure {
     ErrorCode Visca::sendPacket(ViscaPacket* packet) const {
@@ -14,27 +11,21 @@ namespace camera_service::infrastructure {
         }
 
         // build header:
-        packet->data.at(0) = 0x80;
+        packet->data.at(0) = std::byte{0x80};
         packet->data.at(0) |= (transport_->address_ << 4);
         if (transport_->broadcast_ > 0) {
             packet->data.at(0) |= (transport_->broadcast_ << 3);
             packet->data.at(0) &= 0xF8;
-        }
-        else {
+        } else {
             packet->data.at(0) |= camera_.address;
         }
 
         // append footer
         appendByte(packet, VISCA_TERMINATOR);
 
-        if (!transport_->write(packet->data) ) {
+        if (transport_->write(packet->data).isError()) {
             return ErrorCode::Failure;
         }
-        return ErrorCode::Success;
-    }
-
-    ErrorCode Visca::getPacket() const {
-        transport_->read();
         return ErrorCode::Success;
     }
 
@@ -43,12 +34,16 @@ namespace camera_service::infrastructure {
     /***********************************/
 
     ErrorCode Visca::connect() const {
-        transport_->connect();
+        if (transport_->open().isError()) {
+            return ErrorCode::Failure;
+        }
         return ErrorCode::Success;
     }
 
     ErrorCode Visca::disconnect() const {
-        transport_->disconnect();
+        if (transport_->close().isError()) {
+            return ErrorCode::Failure;
+        }
         return ErrorCode::Success;
     }
 
@@ -65,17 +60,18 @@ namespace camera_service::infrastructure {
 
     ErrorCode Visca::getReply() {
         // first message: -------------------
-        if (getPacket() != ErrorCode::Success) {
+        auto read_result = transport_->read();
+        if (read_result.isError()) {
             return ErrorCode::Failure;
         }
-        type_ = static_cast<ResponseType>(transport_->ibuf_[1] & 0xF0);
+        type_ = static_cast<ResponseType>(read_result.value().at(1)); //FIXME: & 0xF0
 
         // skip ack messages
         while (type_ == ResponseType::Ack) {
-            if (getPacket() != ErrorCode::Success) {
+            if (read_result.isError()) {
                 return ErrorCode::Failure;
             }
-            type_ = static_cast<ResponseType>(transport_->ibuf_[1] & 0xF0);
+            type_ = static_cast<ResponseType>(read_result.value().at(1)); //FIXME: & 0xF0
         }
 
         switch (type_) {
@@ -102,20 +98,6 @@ namespace camera_service::infrastructure {
         return ErrorCode::Success;
     }
 
-    ErrorCode Visca::unreadBytes(const unsigned char* buffer, uint32_t* buffer_size) const {
-        uint32_t bytes = 0;
-        *buffer_size = 0;
-
-        ioctl(transport_->port_fd_, FIONREAD, &bytes);
-        if (bytes > 0) {
-            bytes = (bytes > *buffer_size) ? *buffer_size : bytes;
-            read(transport_->port_fd_, &buffer, bytes);
-            *buffer_size = bytes;
-            return ErrorCode::Failure;
-        }
-        return ErrorCode::Success;
-    }
-
     /****************************************************************************/
     /*                           PUBLIC FUNCTIONS                               */
     /****************************************************************************/
@@ -124,7 +106,7 @@ namespace camera_service::infrastructure {
     /*       SYSTEM  FUNCTIONS         */
     /***********************************/
 
-    Visca::Visca(std::unique_ptr<UartTransport> transport): transport_(std::move(transport)) {
+    Visca::Visca(std::unique_ptr<ITransport> transport): transport_(std::move(transport)) {
     }
 
     ErrorCode Visca::setAddress(int* camera_num) {

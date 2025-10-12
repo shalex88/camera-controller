@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <memory>
 
-#include "infrastructure/camera/transport/uart/UartTransport.h"
+#include "infrastructure/camera/transport/ITransport.h"
 
 using error_code = uint32_t;
 
@@ -330,11 +330,11 @@ namespace camera_service::infrastructure {
         };
 
         struct ViscaPacket {
-            std::array<uint8_t, 32> data;
+            std::array<std::byte, 32> data;
             uint32_t length;
         };
 
-        explicit Visca(std::unique_ptr<UartTransport> transport);
+        explicit Visca(std::unique_ptr<ITransport> transport);
         ~Visca() = default;
 
         ErrorCode setAddress(int* camera_num);
@@ -550,15 +550,13 @@ namespace camera_service::infrastructure {
         ErrorCode getRegister(uint8_t reg_num, uint8_t* reg_val);
 
     private:
-        std::unique_ptr<UartTransport> transport_; //TODO: hold ITransport
+        std::unique_ptr<ITransport> transport_;
         ViscaCamera camera_{};
         static void appendByte(ViscaPacket* packet, const uint8_t byte);
         static void initPacket(ViscaPacket* packet);
         ErrorCode getReply();
         ErrorCode sendPacketWithReply(ViscaPacket* packet);
         ErrorCode sendPacket(ViscaPacket* packet) const;
-        ErrorCode getPacket() const;
-        ErrorCode unreadBytes(const uint8_t* buffer, uint32_t* buffer_size) const;
         ResponseType type_{};
     };
 }
