@@ -1,4 +1,4 @@
-#include "TcpClientTransport.h"
+#include "TcpClient.h"
 
 #include <stdexcept>
 #include <cstring>
@@ -7,7 +7,7 @@
 #include <unistd.h>
 
 namespace camera_service::infrastructure {
-    TcpClientTransport::TcpClientTransport(const std::string& device_path) {
+    TcpClient::TcpClient(const std::string& device_path) {
         if (device_path.empty()) {
             throw std::invalid_argument("Device path cannot be empty");
         }
@@ -27,17 +27,19 @@ namespace camera_service::infrastructure {
         } catch (const std::exception& e) {
             throw std::invalid_argument(std::string("Invalid port in device path: ") + e.what());
         }
-    }
 
-    TcpClientTransport::~TcpClientTransport() {
-        if (is_connected_) {
-            if (disconnect().isError()) {
-                // TODO: use layer logger
-            }
+        if (open().isError()) {
+            throw std::runtime_error("Failed to open TCP client transport");
         }
     }
 
-    Result<void> TcpClientTransport::connect() {
+    TcpClient::~TcpClient() {
+        if (close().isError()) {
+            LOG_ERROR("Failed to close TCP client transport");
+        }
+    }
+
+    Result<void> TcpClient::open() {
         if (is_connected_) {
             return Result<void>::success();
         }
@@ -62,7 +64,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> TcpClientTransport::disconnect() {
+    Result<void> TcpClient::close() {
         if (is_connected_ && socket_fd_ >= 0) {
             ::close(socket_fd_);
             socket_fd_ = -1;
@@ -71,49 +73,57 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> TcpClientTransport::send(const std::vector<uint8_t>& data) const {
+    bool TcpClient::isOpen() const {
         if (!is_connected_ || socket_fd_ < 0) {
-            return Result<void>::error("Not connected");
+            return false;
+        }
+        return true;
+    }
+
+    Result<size_t> TcpClient::write(std::span<const std::byte> data) {
+        if (!isOpen()) {
+            return Result<size_t>::error("Not connected");
         }
 
-        const size_t bytes_to_send = data.size();
-        const auto* payload = reinterpret_cast<const char*>(data.data());
         size_t total_sent = 0;
 
-        while (total_sent < bytes_to_send) {
-            const ssize_t sent = ::send(socket_fd_, payload + total_sent, bytes_to_send - total_sent, 0);
+        while (total_sent < data.size()) {
+            const ssize_t sent = ::send(socket_fd_, data.data() + total_sent, data.size() - total_sent, 0);
             if (sent < 0) {
-                return Result<void>::error("Send failed");
+                return Result<size_t>::error("Send failed");
             }
             total_sent += static_cast<size_t>(sent);
         }
-        return Result<void>::success();
+        return Result<void>::success(total_sent);
     }
 
-    Result<std::vector<uint8_t>> TcpClientTransport::receive() const {
-        if (!is_connected_ || socket_fd_ < 0) {
-            return Result<std::vector<uint8_t>>::error("Not connected");
+    Result<std::vector<std::byte>> TcpClient::read() {
+        if (!isOpen()) {
+            return Result<std::vector<std::byte>>::error("Not connected");
         }
-        constexpr size_t k_buffer_size = 4096;
-        std::vector<uint8_t> response;
+
+        constexpr size_t MAX_BYTES = 4096;
         fd_set read_fds;
         FD_ZERO(&read_fds);
         FD_SET(socket_fd_, &read_fds);
         timeval timeout {1, 0}; // 1 second timeout
-        if (const int ready = select(socket_fd_ + 1, &read_fds, nullptr, nullptr, &timeout); ready < 0) {
-            return Result<std::vector<uint8_t>>::error("Select failed");
-        } else if (ready == 0) {
-            // Timeout, no data
-            return Result<std::vector<uint8_t>>::error("No answer");
-        }
-        // Data available
-        uint8_t buffer[k_buffer_size] {};
-        const ssize_t received = ::recv(socket_fd_, buffer, k_buffer_size, 0);
-        if (received < 0) {
-            return Result<std::vector<uint8_t>>::error("Receive failed");
-        }
-        response.insert(response.end(), buffer, buffer + received);
 
-        return Result<std::vector<uint8_t>>::success(response);
+        const auto select_result = ::select(socket_fd_ + 1, &read_fds, nullptr, nullptr, &timeout);
+        if (select_result < 0) {
+            return Result<std::vector<std::byte>>::error("Select failed: " + std::string(strerror(errno)));
+        }
+        if (select_result == 0) {
+            return Result<std::vector<std::byte>>::error("Read timeout");
+        }
+
+        // Data available
+        std::vector<std::byte> buffer(MAX_BYTES);
+        const auto bytes_read = ::recv(socket_fd_, buffer.data(), MAX_BYTES, 0);
+        if (bytes_read < 0) {
+            return Result<std::vector<std::byte>>::error("Failed to receive from TCP:" + std::string(strerror(errno)));
+        }
+        buffer.resize(static_cast<size_t>(bytes_read));
+
+        return Result<std::vector<std::byte>>::success(std::move(buffer));
     }
 }

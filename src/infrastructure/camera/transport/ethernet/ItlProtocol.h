@@ -2,46 +2,52 @@
 
 #include <vector>
 #include <memory>
+#include <array>
+#include <span>
+#include <cstddef>
 
 #include "common/types/Result.h"
-#include "TcpClientTransport.h"
+#include "infrastructure/camera/transport/ITransport.h"
 
 namespace camera_service::infrastructure {
     struct __attribute__((packed)) ItlHeader {
-        uint32_t opcode = 0;
-        uint8_t id[4] = {'F', 'R', 'T', 'R'};
-        uint16_t length = 0;
-        uint16_t counter = 0;
-        uint32_t time_stamp = 0;
-        uint8_t source = 0;
-        uint8_t destination = 0;
-        uint16_t checksum = 0;
+        std::array<std::byte, 4> opcode{};
+        std::array<std::byte, 4> id{std::byte{'F'}, std::byte{'R'}, std::byte{'T'}, std::byte{'R'}};
+        std::array<std::byte, 2> length{};
+        std::array<std::byte, 2> counter{};
+        std::array<std::byte, 4> time_stamp{};
+        std::byte source{};
+        std::byte destination{};
+        std::array<std::byte, 2> checksum{};
     };
 
     struct ItlMessage {
         ItlHeader header;
-        std::vector<uint8_t> payload;
+        std::vector<std::byte> payload;
     };
 
     class ItlProtocol {
     public:
-        explicit ItlProtocol(std::unique_ptr<TcpClientTransport> transport);
+        explicit ItlProtocol(std::unique_ptr<ITransport> transport);
         ~ItlProtocol() = default;
 
         Result<void> connect() const;
         Result<void> disconnect() const;
-        Result<std::vector<uint8_t>> sendPayload(uint32_t opcode, const std::vector<uint8_t>& payload) const;
+        Result<std::vector<std::byte>> sendPayload(std::array<std::byte, 4> opcode, std::span<const std::byte> payload) const;
 
     private:
-        std::unique_ptr<TcpClientTransport> transport_;
-
-        static std::vector<uint8_t> createMessage(uint32_t opcode, const std::vector<uint8_t>& payload);
-        static std::vector<uint8_t> serialize(ItlMessage message);
-        static std::vector<uint8_t> serializeHeader(const ItlHeader& header);
-        static Result<ItlMessage> deserialize(const std::vector<uint8_t>& data);
-        static void printMessage(const std::vector<uint8_t>& message);
-        static uint16_t calculateXorChecksum(const std::vector<uint8_t>& data);
-        static uint16_t calculateMessageChecksum(const ItlMessage& message);
+        std::unique_ptr<ITransport> transport_;
+        static std::vector<std::byte> createMessage(std::array<std::byte, 4> opcode, std::span<const std::byte> payload);
+        static std::vector<std::byte> serialize(const ItlMessage& message);
+        static std::vector<std::byte> serializeHeader(const ItlHeader& header);
+        static Result<ItlMessage> deserialize(std::span<const std::byte> data);
+        static void printMessage(std::span<const std::byte> message);
+        static std::array<std::byte, 2> calculateXorChecksum(std::span<const std::byte> data);
+        static std::array<std::byte, 2> calculateMessageChecksum(const ItlMessage& message);
         static bool isValidChecksum(const ItlMessage& message);
+
+        // Helper functions for converting between multi-byte values and byte arrays
+        static std::array<std::byte, 2> toBytes(uint16_t value);
+        static uint16_t fromBytes(std::span<const std::byte, 2> bytes);
     };
 }

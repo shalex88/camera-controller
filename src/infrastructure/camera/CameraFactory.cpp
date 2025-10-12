@@ -7,7 +7,7 @@
 #include "infrastructure/camera/devices/FakeAdvancedCamera.h"
 #include "infrastructure/camera/devices/FakeSimpleCamera.h"
 #include "infrastructure/camera/transport/mmio/RegisterImplUio.h"
-#include "infrastructure/camera/transport/ethernet/TcpClientTransport.h"
+#include "infrastructure/camera/transport/ethernet/TcpClient.h"
 #include "infrastructure/camera/transport/ethernet/ItlProtocol.h"
 #include "infrastructure/camera/transport/uart/UartTransport.h"
 #include "infrastructure/camera/transport/visca/Visca.h"
@@ -26,14 +26,14 @@ namespace camera_service::infrastructure {
         }
 
         if (config.camera == "sony") {
-            auto transport = std::make_unique<UartTransport>(config.device);
+            auto transport = std::make_unique<UartTransport>(config.device); //TODO: use Uart instead
             auto protocol = std::make_unique<Visca>(std::move(transport));
             auto camera = std::make_unique<SonyCamera>(std::move(protocol));
             return std::make_unique<CameraHal>(std::move(camera), std::move(logger));
         }
 
         if (config.camera == "mwir") {
-            auto transport = std::make_unique<TcpClientTransport>(config.device);
+            auto transport = std::make_unique<TcpClient>(config.device);
             auto protocol = std::make_unique<ItlProtocol>(std::move(transport));
             auto camera = std::make_unique<MwirCamera>(std::move(protocol));
             return std::make_unique<CameraHal>(std::move(camera), std::move(logger));

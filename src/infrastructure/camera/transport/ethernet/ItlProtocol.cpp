@@ -1,96 +1,95 @@
 #include "ItlProtocol.h"
 
 #include <cstdio>
+#include <cstring>
 
 namespace camera_service::infrastructure {
-    ItlProtocol::ItlProtocol(std::unique_ptr<TcpClientTransport> transport)
+    ItlProtocol::ItlProtocol(std::unique_ptr<ITransport> transport)
         : transport_(std::move(transport)) {
     }
 
     Result<void> ItlProtocol::connect() const {
-        return transport_->connect();
+        return transport_->open();
     }
 
     Result<void> ItlProtocol::disconnect() const {
-        return transport_->disconnect();
+        return transport_->close();
     }
 
-    Result<std::vector<uint8_t>> ItlProtocol::sendPayload(
-        const uint32_t opcode, const std::vector<uint8_t>& payload) const {
+    Result<std::vector<std::byte>> ItlProtocol::sendPayload(std::array<std::byte, 4> opcode, std::span<const std::byte> payload) const {
         const auto message = createMessage(opcode, payload);
-        const auto send_result = transport_->send(message);
+        const auto send_result = transport_->write(message);
         if (send_result.isError()) {
-            return Result<std::vector<uint8_t>>::error(send_result.error());
+            return Result<std::vector<std::byte>>::error(send_result.error());
         }
 
-        const auto serialized_response = transport_->receive();
+        auto serialized_response = transport_->read();
         if (serialized_response.isError()) {
-            return Result<std::vector<uint8_t>>::error(serialized_response.error());
+            return Result<std::vector<std::byte>>::error(serialized_response.error());
         }
 
         const auto deserialized_response = deserialize(serialized_response.value());
         if (deserialized_response.isError()) {
-            return Result<std::vector<uint8_t>>::error(deserialized_response.error());
+            return Result<std::vector<std::byte>>::error(deserialized_response.error());
         }
 
-        return Result<std::vector<uint8_t>>::success(deserialized_response.value().payload);
+        return Result<std::vector<std::byte>>::success(deserialized_response.value().payload);
     }
 
-    std::vector<uint8_t> ItlProtocol::createMessage(const uint32_t opcode, const std::vector<uint8_t>& payload) {
+    std::vector<std::byte> ItlProtocol::createMessage(std::array<std::byte, 4> opcode, std::span<const std::byte> payload) {
         ItlMessage message;
-        message.payload = payload;
-
+        message.payload.assign(payload.begin(), payload.end());
         message.header.opcode = opcode;
-        message.header.length = static_cast<uint16_t>(sizeof(message.header) + payload.size());
+
+        const uint16_t total_length = sizeof(message.header) + payload.size();
+        message.header.length = toBytes(static_cast<uint16_t>(total_length));
         message.header.checksum = calculateMessageChecksum(message);
 
-        printMessage(serialize(message));
+        auto serialized = serialize(message);
+        printMessage(serialized);
 
-        return serialize(message);
+        return serialized;
     }
 
-    std::vector<uint8_t> ItlProtocol::serialize(ItlMessage message) {
+    std::vector<std::byte> ItlProtocol::serialize(const ItlMessage& message) {
         auto serialized_message = serializeHeader(message.header);
         serialized_message.insert(serialized_message.end(), message.payload.begin(), message.payload.end());
 
         return serialized_message;
     }
 
-    std::vector<uint8_t> ItlProtocol::serializeHeader(const ItlHeader& header) {
-        std::vector<uint8_t> serialized_header;
+    std::vector<std::byte> ItlProtocol::serializeHeader(const ItlHeader& header) {
+        std::vector<std::byte> serialized_header;
+        serialized_header.reserve(sizeof(ItlHeader));
 
-        for (int i = 0; i < sizeof(header.opcode); ++i) {
-            serialized_header.push_back(static_cast<uint8_t>((header.opcode >> (i * 8)) & 0xFF));
-        }
+        // Opcode (4 bytes)
+        serialized_header.insert(serialized_header.end(), header.opcode.begin(), header.opcode.end());
 
-        for (int i = 0; i < sizeof(header.id); ++i) {
-            serialized_header.push_back(header.id[i]);
-        }
+        // ID (4 bytes)
+        serialized_header.insert(serialized_header.end(), header.id.begin(), header.id.end());
 
-        for (int i = 0; i < sizeof(header.length); ++i) {
-            serialized_header.push_back(static_cast<uint8_t>((header.length >> (i * 8)) & 0xFF));
-        }
+        // Length (2 bytes)
+        serialized_header.insert(serialized_header.end(), header.length.begin(), header.length.end());
 
-        for (int i = 0; i < sizeof(header.counter); ++i) {
-            serialized_header.push_back(static_cast<uint8_t>((header.counter >> (i * 8)) & 0xFF));
-        }
+        // Counter (2 bytes)
+        serialized_header.insert(serialized_header.end(), header.counter.begin(), header.counter.end());
 
-        for (int i = 0; i < sizeof(header.time_stamp); ++i) {
-            serialized_header.push_back(static_cast<uint8_t>((header.time_stamp >> (i * 8)) & 0xFF));
-        }
+        // Time stamp (4 bytes)
+        serialized_header.insert(serialized_header.end(), header.time_stamp.begin(), header.time_stamp.end());
 
+        // Source (1 byte)
         serialized_header.push_back(header.source);
 
+        // Destination (1 byte)
         serialized_header.push_back(header.destination);
 
-        for (int i = 0; i < sizeof(header.checksum); ++i) {
-            serialized_header.push_back(static_cast<uint8_t>((header.checksum >> (i * 8)) & 0xFF));
-        }
+        // Checksum (2 bytes)
+        serialized_header.insert(serialized_header.end(), header.checksum.begin(), header.checksum.end());
 
         return serialized_header;
     }
 
-    Result<ItlMessage> ItlProtocol::deserialize(const std::vector<uint8_t>& data) {
+    Result<ItlMessage> ItlProtocol::deserialize(std::span<const std::byte> data) {
         ItlMessage message;
         if (data.size() < sizeof(ItlHeader)) {
             return Result<ItlMessage>::error("Data too short to contain valid header");
@@ -98,41 +97,47 @@ namespace camera_service::infrastructure {
 
         size_t offset = 0;
 
-        for (int i = 0; i < sizeof(message.header.opcode); ++i) {
-            message.header.opcode |= static_cast<uint32_t>(data[offset++]) << (i * 8);
-        }
-        //TODO: validate received opcode is (xFO | sent opcode)
-        if (data[3] != 0xF0) {
+        // Opcode (4 bytes)
+        std::copy_n(data.begin() + offset, 4, message.header.opcode.begin());
+        offset += 4;
+
+        // Validate received opcode has 0xF0 in the last byte
+        if (message.header.opcode[3] != std::byte{0xF0}) {
             return Result<ItlMessage>::error("Invalid opcode in response");
         }
 
-        for (int i = 0; i < sizeof(message.header.id); ++i) {
-            message.header.id[i] = data[offset++];
-        }
+        // ID (4 bytes)
+        std::copy_n(data.begin() + offset, 4, message.header.id.begin());
+        offset += 4;
 
-        for (int i = 0; i < sizeof(message.header.length); ++i) {
-            message.header.length |= static_cast<uint16_t>(data[offset++]) << (i * 8);
-        }
-        if (message.header.length != data.size()) {
+        // Length (2 bytes)
+        std::copy_n(data.begin() + offset, 2, message.header.length.begin());
+        offset += 2;
+
+        const uint16_t length = fromBytes(message.header.length);
+        if (length != data.size()) {
             return Result<ItlMessage>::error("Length field does not match actual data size");
         }
 
-        for (int i = 0; i < sizeof(message.header.counter); ++i) {
-            message.header.counter |= static_cast<uint16_t>(data[offset++]) << (i * 8);
-        }
+        // Counter (2 bytes)
+        std::copy_n(data.begin() + offset, 2, message.header.counter.begin());
+        offset += 2;
 
-        for (int i = 0; i < sizeof(message.header.time_stamp); ++i) {
-            message.header.time_stamp |= static_cast<uint32_t>(data[offset++]) << (i * 8);
-        }
+        // Time stamp (4 bytes)
+        std::copy_n(data.begin() + offset, 4, message.header.time_stamp.begin());
+        offset += 4;
 
+        // Source (1 byte)
         message.header.source = data[offset++];
 
+        // Destination (1 byte)
         message.header.destination = data[offset++];
 
-        for (int i = 0; i < sizeof(message.header.checksum); ++i) {
-            message.header.checksum |= static_cast<uint16_t>(data[offset++]) << (i * 8);
-        }
+        // Checksum (2 bytes)
+        std::copy_n(data.begin() + offset, 2, message.header.checksum.begin());
+        offset += 2;
 
+        // Payload (remaining bytes)
         if (offset < data.size()) {
             message.payload.insert(message.payload.end(), data.begin() + offset, data.end());
         }
@@ -144,30 +149,31 @@ namespace camera_service::infrastructure {
         return Result<ItlMessage>::success(message);
     }
 
-    void ItlProtocol::printMessage(const std::vector<uint8_t>& message) {
+    void ItlProtocol::printMessage(std::span<const std::byte> message) {
         std::string buffer = "Message (" + std::to_string(message.size()) + " bytes): [";
         for (size_t i = 0; i < message.size(); ++i) {
             if (i > 0) buffer += " ";
             char hex_buffer[3];
-            snprintf(hex_buffer, sizeof(hex_buffer), "%02x", message[i]);
+            snprintf(hex_buffer, sizeof(hex_buffer), "%02x", static_cast<uint8_t>(message[i]));
             buffer += hex_buffer;
         }
         buffer += "]";
-        LOG_DEBUG("{}", buffer); //TODO: use layered logger
+        LOG_DEBUG("{}", buffer);
     }
 
-    uint16_t ItlProtocol::calculateXorChecksum(const std::vector<uint8_t>& data) {
+    std::array<std::byte, 2> ItlProtocol::calculateXorChecksum(std::span<const std::byte> data) {
         uint16_t checksum = 0;
         for (const auto byte : data) {
-            checksum ^= byte;
+            checksum ^= static_cast<uint8_t>(byte);
         }
-        return checksum;
+        return toBytes(checksum);
     }
 
-    uint16_t ItlProtocol::calculateMessageChecksum(const ItlMessage& message) {
-        const ItlHeader temp_header = message.header;
+    std::array<std::byte, 2> ItlProtocol::calculateMessageChecksum(const ItlMessage& message) {
+        ItlMessage temp_message = message;
+        temp_message.header.checksum = {std::byte{0}, std::byte{0}};
 
-        auto data_for_checksum = serializeHeader(temp_header);
+        auto data_for_checksum = serializeHeader(temp_message.header);
         data_for_checksum.resize(data_for_checksum.size() - 2);
         data_for_checksum.insert(data_for_checksum.end(), message.payload.begin(), message.payload.end());
 
@@ -175,9 +181,20 @@ namespace camera_service::infrastructure {
     }
 
     bool ItlProtocol::isValidChecksum(const ItlMessage& message) {
-        ItlMessage temp_message = message;
-        temp_message.header.checksum = 0;
+        const auto calculated = calculateMessageChecksum(message);
+        return calculated == message.header.checksum;
+    }
 
-        return calculateMessageChecksum(temp_message) == message.header.checksum;
+    // Helper functions
+    std::array<std::byte, 2> ItlProtocol::toBytes(uint16_t value) {
+        return {
+            static_cast<std::byte>(value & 0xFF),
+            static_cast<std::byte>((value >> 8) & 0xFF)
+        };
+    }
+
+    uint16_t ItlProtocol::fromBytes(std::span<const std::byte, 2> bytes) {
+        return static_cast<uint16_t>(bytes[0]) |
+               (static_cast<uint16_t>(bytes[1]) << 8);
     }
 }

@@ -550,7 +550,7 @@ namespace camera_service::infrastructure {
         ErrorCode getRegister(uint8_t reg_num, uint8_t* reg_val);
 
     private:
-        std::unique_ptr<UartTransport> transport_;
+        std::unique_ptr<UartTransport> transport_; //TODO: hold ITransport
         ViscaCamera camera_{};
         static void appendByte(ViscaPacket* packet, const uint8_t byte);
         static void initPacket(ViscaPacket* packet);

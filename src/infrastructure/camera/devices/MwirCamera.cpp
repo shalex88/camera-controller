@@ -34,16 +34,16 @@ namespace camera_service::infrastructure {
     }
 
     Result<types::info> MwirCamera::getInfo() const {
-        constexpr std::vector<uint8_t> payload;
+        std::vector<std::byte> payload;
 
-        const auto info = protocol_->sendPayload(MWIR_GET_VERSION, payload);
+        const auto info = protocol_->sendPayload(MWIR_GET_VERSION, std::span<const std::byte>{payload});
         if (info.isError()) {
             return Result<types::info>::error(info.error());
         }
-        const std::string result = "v" + std::to_string(info.value().at(0)) + "." +
-                                  std::to_string(info.value().at(1)) + "." +
-                                  std::to_string(info.value().at(2)) + "." +
-                                  std::to_string(info.value().at(3));
+        const std::string result = "v" + std::to_string(static_cast<uint8_t>(info.value().at(0))) + "." +
+                                  std::to_string(static_cast<uint8_t>(info.value().at(1))) + "." +
+                                  std::to_string(static_cast<uint8_t>(info.value().at(2))) + "." +
+                                  std::to_string(static_cast<uint8_t>(info.value().at(3)));
         return Result<types::info>::success(result);
     }
 

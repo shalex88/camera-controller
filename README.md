@@ -68,4 +68,5 @@ grpcui -plaintext 0.0.0.0:50051
 ## TODO
 
 1. Use string_view instead of string where possible
-2. Use span instead of other containers
+2. Use span instead of other containers. Check how it should be passed
+3. Set Nagle's algorithm on TCP sockets
