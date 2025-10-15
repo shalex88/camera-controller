@@ -1,9 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <memory>
-
-#include "infrastructure/camera/transport/ITransport.h"
+#include <termios.h>
 
 using error_code = uint32_t;
 
@@ -307,10 +305,26 @@ enum class ResponseType : error_code {
 
 /* timeout in us */
 inline constexpr uint32_t VISCA_SERIAL_WAIT = 100000;
+/* size of the local packet buffer */
+inline constexpr uint32_t VISCA_INPUT_BUFFER_SIZE = 1024;
 
 namespace camera_service::infrastructure {
     class Visca {
     public:
+        struct ViscaInterface {
+            // RS232 data:
+            int port_fd;
+            termios options;
+            uint32_t baud;
+            // VISCA data:
+            uint32_t address;
+            uint32_t broadcast;
+            // RS232 input buffer
+            uint8_t ibuf[VISCA_INPUT_BUFFER_SIZE];
+            uint32_t bytes;
+            ResponseType type;
+        };
+
         struct ViscaCamera {
             // VISCA data:
             int address;
@@ -326,22 +340,22 @@ namespace camera_service::infrastructure {
             uint32_t hposition;
             uint32_t color;
             uint32_t blink;
-            std::array<uint8_t, 20> title;
+            uint8_t title[20];
         };
 
         struct ViscaPacket {
-            std::array<std::byte, 32> data;
+            uint8_t bytes[32];
             uint32_t length;
         };
 
-        explicit Visca(std::unique_ptr<ITransport> transport);
+        Visca() = default;
         ~Visca() = default;
 
-        ErrorCode setAddress(int* camera_num);
+        ErrorCode setAddress();
         ErrorCode clear();
-        ErrorCode getCameraInfo(ViscaCamera* camera);
-        ErrorCode connect() const;
-        ErrorCode disconnect() const;
+        ErrorCode getCameraInfo();
+        ErrorCode open(const char* device_name);
+        ErrorCode close();
         /* COMMANDS */
         ErrorCode setPower(uint8_t power);
         ErrorCode setKeylock(uint8_t power);
@@ -362,7 +376,7 @@ namespace camera_service::infrastructure {
         ErrorCode setFocusFarSpeed(uint32_t speed);
         ErrorCode setFocusNearSpeed(uint32_t speed);
         ErrorCode setFocusValue(uint32_t focus);
-        ErrorCode setFocusAuto(uint8_t power);
+        ErrorCode setFocusAuto(bool on);
         ErrorCode setFocusOnePush();
         ErrorCode setFocusInfinity();
         ErrorCode setFocusAutosenseHigh();
@@ -444,10 +458,10 @@ namespace camera_service::infrastructure {
             tilt_speed should be in the range 01 - 14
             pan_position should be in the range -880 - 880 (0xFC90 - 0x370)
             tilt_position should be in range -300 - 300 (0xFED4 - 0x12C)  */
-        ErrorCode setPantiltAbsolutePosition(const ViscaCamera* camera, uint32_t pan_speed, uint32_t tilt_speed,
-                                             uint32_t pan_position, uint32_t tilt_position);
-        ErrorCode setPantiltRelativePosition(const ViscaCamera* camera, uint32_t pan_speed, uint32_t tilt_speed,
-                                             uint32_t pan_position, uint32_t tilt_position);
+        ErrorCode setPantiltAbsolutePosition(uint32_t pan_speed, uint32_t tilt_speed, uint32_t pan_position,
+                                             uint32_t tilt_position);
+        ErrorCode setPantiltRelativePosition(uint32_t pan_speed, uint32_t tilt_speed, uint32_t pan_position,
+                                             uint32_t tilt_position);
         ErrorCode setPantiltHome();
         ErrorCode setPantiltReset();
         /*  pan_limit should be in the range -880 - 880 (0xFC90 - 0x370)
@@ -467,7 +481,7 @@ namespace camera_service::infrastructure {
         ErrorCode getDzoom(uint8_t* power);
         ErrorCode getDzoomLimit(uint8_t* value);
         ErrorCode getZoomValue(uint16_t* value);
-        ErrorCode getFocusAuto(uint8_t* power);
+        ErrorCode getFocusAuto(bool* on);
         ErrorCode getFocusValue(uint16_t* value);
         ErrorCode getFocusAutoSense(uint8_t* mode);
         ErrorCode getFocusNearLimit(uint16_t* value);
@@ -550,13 +564,16 @@ namespace camera_service::infrastructure {
         ErrorCode getRegister(uint8_t reg_num, uint8_t* reg_val);
 
     private:
-        std::unique_ptr<ITransport> transport_;
-        ViscaCamera camera_{};
-        static void appendByte(ViscaPacket* packet, const uint8_t byte);
+        ViscaInterface iface;
+        ViscaCamera camera;
+        int32_t address;
+        static void appendByte(ViscaPacket* packet, uint8_t byte);
         static void initPacket(ViscaPacket* packet);
         ErrorCode getReply();
         ErrorCode sendPacketWithReply(ViscaPacket* packet);
-        ErrorCode sendPacket(ViscaPacket* packet) const;
-        ResponseType type_{};
+        ErrorCode write(const ViscaPacket* packet);
+        ErrorCode sendPacket(ViscaPacket* packet);
+        ErrorCode read();
+        ErrorCode unreadBytes(const uint8_t* buffer, uint32_t* buffer_size);
     };
 }

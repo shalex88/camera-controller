@@ -1,31 +1,58 @@
 #include "Visca.h"
 
+#include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
 
 namespace camera_service::infrastructure {
-    ErrorCode Visca::sendPacket(ViscaPacket* packet) const {
+    ErrorCode Visca::write(const ViscaPacket* packet) {
+        if (const auto err = ::write(iface.port_fd, packet->bytes, packet->length); err < packet->length) {
+            return ErrorCode::Failure;
+        }
+        return ErrorCode::Success;
+    }
+
+    ErrorCode Visca::sendPacket(ViscaPacket* packet) {
         // check data:
-        if ((transport_->address_ > 7) || (camera_.address > 7) || (transport_->broadcast_ > 1)) {
+        if ((iface.address > 7) || (camera.address > 7) || (iface.broadcast > 1)) {
             return ErrorCode::Failure;
         }
 
         // build header:
-        packet->data.at(0) = std::byte{0x80};
-        packet->data.at(0) |= (transport_->address_ << 4);
-        if (transport_->broadcast_ > 0) {
-            packet->data.at(0) |= (transport_->broadcast_ << 3);
-            packet->data.at(0) &= 0xF8;
+        packet->bytes[0] = 0x80;
+        packet->bytes[0] |= (iface.address << 4);
+        if (iface.broadcast > 0) {
+            packet->bytes[0] |= (iface.broadcast << 3);
+            packet->bytes[0] &= 0xF8;
         } else {
-            packet->data.at(0) |= camera_.address;
+            packet->bytes[0] |= camera.address;
         }
 
         // append footer
         appendByte(packet, VISCA_TERMINATOR);
 
-        if (transport_->write(packet->data).isError()) {
-            return ErrorCode::Failure;
+        return write(packet);
+    }
+
+    ErrorCode Visca::read() {
+        int pos = 0;
+
+        // wait for message
+        ioctl(iface.port_fd, FIONREAD, &(iface.bytes));
+        while (iface.bytes == 0) {
+            usleep(0);
+            ioctl(iface.port_fd, FIONREAD, &(iface.bytes));
         }
+
+        // get octets one by one
+        ::read(iface.port_fd, iface.ibuf, 1);
+        while (iface.ibuf[pos] != VISCA_TERMINATOR) {
+            pos++;
+            ::read(iface.port_fd, &iface.ibuf[pos], 1);
+            usleep(0);
+        }
+        iface.bytes = pos + 1;
+
         return ErrorCode::Success;
     }
 
@@ -33,22 +60,57 @@ namespace camera_service::infrastructure {
     /*       SYSTEM  FUNCTIONS         */
     /***********************************/
 
-    ErrorCode Visca::connect() const {
-        if (transport_->open().isError()) {
+    ErrorCode Visca::open(const char* device_name) {
+        const auto fd = ::open(device_name, O_RDWR | O_NDELAY | O_NOCTTY);
+
+        if (fd == -1) {
+            iface.port_fd = -1;
             return ErrorCode::Failure;
         }
+        fcntl(fd, F_SETFL, 0);
+        /* Setting port parameters */
+        tcgetattr(fd, &iface.options);
+
+        /* control flags */
+        cfsetispeed(&iface.options,B9600); /* 9600 Bds   */
+        iface.options.c_cflag &= ~PARENB; /* No parity  */
+        iface.options.c_cflag &= ~CSTOPB; /*            */
+        iface.options.c_cflag &= ~CSIZE; /* 8bit       */
+        iface.options.c_cflag |= CS8; /*            */
+        iface.options.c_cflag &= ~CRTSCTS; /* No hdw ctl */
+
+        /* local flags */
+        iface.options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); /* raw input */
+
+        /* input flags */
+        /*
+            iface.options.c_iflag &= ~(INPCK | ISTRIP); // no parity
+            iface.options.c_iflag &= ~(IXON | IXOFF | IXANY); // no soft ctl
+            */
+        /* patch: bpflegin: set to 0 in order to avoid invalid pan/tilt return values */
+        iface.options.c_iflag = 0;
+
+        /* output flags */
+        iface.options.c_oflag &= ~OPOST; /* raw output */
+
+        tcsetattr(fd, TCSANOW, &iface.options);
+        iface.port_fd = fd;
+        iface.address = 0;
+
         return ErrorCode::Success;
     }
 
-    ErrorCode Visca::disconnect() const {
-        if (transport_->close().isError()) {
-            return ErrorCode::Failure;
+    ErrorCode Visca::close() {
+        if (iface.port_fd != -1) {
+            ::close(iface.port_fd);
+            iface.port_fd = -1;
+            return ErrorCode::Success;
         }
-        return ErrorCode::Success;
+        return ErrorCode::Failure;
     }
 
     void Visca::appendByte(ViscaPacket* packet, const uint8_t byte) {
-        packet->data.at(packet->length) = byte;
+        packet->bytes[packet->length] = byte;
         (packet->length)++;
     }
 
@@ -60,29 +122,28 @@ namespace camera_service::infrastructure {
 
     ErrorCode Visca::getReply() {
         // first message: -------------------
-        auto read_result = transport_->read();
-        if (read_result.isError()) {
+        if (read() != ErrorCode::Success) {
             return ErrorCode::Failure;
         }
-        type_ = static_cast<ResponseType>(read_result.value().at(1)); //FIXME: & 0xF0
+        iface.type = static_cast<ResponseType>(iface.ibuf[1] & 0xF0);
 
         // skip ack messages
-        while (type_ == ResponseType::Ack) {
-            if (read_result.isError()) {
+        while (iface.type == ResponseType::Ack) {
+            if (read() != ErrorCode::Success) {
                 return ErrorCode::Failure;
             }
-            type_ = static_cast<ResponseType>(read_result.value().at(1)); //FIXME: & 0xF0
+            iface.type = static_cast<ResponseType>(iface.ibuf[1] & 0xF0);
         }
 
-        switch (type_) {
-            case ResponseType::Clear:
-            case ResponseType::Address:
-            case ResponseType::Completed:
-            case ResponseType::Error:
-                return ErrorCode::Success;
-                break;
-            default:
-                return ErrorCode::Failure;
+        switch (iface.type) {
+        case ResponseType::Clear:
+        case ResponseType::Address:
+        case ResponseType::Completed:
+        case ResponseType::Error:
+            return ErrorCode::Success;
+            break;
+        default:
+            return ErrorCode::Failure;
         }
     }
 
@@ -98,6 +159,20 @@ namespace camera_service::infrastructure {
         return ErrorCode::Success;
     }
 
+    ErrorCode Visca::unreadBytes(const unsigned char* buffer, uint32_t* buffer_size) {
+        uint32_t bytes = 0;
+        *buffer_size = 0;
+
+        ioctl(iface.port_fd, FIONREAD, &bytes);
+        if (bytes > 0) {
+            bytes = (bytes > *buffer_size) ? *buffer_size : bytes;
+            ::read(iface.port_fd, &buffer, bytes);
+            *buffer_size = bytes;
+            return ErrorCode::Failure;
+        }
+        return ErrorCode::Success;
+    }
+
     /****************************************************************************/
     /*                           PUBLIC FUNCTIONS                               */
     /****************************************************************************/
@@ -106,25 +181,22 @@ namespace camera_service::infrastructure {
     /*       SYSTEM  FUNCTIONS         */
     /***********************************/
 
-    Visca::Visca(std::unique_ptr<ITransport> transport): transport_(std::move(transport)) {
-    }
-
-    ErrorCode Visca::setAddress(int* camera_num) {
+    ErrorCode Visca::setAddress() {
         ViscaPacket packet{};
+        int32_t camera_num = 0;
 
-        camera_.address = 0;
-        const auto backup = transport_->broadcast_;
+        const auto backup = iface.broadcast;
 
         initPacket(&packet);
         appendByte(&packet, 0x30);
         appendByte(&packet, 0x01);
 
-        transport_->broadcast_ = 1;
+        iface.broadcast = 1;
         if (sendPacket(&packet) != ErrorCode::Success) {
-            transport_->broadcast_ = backup;
+            iface.broadcast = backup;
             return ErrorCode::Failure;
         }
-        transport_->broadcast_ = backup;
+        iface.broadcast = backup;
 
         if (getReply() != ErrorCode::Success) {
             return ErrorCode::Failure;
@@ -134,14 +206,15 @@ namespace camera_service::infrastructure {
                every packet should be 88 30 0x FF, x being
                the camera id+1. The number of cams will thus be
                ibuf[bytes-2]-1  */
-        if ((transport_->bytes_ & 0x3) != 0) {
+        if ((iface.bytes & 0x3) != 0) {
             /* check multiple of 4 */
             return ErrorCode::Failure;
         }
-        *camera_num = transport_->ibuf_[transport_->bytes_ - 2] - 1;
-        if ((*camera_num == 0) || (*camera_num > 7)) {
+        camera_num = iface.ibuf[iface.bytes - 2] - 1;
+        if ((camera_num == 0) || (camera_num > 7)) {
             return ErrorCode::Failure;
         }
+        camera.address = camera_num;
         return ErrorCode::Success;
     }
 
@@ -162,30 +235,30 @@ namespace camera_service::infrastructure {
         return ErrorCode::Success;
     }
 
-    ErrorCode Visca::getCameraInfo(ViscaCamera* camera) {
+    ErrorCode Visca::getCameraInfo() {
         ViscaPacket packet{};
-        packet.data[0] = 0x80 | camera_.address;
-        packet.data[1] = 0x09;
-        packet.data[2] = 0x00;
-        packet.data[3] = 0x02;
-        packet.data[4] = VISCA_TERMINATOR;
+        packet.bytes[0] = 0x80 | camera.address;
+        packet.bytes[1] = 0x09;
+        packet.bytes[2] = 0x00;
+        packet.bytes[3] = 0x02;
+        packet.bytes[4] = VISCA_TERMINATOR;
         packet.length = 5;
 
-        if (!transport_->write(packet.data)) {
+        if (write(&packet) != ErrorCode::Success) {
             return ErrorCode::Failure;
         }
         if (getReply() != ErrorCode::Success) {
             return ErrorCode::Failure;
         }
 
-        if (transport_->bytes_ != 10) {
+        if (iface.bytes != 10) {
             /* we expect 10 bytes as answer */
             return ErrorCode::Failure;
         }
-        camera_.vendor = (transport_->ibuf_[2] << 8) + transport_->ibuf_[3];
-        camera_.model = (transport_->ibuf_[4] << 8) + transport_->ibuf_[5];
-        camera_.rom_version = (transport_->ibuf_[6] << 8) + transport_->ibuf_[7];
-        camera_.socket_num = transport_->ibuf_[8];
+        camera.vendor = (iface.ibuf[2] << 8) + iface.ibuf[3];
+        camera.model = (iface.ibuf[4] << 8) + iface.ibuf[5];
+        camera.rom_version = (iface.ibuf[6] << 8) + iface.ibuf[7];
+        camera.socket_num = iface.ibuf[8];
         return ErrorCode::Success;
     }
 
@@ -437,14 +510,14 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ErrorCode Visca::setFocusAuto(const uint8_t power) {
+    ErrorCode Visca::setFocusAuto(const bool on) {
         ViscaPacket packet{};
 
         initPacket(&packet);
         appendByte(&packet, VISCA_COMMAND);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_FOCUS_AUTO);
-        appendByte(&packet, power);
+        appendByte(&packet, on ? VISCA_ON : VISCA_OFF);
 
         return sendPacketWithReply(&packet);
     }
@@ -1332,7 +1405,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = transport_->ibuf_[2];
+        *power = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -1346,7 +1419,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = transport_->ibuf_[2];
+        *power = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -1360,7 +1433,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *value = transport_->ibuf_[2];
+        *value = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -1375,12 +1448,11 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *value = (transport_->ibuf_[2] << 12) + (transport_->ibuf_[3] << 8) + (transport_->ibuf_[4] << 4) + transport_->
-            ibuf_[5];
+        *value = (iface.ibuf[2] << 12) + (iface.ibuf[3] << 8) + (iface.ibuf[4] << 4) + iface.ibuf[5];
         return ErrorCode::Success;
     }
 
-    ErrorCode Visca::getFocusAuto(uint8_t* power) {
+    ErrorCode Visca::getFocusAuto(bool* on) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1391,7 +1463,12 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = transport_->ibuf_[2];
+        if (iface.ibuf[2] == VISCA_OFF) {
+            *on = false;
+        } else {
+            *on = true;
+        }
+
         return ErrorCode::Success;
     }
 
@@ -1406,8 +1483,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *value = (transport_->ibuf_[2] << 12) + (transport_->ibuf_[3] << 8) + (transport_->ibuf_[4] << 4) + transport_->
-            ibuf_[5];
+        *value = (iface.ibuf[2] << 12) + (iface.ibuf[3] << 8) + (iface.ibuf[4] << 4) + iface.ibuf[5];
         return ErrorCode::Success;
     }
 
@@ -1422,7 +1498,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *mode = transport_->ibuf_[2];
+        *mode = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -1437,8 +1513,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *value = (transport_->ibuf_[2] << 12) + (transport_->ibuf_[3] << 8) + (transport_->ibuf_[4] << 4) + transport_->
-            ibuf_[5];
+        *value = (iface.ibuf[2] << 12) + (iface.ibuf[3] << 8) + (iface.ibuf[4] << 4) + iface.ibuf[5];
         return ErrorCode::Success;
     }
 
@@ -1453,7 +1528,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *mode = transport_->ibuf_[2];
+        *mode = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -1468,8 +1543,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *value = (transport_->ibuf_[2] << 12) + (transport_->ibuf_[3] << 8) + (transport_->ibuf_[4] << 4) + transport_->
-            ibuf_[5];
+        *value = (iface.ibuf[2] << 12) + (iface.ibuf[3] << 8) + (iface.ibuf[4] << 4) + iface.ibuf[5];
         return ErrorCode::Success;
     }
 
@@ -1484,8 +1558,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *value = (transport_->ibuf_[2] << 12) + (transport_->ibuf_[3] << 8) + (transport_->ibuf_[4] << 4) + transport_->
-            ibuf_[5];
+        *value = (iface.ibuf[2] << 12) + (iface.ibuf[3] << 8) + (iface.ibuf[4] << 4) + iface.ibuf[5];
         return ErrorCode::Success;
     }
 
@@ -1500,7 +1573,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *mode = transport_->ibuf_[2];
+        *mode = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -1515,7 +1588,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *mode = transport_->ibuf_[2];
+        *mode = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -1530,8 +1603,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *value = (transport_->ibuf_[2] << 12) + (transport_->ibuf_[3] << 8) + (transport_->ibuf_[4] << 4) + transport_->
-            ibuf_[5];
+        *value = (iface.ibuf[2] << 12) + (iface.ibuf[3] << 8) + (iface.ibuf[4] << 4) + iface.ibuf[5];
         return ErrorCode::Success;
     }
 
@@ -1546,8 +1618,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *value = (transport_->ibuf_[2] << 12) + (transport_->ibuf_[3] << 8) + (transport_->ibuf_[4] << 4) + transport_->
-            ibuf_[5];
+        *value = (iface.ibuf[2] << 12) + (iface.ibuf[3] << 8) + (iface.ibuf[4] << 4) + iface.ibuf[5];
         return ErrorCode::Success;
     }
 
@@ -1562,8 +1633,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *value = (transport_->ibuf_[2] << 12) + (transport_->ibuf_[3] << 8) + (transport_->ibuf_[4] << 4) + transport_->
-            ibuf_[5];
+        *value = (iface.ibuf[2] << 12) + (iface.ibuf[3] << 8) + (iface.ibuf[4] << 4) + iface.ibuf[5];
         return ErrorCode::Success;
     }
 
@@ -1578,8 +1648,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *value = (transport_->ibuf_[2] << 12) + (transport_->ibuf_[3] << 8) + (transport_->ibuf_[4] << 4) + transport_->
-            ibuf_[5];
+        *value = (iface.ibuf[2] << 12) + (iface.ibuf[3] << 8) + (iface.ibuf[4] << 4) + iface.ibuf[5];
         return ErrorCode::Success;
     }
 
@@ -1594,7 +1663,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = transport_->ibuf_[2];
+        *power = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -1609,8 +1678,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *value = (transport_->ibuf_[2] << 12) + (transport_->ibuf_[3] << 8) + (transport_->ibuf_[4] << 4) + transport_->
-            ibuf_[5];
+        *value = (iface.ibuf[2] << 12) + (iface.ibuf[3] << 8) + (iface.ibuf[4] << 4) + iface.ibuf[5];
         return ErrorCode::Success;
     }
 
@@ -1625,7 +1693,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = transport_->ibuf_[2];
+        *power = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -1640,8 +1708,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *value = (transport_->ibuf_[2] << 12) + (transport_->ibuf_[3] << 8) + (transport_->ibuf_[4] << 4) + transport_->
-            ibuf_[5];
+        *value = (iface.ibuf[2] << 12) + (iface.ibuf[3] << 8) + (iface.ibuf[4] << 4) + iface.ibuf[5];
         return ErrorCode::Success;
     }
 
@@ -1656,7 +1723,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = transport_->ibuf_[2];
+        *power = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -1671,7 +1738,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = transport_->ibuf_[2];
+        *power = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -1686,7 +1753,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *mode = transport_->ibuf_[2];
+        *mode = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -1701,7 +1768,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = transport_->ibuf_[2];
+        *power = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -1716,7 +1783,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = transport_->ibuf_[2];
+        *power = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -1731,7 +1798,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *mode = transport_->ibuf_[2];
+        *mode = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -1746,7 +1813,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *mode = transport_->ibuf_[2];
+        *mode = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -1761,8 +1828,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *value = (transport_->ibuf_[2] << 12) + (transport_->ibuf_[3] << 8) + (transport_->ibuf_[4] << 4) + transport_->
-            ibuf_[5];
+        *value = (iface.ibuf[2] << 12) + (iface.ibuf[3] << 8) + (iface.ibuf[4] << 4) + iface.ibuf[5];
         return ErrorCode::Success;
     }
 
@@ -1777,7 +1843,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *channel = transport_->ibuf_[2];
+        *channel = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -1792,7 +1858,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = transport_->ibuf_[2];
+        *power = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -1807,8 +1873,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *id = (transport_->ibuf_[2] << 12) + (transport_->ibuf_[3] << 8) + (transport_->ibuf_[4] << 4) + transport_->
-            ibuf_[5];
+        *id = (iface.ibuf[2] << 12) + (iface.ibuf[3] << 8) + (iface.ibuf[4] << 4) + iface.ibuf[5];
         return ErrorCode::Success;
     }
 
@@ -1974,9 +2039,8 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ErrorCode Visca::setPantiltAbsolutePosition(const ViscaCamera* camera, const uint32_t pan_speed,
-                                                const uint32_t tilt_speed, const uint32_t pan_pos,
-                                                const uint32_t tilt_pos) {
+    ErrorCode Visca::setPantiltAbsolutePosition(const uint32_t pan_speed, const uint32_t tilt_speed,
+                                                const uint32_t pan_pos, const uint32_t tilt_pos) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -1999,9 +2063,8 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ErrorCode Visca::setPantiltRelativePosition(const ViscaCamera* camera, const uint32_t pan_speed,
-                                                const uint32_t tilt_speed, const uint32_t pan_pos,
-                                                const uint32_t tilt_pos) {
+    ErrorCode Visca::setPantiltRelativePosition(const uint32_t pan_speed, const uint32_t tilt_speed,
+                                                const uint32_t pan_pos, const uint32_t tilt_pos) {
         ViscaPacket packet{};
 
         initPacket(&packet);
@@ -2202,7 +2265,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *system = transport_->ibuf_[2];
+        *system = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -2217,7 +2280,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *status = ((transport_->ibuf_[2] & 0xff) << 8) + (transport_->ibuf_[3] & 0xff);
+        *status = ((iface.ibuf[2] & 0xff) << 8) + (iface.ibuf[3] & 0xff);
         return ErrorCode::Success;
     }
 
@@ -2232,8 +2295,8 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *max_pan_speed = (transport_->ibuf_[2] & 0xff);
-        *max_tilt_speed = (transport_->ibuf_[3] & 0xff);
+        *max_pan_speed = (iface.ibuf[2] & 0xff);
+        *max_tilt_speed = (iface.ibuf[3] & 0xff);
         return ErrorCode::Success;
     }
 
@@ -2248,10 +2311,10 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *pan_position = ((transport_->ibuf_[2] & 0xf) << 12) + ((transport_->ibuf_[3] & 0xf) << 8) + ((transport_->ibuf_
-            [4] & 0xf) << 4) + (transport_->ibuf_[5] & 0xf);
-        *tilt_position = ((transport_->ibuf_[6] & 0xf) << 12) + ((transport_->ibuf_[7] & 0xf) << 8) + ((transport_->
-            ibuf_[8] & 0xf) << 4) + (transport_->ibuf_[9] & 0xf);
+        *pan_position = ((iface.ibuf[2] & 0xf) << 12) + ((iface.ibuf[3] & 0xf) << 8) + ((iface.ibuf[4] & 0xf) << 4) + (
+            iface.ibuf[5] & 0xf);
+        *tilt_position = ((iface.ibuf[6] & 0xf) << 12) + ((iface.ibuf[7] & 0xf) << 8) + ((iface.ibuf[8] & 0xf) << 4) + (
+            iface.ibuf[9] & 0xf);
 
         return ErrorCode::Success;
     }
@@ -2267,7 +2330,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *status = transport_->ibuf_[2];
+        *status = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -2283,7 +2346,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *reg_val = (transport_->ibuf_[2] << 4) + transport_->ibuf_[3];
+        *reg_val = (iface.ibuf[2] << 4) + iface.ibuf[3];
         return ErrorCode::Success;
     }
 
@@ -2681,7 +2744,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = transport_->ibuf_[2];
+        *power = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -2696,7 +2759,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = transport_->ibuf_[2];
+        *power = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -2711,7 +2774,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = transport_->ibuf_[2];
+        *power = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -2726,7 +2789,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *value = ((transport_->ibuf_[2] & 0xff) << 8) + (transport_->ibuf_[3] & 0xff);
+        *value = ((iface.ibuf[2] & 0xff) << 8) + (iface.ibuf[3] & 0xff);
         return ErrorCode::Success;
     }
 
@@ -2741,7 +2804,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = transport_->ibuf_[2];
+        *power = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -2755,7 +2818,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *value = ((transport_->ibuf_[2] & 0xff) << 8) + (transport_->ibuf_[3] & 0xff);
+        *value = ((iface.ibuf[2] & 0xff) << 8) + (iface.ibuf[3] & 0xff);
         return ErrorCode::Success;
     }
 
@@ -2769,7 +2832,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = (transport_->ibuf_[3] & 0x0f);
+        *power = (iface.ibuf[3] & 0x0f);
         return ErrorCode::Success;
     }
 
@@ -2783,7 +2846,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = (transport_->ibuf_[3] & 0x0f);
+        *power = (iface.ibuf[3] & 0x0f);
         return ErrorCode::Success;
     }
 
@@ -2797,7 +2860,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = (transport_->ibuf_[3] & 0x0f);
+        *power = (iface.ibuf[3] & 0x0f);
         return ErrorCode::Success;
     }
 
@@ -2812,7 +2875,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = (transport_->ibuf_[3] & 0x0f);
+        *power = (iface.ibuf[3] & 0x0f);
         return ErrorCode::Success;
     }
 
@@ -2827,7 +2890,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = transport_->ibuf_[2];
+        *power = iface.ibuf[2];
         return ErrorCode::Success;
     }
 
@@ -2842,7 +2905,7 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *power = (transport_->ibuf_[3] & 0x0f);
+        *power = (iface.ibuf[3] & 0x0f);
         return ErrorCode::Success;
     }
 
@@ -2857,9 +2920,9 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *xpos = transport_->ibuf_[2];
-        *ypos = transport_->ibuf_[3];
-        *status = (transport_->ibuf_[4] & 0x0f);
+        *xpos = iface.ibuf[2];
+        *ypos = iface.ibuf[3];
+        *status = (iface.ibuf[4] & 0x0f);
         return ErrorCode::Success;
     }
 
@@ -2874,9 +2937,9 @@ namespace camera_service::infrastructure {
         if (const ErrorCode err = sendPacketWithReply(&packet); err != ErrorCode::Success) {
             return err;
         }
-        *xpos = transport_->ibuf_[2];
-        *ypos = transport_->ibuf_[3];
-        *status = (transport_->ibuf_[4] & 0x0f);
+        *xpos = iface.ibuf[2];
+        *ypos = iface.ibuf[3];
+        *status = (iface.ibuf[4] & 0x0f);
         return ErrorCode::Success;
     }
 }

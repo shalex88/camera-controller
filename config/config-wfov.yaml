@@ -1,5 +1,5 @@
 app:
-  name: mwir
+  name: wfov
   log_level: debug
   api:
     api_type: grpc
@@ -8,4 +8,4 @@ app:
     camera: core
   data:
     camera: sony
-    device: /dev/ttyPS1
+    device: /dev/ttyACM0 #TODO: pass parameters like boudrate

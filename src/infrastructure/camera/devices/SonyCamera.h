@@ -1,7 +1,5 @@
 #pragma once
 
-#include <memory>
-
 #include "common/types/CameraCapabilities.h"
 #include "infrastructure/camera/hal/ICameraHw.h"
 #include "infrastructure/camera/transport/visca/Visca.h"
@@ -14,7 +12,7 @@ namespace camera_service::infrastructure {
                              public capabilities::IStabilizeCapable,
                              public capabilities::IInfoCapable {
     public:
-        explicit SonyCamera(std::unique_ptr<Visca> protocol);
+        SonyCamera(std::string device_path, std::unique_ptr<Visca> protocol);
         ~SonyCamera() override = default;
 
         // IZoomCapable implementation
@@ -42,7 +40,6 @@ namespace camera_service::infrastructure {
         Result<void> disconnect() override;
 
     private:
-        std::unique_ptr<Visca> protocol_;
         const types::ZoomRange zoom_limits_{
             .min = 0x0000,
             .max = 0x4000
@@ -52,8 +49,12 @@ namespace camera_service::infrastructure {
             .min = 0x1000,
             .max = 0xF000
         };
-        mutable Visca::ViscaCamera camera_{};
 
-        static std::string getViscaErrorMessage(uint32_t error_code);
+        std::string device_path_ {};
+        std::unique_ptr<Visca> protocol_ {};
+        mutable int32_t camera_address_ {};
+        mutable Visca::ViscaCamera camera_ {};
+
+        static std::string getViscaErrorMessage(ErrorCode error_code);
     };
 }
