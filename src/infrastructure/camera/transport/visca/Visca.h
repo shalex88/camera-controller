@@ -1,7 +1,11 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <termios.h>
+
+// #include "infrastructure/camera/transport/ITransport.h"
+#include "infrastructure/camera/transport/uart/Uart.h"
 
 using error_code = uint32_t;
 
@@ -13,39 +17,42 @@ inline constexpr uint8_t VISCA_CATEGORY_CAMERA1 = 0x04;
 inline constexpr uint8_t VISCA_CATEGORY_PAN_TILTER = 0x06;
 inline constexpr uint8_t VISCA_CATEGORY_CAMERA2 = 0x07;
 
-// Vendor IDs
-inline constexpr uint16_t VISCA_VENDOR_SONY = 0x0020;
+enum class CameraVendors : uint16_t {
+    Sony = 0x0020
+};
 
-// Model IDs
-inline constexpr uint16_t VISCA_MODEL_IX47X = 0x0401;
-inline constexpr uint16_t VISCA_MODEL_EX47XL = 0x0402;
-inline constexpr uint16_t VISCA_MODEL_IX10 = 0x0404;
-inline constexpr uint16_t VISCA_MODEL_EX780 = 0x0411;
-inline constexpr uint16_t VISCA_MODEL_EX480A = 0x0412;
-inline constexpr uint16_t VISCA_MODEL_EX480AP = 0x0413;
-inline constexpr uint16_t VISCA_MODEL_EX48A = 0x0414;
-inline constexpr uint16_t VISCA_MODEL_EX48AP = 0x0414;
-inline constexpr uint16_t VISCA_MODEL_EX45M = 0x041E;
-inline constexpr uint16_t VISCA_MODEL_EX45MCE = 0x041F;
-inline constexpr uint16_t VISCA_MODEL_IX47A = 0x0418;
-inline constexpr uint16_t VISCA_MODEL_IX47AP = 0x0419;
-inline constexpr uint16_t VISCA_MODEL_IX45A = 0x041A;
-inline constexpr uint16_t VISCA_MODEL_IX45AP = 0x041B;
-inline constexpr uint16_t VISCA_MODEL_IX10A = 0x041C;
-inline constexpr uint16_t VISCA_MODEL_IX10AP = 0x041D;
-inline constexpr uint16_t VISCA_MODEL_EX780B = 0x0420;
-inline constexpr uint16_t VISCA_MODEL_EX780BP = 0x0421;
-inline constexpr uint16_t VISCA_MODEL_EX78B = 0x0422;
-inline constexpr uint16_t VISCA_MODEL_EX78BP = 0x0423;
-inline constexpr uint16_t VISCA_MODEL_EX480B = 0x0424;
-inline constexpr uint16_t VISCA_MODEL_EX480BP = 0x0425;
-inline constexpr uint16_t VISCA_MODEL_EX48B = 0x0426;
-inline constexpr uint16_t VISCA_MODEL_EX48BP = 0x0427;
-inline constexpr uint16_t VISCA_MODEL_EX980S = 0x042E;
-inline constexpr uint16_t VISCA_MODEL_EX980SP = 0x042F;
-inline constexpr uint16_t VISCA_MODEL_EX980 = 0x0430;
-inline constexpr uint16_t VISCA_MODEL_EX980P = 0x0431;
-inline constexpr uint16_t VISCA_MODEL_H10 = 0x044A;
+
+enum class CameraModels : uint16_t {
+    IX47X = 0x0401,
+    EX47XL = 0x0402,
+    IX10 = 0x0404,
+    EX780 = 0x0411,
+    EX480A = 0x0412,
+    EX480AP = 0x0413,
+    EX48Ax = 0x0414,
+    EX45M = 0x041E,
+    EX45MCE = 0x041F,
+    IX47A = 0x0418,
+    IX47AP = 0x0419,
+    IX45A = 0x041A,
+    IX45AP = 0x041B,
+    IX10A = 0x041C,
+    IX10AP = 0x041D,
+    EX780B = 0x0420,
+    EX780BP = 0x0421,
+    EX78B = 0x0422,
+    EX78BP = 0x0423,
+    EX480B = 0x0424,
+    EX480BP = 0x0425,
+    EX48B = 0x0426,
+    EX48BP = 0x0427,
+    EX980S = 0x042E,
+    EX980SP = 0x042F,
+    EX980 = 0x0430,
+    EX980P = 0x0431,
+    EW9500H = 0x070F,
+    H10 = 0x044A
+};
 
 // Commands/inquiries codes
 inline constexpr uint8_t VISCA_POWER = 0x00;
@@ -61,8 +68,6 @@ inline constexpr uint8_t VISCA_ZOOM_WIDE_SPEED = 0x30;
 inline constexpr uint8_t VISCA_ZOOM_VALUE = 0x47;
 inline constexpr uint8_t VISCA_ZOOM_FOCUS_VALUE = 0x47;
 inline constexpr uint8_t VISCA_DZOOM = 0x06;
-inline constexpr uint8_t VISCA_DZOOM_OFF = 0x03;
-inline constexpr uint8_t VISCA_DZOOM_ON = 0x02;
 inline constexpr uint8_t VISCA_DZOOM_LIMIT = 0x26; /* implemented for H10 */
 inline constexpr uint8_t VISCA_DZOOM_1X = 0x00;
 inline constexpr uint8_t VISCA_DZOOM_1_5X = 0x01;
@@ -81,8 +86,6 @@ inline constexpr uint8_t VISCA_FOCUS_FAR_SPEED = 0x20;
 inline constexpr uint8_t VISCA_FOCUS_NEAR_SPEED = 0x30;
 inline constexpr uint8_t VISCA_FOCUS_VALUE = 0x48;
 inline constexpr uint8_t VISCA_FOCUS_AUTO = 0x38;
-inline constexpr uint8_t VISCA_FOCUS_AUTO_ON = 0x02;
-inline constexpr uint8_t VISCA_FOCUS_AUTO_OFF = 0x03;
 inline constexpr uint8_t VISCA_FOCUS_AUTO_MAN = 0x10;
 inline constexpr uint8_t VISCA_FOCUS_ONE_PUSH = 0x18;
 inline constexpr uint8_t VISCA_FOCUS_ONE_PUSH_TRIG = 0x01;
@@ -130,8 +133,6 @@ inline constexpr uint8_t VISCA_EXP_COMP_POWER = 0x3E;
 inline constexpr uint8_t VISCA_EXP_COMP_VALUE = 0x4E;
 inline constexpr uint8_t VISCA_BACKLIGHT_COMP = 0x33;
 inline constexpr uint8_t VISCA_SPOT_AE = 0x59;
-inline constexpr uint8_t VISCA_SPOT_AE_ON = 0x02;
-inline constexpr uint8_t VISCA_SPOT_AE_OFF = 0x03;
 inline constexpr uint8_t VISCA_SPOT_AE_POSITION = 0x29;
 inline constexpr uint8_t VISCA_APERTURE = 0x02;
 inline constexpr uint8_t VISCA_APERTURE_VALUE = 0x42;
@@ -143,8 +144,6 @@ inline constexpr uint8_t VISCA_WIDE_MODE_CINEMA = 0x01;
 inline constexpr uint8_t VISCA_WIDE_MODE_16_9 = 0x02;
 inline constexpr uint8_t VISCA_MIRROR = 0x61;
 inline constexpr uint8_t VISCA_FREEZE = 0x62;
-inline constexpr uint8_t VISCA_FREEZE_ON = 0x02;
-inline constexpr uint8_t VISCA_FREEZE_OFF = 0x03;
 inline constexpr uint8_t VISCA_PICTURE_EFFECT = 0x63;
 inline constexpr uint8_t VISCA_PICTURE_EFFECT_OFF = 0x00;
 inline constexpr uint8_t VISCA_PICTURE_EFFECT_PASTEL = 0x01;
@@ -163,8 +162,6 @@ inline constexpr uint8_t VISCA_DIGITAL_EFFECT_LUMI = 0x03;
 inline constexpr uint8_t VISCA_DIGITAL_EFFECT_TRAIL = 0x04;
 inline constexpr uint8_t VISCA_DIGITAL_EFFECT_LEVEL = 0x65;
 inline constexpr uint8_t VISCA_CAM_STABILIZER = 0x34;
-inline constexpr uint8_t VISCA_CAM_STABILIZER_ON = 0x02;
-inline constexpr uint8_t VISCA_CAM_STABILIZER_OFF = 0x03;
 inline constexpr uint8_t VISCA_MEMORY = 0x3F;
 inline constexpr uint8_t VISCA_MEMORY_RESET = 0x00;
 inline constexpr uint8_t VISCA_MEMORY_SET = 0x01;
@@ -177,23 +174,17 @@ inline constexpr uint8_t VISCA_MEMORY_4 = 0x04;
 inline constexpr uint8_t VISCA_MEMORY_5 = 0x05;
 inline constexpr uint8_t VISCA_MEMORY_CUSTOM = 0x7F;
 inline constexpr uint8_t VISCA_DISPLAY = 0x15;
-inline constexpr uint8_t VISCA_DISPLAY_ON = 0x02;
-inline constexpr uint8_t VISCA_DISPLAY_OFF = 0x03;
 inline constexpr uint8_t VISCA_DISPLAY_TOGGLE = 0x10;
 inline constexpr uint8_t VISCA_DATE_TIME_SET = 0x70;
 inline constexpr uint8_t VISCA_DATE_DISPLAY = 0x71;
 inline constexpr uint8_t VISCA_TIME_DISPLAY = 0x72;
 inline constexpr uint8_t VISCA_TITLE_DISPLAY = 0x74;
 inline constexpr uint8_t VISCA_TITLE_DISPLAY_CLEAR = 0x00;
-inline constexpr uint8_t VISCA_TITLE_DISPLAY_ON = 0x02;
-inline constexpr uint8_t VISCA_TITLE_DISPLAY_OFF = 0x03;
 inline constexpr uint8_t VISCA_TITLE_SET = 0x73;
 inline constexpr uint8_t VISCA_TITLE_SET_PARAMS = 0x00;
 inline constexpr uint8_t VISCA_TITLE_SET_PART1 = 0x01;
 inline constexpr uint8_t VISCA_TITLE_SET_PART2 = 0x02;
 inline constexpr uint8_t VISCA_IRRECEIVE = 0x08;
-inline constexpr uint8_t VISCA_IRRECEIVE_ON = 0x02;
-inline constexpr uint8_t VISCA_IRRECEIVE_OFF = 0x03;
 inline constexpr uint8_t VISCA_IRRECEIVE_ONOFF = 0x10;
 inline constexpr uint8_t VISCA_PT_DRIVE = 0x01;
 inline constexpr uint8_t VISCA_PT_DRIVE_HORIZ_LEFT = 0x01;
@@ -212,8 +203,6 @@ inline constexpr uint8_t VISCA_PT_LIMITSET_CLEAR = 0x01;
 inline constexpr uint8_t VISCA_PT_LIMITSET_SET_UR = 0x01;
 inline constexpr uint8_t VISCA_PT_LIMITSET_SET_DL = 0x00;
 inline constexpr uint8_t VISCA_PT_DATASCREEN = 0x06;
-inline constexpr uint8_t VISCA_PT_DATASCREEN_ON = 0x02;
-inline constexpr uint8_t VISCA_PT_DATASCREEN_OFF = 0x03;
 inline constexpr uint8_t VISCA_PT_DATASCREEN_ONOFF = 0x10;
 inline constexpr uint8_t VISCA_PT_VIDEOSYSTEM_INQ = 0x23;
 inline constexpr uint8_t VISCA_PT_MODE_INQ = 0x10;
@@ -311,28 +300,14 @@ inline constexpr uint32_t VISCA_INPUT_BUFFER_SIZE = 1024;
 namespace camera_service::infrastructure {
     class Visca {
     public:
-        struct ViscaInterface {
-            // RS232 data:
-            int port_fd;
-            termios options;
-            uint32_t baud;
-            // VISCA data:
-            uint32_t address;
-            uint32_t broadcast;
-            // RS232 input buffer
-            uint8_t ibuf[VISCA_INPUT_BUFFER_SIZE];
-            uint32_t bytes;
-            ResponseType type;
-        };
-
         struct ViscaCamera {
             // VISCA data:
             int address;
             // camera info:
-            uint32_t vendor;
-            uint32_t model;
-            uint32_t rom_version;
-            uint32_t socket_num;
+            uint16_t vendor;
+            uint16_t model;
+            uint16_t rom_version;
+            uint8_t socket_num;
         };
 
         struct ViscaTitleData {
@@ -345,17 +320,17 @@ namespace camera_service::infrastructure {
 
         struct ViscaPacket {
             uint8_t bytes[32];
-            uint32_t length;
+            uint32_t size;
         };
 
-        Visca() = default;
+        explicit Visca(std::unique_ptr<Uart> transport);
         ~Visca() = default;
 
-        ErrorCode setAddress();
-        ErrorCode clear();
-        ErrorCode getCameraInfo();
-        ErrorCode open(const char* device_name);
-        ErrorCode close();
+        Result<void> setAddress();
+        Result<void> clear() const;
+        Result<std::string> getCameraInfo();
+        Result<void> open() const;
+        Result<void> close() const;
         /* COMMANDS */
         ErrorCode setPower(uint8_t power);
         ErrorCode setKeylock(uint8_t power);
@@ -365,7 +340,7 @@ namespace camera_service::infrastructure {
         ErrorCode setZoomStop();
         ErrorCode setZoomTeleSpeed(uint32_t speed);
         ErrorCode setZoomWideSpeed(uint32_t speed);
-        ErrorCode setZoomValue(uint32_t zoom);
+        Result<void> setZoomValue(uint32_t zoom);
         ErrorCode setZoomAndFocusValue(uint32_t zoom, uint32_t focus);
         ErrorCode setDzoom(uint32_t power);
         ErrorCode setDzoomLimit(uint32_t limit);
@@ -375,8 +350,8 @@ namespace camera_service::infrastructure {
         ErrorCode setFocusStop();
         ErrorCode setFocusFarSpeed(uint32_t speed);
         ErrorCode setFocusNearSpeed(uint32_t speed);
-        ErrorCode setFocusValue(uint32_t focus);
-        ErrorCode setFocusAuto(bool on);
+        Result<void> setFocusValue(uint32_t focus);
+        Result<void> setFocusAuto(bool on);
         ErrorCode setFocusOnePush();
         ErrorCode setFocusInfinity();
         ErrorCode setFocusAutosenseHigh();
@@ -428,7 +403,7 @@ namespace camera_service::infrastructure {
         ErrorCode setPictureEffect(uint8_t mode);
         ErrorCode setDigitalEffect(uint8_t mode);
         ErrorCode setDigitalEffectLevel(uint8_t level);
-        ErrorCode setCamStabilizer(uint8_t power);
+        Result<void> setCamStabilizer(bool power);
         ErrorCode memorySet(uint8_t channel);
         ErrorCode memoryRecall(uint8_t channel);
         ErrorCode memoryReset(uint8_t channel);
@@ -480,9 +455,9 @@ namespace camera_service::infrastructure {
         ErrorCode getPower(uint8_t* power);
         ErrorCode getDzoom(uint8_t* power);
         ErrorCode getDzoomLimit(uint8_t* value);
-        ErrorCode getZoomValue(uint16_t* value);
-        ErrorCode getFocusAuto(bool* on);
-        ErrorCode getFocusValue(uint16_t* value);
+        Result<uint16_t> getZoomValue();
+        Result<bool> getFocusAuto();
+        Result<uint16_t> getFocusValue();
         ErrorCode getFocusAutoSense(uint8_t* mode);
         ErrorCode getFocusNearLimit(uint16_t* value);
         ErrorCode getWhitebalMode(uint8_t* mode);
@@ -564,16 +539,18 @@ namespace camera_service::infrastructure {
         ErrorCode getRegister(uint8_t reg_num, uint8_t* reg_val);
 
     private:
-        ViscaInterface iface;
-        ViscaCamera camera;
-        int32_t address;
+        std::unique_ptr<Uart> transport_; //TODO: use ITransport
+        ViscaCamera camera{};
+        static std::string getViscaErrorMessage(ErrorCode error_code);
         static void appendByte(ViscaPacket* packet, uint8_t byte);
         static void initPacket(ViscaPacket* packet);
-        ErrorCode getReply();
-        ErrorCode sendPacketWithReply(ViscaPacket* packet);
-        ErrorCode write(const ViscaPacket* packet);
-        ErrorCode sendPacket(ViscaPacket* packet);
-        ErrorCode read();
-        ErrorCode unreadBytes(const uint8_t* buffer, uint32_t* buffer_size);
+        ErrorCode getReply() const;
+        ErrorCode sendPacketWithReply(ViscaPacket* packet) const;
+        ErrorCode write(const ViscaPacket* packet) const;
+        ErrorCode sendPacket(ViscaPacket* packet) const;
+        ErrorCode read() const;
+        ErrorCode unreadBytes(const uint8_t* buffer, uint32_t* buffer_size) const;
+        static std::string_view getCameraVendor(uint32_t vendor);
+        static std::string_view getCameraModel(uint32_t model);
     };
 }

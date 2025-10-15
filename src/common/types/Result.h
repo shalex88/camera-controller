@@ -82,6 +82,7 @@ public:
     }
 
     static Result error(E error) {
+        LOG_ERROR("{}", error);
         return Result(std::move(error));
     }
 

@@ -12,8 +12,8 @@ namespace camera_service::infrastructure {
                              public capabilities::IStabilizeCapable,
                              public capabilities::IInfoCapable {
     public:
-        SonyCamera(std::string device_path, std::unique_ptr<Visca> protocol);
-        ~SonyCamera() override = default;
+        SonyCamera(std::unique_ptr<Visca> protocol);
+        ~SonyCamera() override;
 
         // IZoomCapable implementation
         Result<void> setZoom(types::zoom zoom) const override;
@@ -50,11 +50,6 @@ namespace camera_service::infrastructure {
             .max = 0xF000
         };
 
-        std::string device_path_ {};
         std::unique_ptr<Visca> protocol_ {};
-        mutable int32_t camera_address_ {};
-        mutable Visca::ViscaCamera camera_ {};
-
-        static std::string getViscaErrorMessage(ErrorCode error_code);
     };
 }

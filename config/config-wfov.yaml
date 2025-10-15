@@ -8,4 +8,4 @@ app:
     camera: core
   data:
     camera: sony
-    device: /dev/ttyACM0 #TODO: pass parameters like boudrate
+    device: /dev/ttyACM1 #TODO: pass parameters like boudrate

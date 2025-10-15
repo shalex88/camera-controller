@@ -80,9 +80,9 @@ namespace camera_service::infrastructure {
         return true;
     }
 
-    Result<size_t> TcpClient::write(std::span<const std::byte> data) {
+    Result<void> TcpClient::write(std::span<const std::byte> data) {
         if (!isOpen()) {
-            return Result<size_t>::error("Not connected");
+            return Result<void>::error("Not connected");
         }
 
         size_t total_sent = 0;
@@ -90,11 +90,11 @@ namespace camera_service::infrastructure {
         while (total_sent < data.size()) {
             const ssize_t sent = ::send(socket_fd_, data.data() + total_sent, data.size() - total_sent, 0);
             if (sent < 0) {
-                return Result<size_t>::error("Send failed");
+                return Result<void>::error("Send failed");
             }
             total_sent += static_cast<size_t>(sent);
         }
-        return Result<void>::success(total_sent);
+        return Result<void>::success();
     }
 
     Result<std::vector<std::byte>> TcpClient::read() {
@@ -103,27 +103,50 @@ namespace camera_service::infrastructure {
         }
 
         constexpr size_t MAX_BYTES = 4096;
-        fd_set read_fds;
-        FD_ZERO(&read_fds);
-        FD_SET(socket_fd_, &read_fds);
-        timeval timeout {1, 0}; // 1 second timeout
+        constexpr timeval TIMEOUT_DEFAULT{1, 0};
 
-        const auto select_result = ::select(socket_fd_ + 1, &read_fds, nullptr, nullptr, &timeout);
-        if (select_result < 0) {
-            return Result<std::vector<std::byte>>::error("Select failed: " + std::string(strerror(errno)));
-        }
-        if (select_result == 0) {
-            return Result<std::vector<std::byte>>::error("Read timeout");
-        }
+        while (true) {
+            fd_set read_fds;
+            FD_ZERO(&read_fds);
+            FD_SET(socket_fd_, &read_fds);
 
-        // Data available
-        std::vector<std::byte> buffer(MAX_BYTES);
-        const auto bytes_read = ::recv(socket_fd_, buffer.data(), MAX_BYTES, 0);
-        if (bytes_read < 0) {
-            return Result<std::vector<std::byte>>::error("Failed to receive from TCP:" + std::string(strerror(errno)));
-        }
-        buffer.resize(static_cast<size_t>(bytes_read));
+            // reinitialize timeout each select call because select may modify it
+            timeval timeout = TIMEOUT_DEFAULT;
 
-        return Result<std::vector<std::byte>>::success(std::move(buffer));
+            const auto select_result = ::select(socket_fd_ + 1, &read_fds, nullptr, nullptr, &timeout);
+            if (select_result < 0) {
+                if (errno == EINTR) {
+                    // interrupted by signal, retry
+                    continue;
+                }
+                return Result<std::vector<std::byte>>::error(std::string("Select failed: ") + std::strerror(errno));
+            }
+            if (select_result == 0) {
+                return Result<std::vector<std::byte>>::error("Read timeout");
+            }
+
+            if (!FD_ISSET(socket_fd_, &read_fds)) {
+                // unexpected: select reported activity but socket not set
+                return Result<std::vector<std::byte>>::error("Select returned without socket readiness");
+            }
+
+            std::vector<std::byte> buffer(MAX_BYTES);
+            const ssize_t bytes_read = ::recv(socket_fd_, buffer.data(), buffer.size(), 0);
+            if (bytes_read < 0) {
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    // try again (non-blocking case)
+                    continue;
+                }
+                return Result<std::vector<std::byte>>::error(
+                    std::string("Failed to receive from TCP: ") + std::strerror(errno));
+            }
+            if (bytes_read == 0) {
+                // peer performed orderly shutdown
+                return Result<std::vector<std::byte>>::error("Connection closed by peer");
+            }
+
+            buffer.resize(static_cast<size_t>(bytes_read));
+            return Result<std::vector<std::byte>>::success(std::move(buffer));
+        }
     }
 }

@@ -11,10 +11,11 @@
 #include "common/Logger/Logger.h"
 
 namespace camera_service::infrastructure {
-    Uart::Uart(std::string device_path) : device_path_(std::move(device_path)) {
-        if (open().isError()) {
-            LOG_ERROR("Failed to open UART device: {}", device_path_);
-        }
+    Uart::Uart(std::string device_path)
+        : device_path_(std::move(device_path)) {
+        // if (open().isError()) { //TODO: should we open here for RAII or in open()?
+        //     LOG_ERROR("Failed to open UART device: {}", device_path_);
+        // }
     }
 
     Uart::~Uart() {
@@ -28,12 +29,41 @@ namespace camera_service::infrastructure {
             return Result<void>::error("UART device is already open");
         }
 
-        fd_ = ::open(device_path_.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
-
-        if (fd_ < 0) {
+        const auto fd = ::open(device_path_.c_str(), O_RDWR | O_NDELAY | O_NOCTTY);
+        if (fd < 0) {
             return Result<void>::error(
                 "Failed to open UART device: " + device_path_ + " - " + std::string(strerror(errno)));
         }
+
+        fcntl(fd, F_SETFL, 0);
+        /* Setting port parameters */
+        tcgetattr(fd, &iface.options);
+
+        /* control flags */
+        cfsetispeed(&iface.options,B9600); /* 9600 Bds   */
+        iface.options.c_cflag &= ~PARENB; /* No parity  */
+        iface.options.c_cflag &= ~CSTOPB; /*            */
+        iface.options.c_cflag &= ~CSIZE; /* 8bit       */
+        iface.options.c_cflag |= CS8; /*            */
+        iface.options.c_cflag &= ~CRTSCTS; /* No hdw ctl */
+
+        /* local flags */
+        iface.options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); /* raw input */
+
+        /* input flags */
+        /*
+            iface.options.c_iflag &= ~(INPCK | ISTRIP); // no parity
+            iface.options.c_iflag &= ~(IXON | IXOFF | IXANY); // no soft ctl
+            */
+        /* patch: bpflegin: set to 0 in order to avoid invalid pan/tilt return values */
+        iface.options.c_iflag = 0;
+
+        /* output flags */
+        iface.options.c_oflag &= ~OPOST; /* raw output */
+
+        tcsetattr(fd, TCSANOW, &iface.options);
+        iface.port_fd = fd;
+        iface.address = 0;
 
         return Result<void>::success();
     }
@@ -43,15 +73,16 @@ namespace camera_service::infrastructure {
             return Result<void>::success();
         }
 
-        if (::close(fd_) < 0) {
+        if (::close(iface.port_fd) < 0) {
             return Result<void>::error("Failed to close UART device: " + std::string(strerror(errno)));
         }
 
-        fd_ = -1;
+        iface.port_fd = -1;
         return Result<void>::success();
     }
 
-    Result<void> Uart::configure(const int baud_rate, const int data_bits, const int stop_bits, const char parity) const {
+    Result<void> Uart::configure(const int baud_rate, const int data_bits, const int stop_bits,
+                                 const char parity) const {
         if (!isOpen()) {
             return Result<void>::error("UART device is not open");
         }
@@ -59,31 +90,67 @@ namespace camera_service::infrastructure {
         termios tty{};
 
         // Get current terminal settings
-        if (tcgetattr(fd_, &tty) != 0) {
+        if (tcgetattr(iface.port_fd, &tty) != 0) {
             return Result<void>::error("Failed to get terminal attributes: " + std::string(strerror(errno)));
         }
 
         // Set baud rate
         speed_t speed;
         switch (baud_rate) {
-            case 9600:    speed = B9600; break;
-            case 19200:   speed = B19200; break;
-            case 38400:   speed = B38400; break;
-            case 57600:   speed = B57600; break;
-            case 115200:  speed = B115200; break;
-            case 230400:  speed = B230400; break;
-            case 460800:  speed = B460800; break;
-            case 500000:  speed = B500000; break;
-            case 576000:  speed = B576000; break;
-            case 921600:  speed = B921600; break;
-            case 1000000: speed = B1000000; break;
-            case 1152000: speed = B1152000; break;
-            case 1500000: speed = B1500000; break;
-            case 2000000: speed = B2000000; break;
-            case 2500000: speed = B2500000; break;
-            case 3000000: speed = B3000000; break;
-            case 3500000: speed = B3500000; break;
-            case 4000000: speed = B4000000; break;
+            case 9600:
+                speed = B9600;
+                break;
+            case 19200:
+                speed = B19200;
+                break;
+            case 38400:
+                speed = B38400;
+                break;
+            case 57600:
+                speed = B57600;
+                break;
+            case 115200:
+                speed = B115200;
+                break;
+            case 230400:
+                speed = B230400;
+                break;
+            case 460800:
+                speed = B460800;
+                break;
+            case 500000:
+                speed = B500000;
+                break;
+            case 576000:
+                speed = B576000;
+                break;
+            case 921600:
+                speed = B921600;
+                break;
+            case 1000000:
+                speed = B1000000;
+                break;
+            case 1152000:
+                speed = B1152000;
+                break;
+            case 1500000:
+                speed = B1500000;
+                break;
+            case 2000000:
+                speed = B2000000;
+                break;
+            case 2500000:
+                speed = B2500000;
+                break;
+            case 3000000:
+                speed = B3000000;
+                break;
+            case 3500000:
+                speed = B3500000;
+                break;
+            case 4000000:
+                speed = B4000000;
+                break;
             default:
                 return Result<void>::error("Unsupported baud rate: " + std::to_string(baud_rate));
         }
@@ -94,10 +161,18 @@ namespace camera_service::infrastructure {
         // Configure data bits
         tty.c_cflag &= ~CSIZE; // Clear size bits
         switch (data_bits) {
-            case 5: tty.c_cflag |= CS5; break;
-            case 6: tty.c_cflag |= CS6; break;
-            case 7: tty.c_cflag |= CS7; break;
-            case 8: tty.c_cflag |= CS8; break;
+            case 5:
+                tty.c_cflag |= CS5;
+                break;
+            case 6:
+                tty.c_cflag |= CS6;
+                break;
+            case 7:
+                tty.c_cflag |= CS7;
+                break;
+            case 8:
+                tty.c_cflag |= CS8;
+                break;
             default:
                 return Result<void>::error("Unsupported data bits: " + std::to_string(data_bits));
         }
@@ -106,7 +181,7 @@ namespace camera_service::infrastructure {
         if (stop_bits == 1) {
             tty.c_cflag &= ~CSTOPB; // 1 stop bit
         } else if (stop_bits == 2) {
-            tty.c_cflag |= CSTOPB;  // 2 stop bits
+            tty.c_cflag |= CSTOPB; // 2 stop bits
         } else {
             return Result<void>::error("Unsupported stop bits: " + std::to_string(stop_bits));
         }
@@ -145,11 +220,11 @@ namespace camera_service::infrastructure {
         tty.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN); // Raw mode, no echo
 
         // Set read timeout and minimum bytes
-        tty.c_cc[VMIN] = 0;   // Non-blocking read
+        tty.c_cc[VMIN] = 0; // Non-blocking read
         tty.c_cc[VTIME] = 10; // 1 second timeout (in deciseconds)
 
         // Apply settings
-        if (tcsetattr(fd_, TCSANOW, &tty) != 0) {
+        if (tcsetattr(iface.port_fd, TCSANOW, &tty) != 0) {
             return Result<void>::error("Failed to set terminal attributes: " + std::string(strerror(errno)));
         }
 
@@ -157,21 +232,21 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<size_t> Uart::write(std::span<const std::byte> data) {
+    Result<void> Uart::write(std::span<const std::byte> data) {
         if (!isOpen()) {
-            return Result<size_t>::error("UART device is not open");
+            return Result<void>::error("UART device is not open");
         }
 
         if (data.empty()) {
-            return Result<size_t>::success(static_cast<size_t>(0));
+            return Result<void>::success();
         }
 
-        const auto bytes_written = ::write(fd_, data.data(), data.size());
+        const auto bytes_written = ::write(iface.port_fd, data.data(), data.size());
         if (bytes_written < 0) {
-            return Result<size_t>::error("Failed to write to UART: " + std::string(strerror(errno)));
+            return Result<void>::error("Failed to write to UART: " + std::string(strerror(errno)));
         }
 
-        return Result<size_t>::success(static_cast<size_t>(bytes_written));
+        return Result<void>::success();
     }
 
     Result<std::vector<std::byte>> Uart::read() {
@@ -180,30 +255,56 @@ namespace camera_service::infrastructure {
         }
 
         constexpr size_t MAX_BYTES = 1024;
-        fd_set read_fds;
-        FD_ZERO(&read_fds);
-        FD_SET(fd_, &read_fds);
-        timeval timeout {1, 0}; // 1 second timeout
+        constexpr timeval TIMEOUT_DEFAULT{1, 0};
 
-        const auto select_result = ::select(fd_ + 1, &read_fds, nullptr, nullptr, &timeout);
-        if (select_result < 0) {
-            return Result<std::vector<std::byte>>::error("Select failed: " + std::string(strerror(errno)));
-        }
-        if (select_result == 0) {
-            return Result<std::vector<std::byte>>::error("Read timeout");
-        }
+        while (true) {
+            fd_set read_fds;
+            FD_ZERO(&read_fds);
+            FD_SET(iface.port_fd, &read_fds);
 
-        std::vector<std::byte> buffer(MAX_BYTES);
-        const auto bytes_read = ::read(fd_, buffer.data(), MAX_BYTES);
-        if (bytes_read < 0) {
-            return Result<std::vector<std::byte>>::error("Failed to read from UART: " + std::string(strerror(errno)));
-        }
+            // reinitialize timeout each select call because select may modify it
+            timeval timeout = TIMEOUT_DEFAULT;
 
-        buffer.resize(static_cast<size_t>(bytes_read));
-        return Result<std::vector<std::byte>>::success(std::move(buffer));
+            const auto select_result = ::select(iface.port_fd + 1, &read_fds, nullptr, nullptr, &timeout);
+            if (select_result < 0) {
+                if (errno == EINTR) {
+                    continue; // interrupted by signal, retry
+                }
+                return Result<std::vector<std::byte>>::error(std::string("Select failed: ") + std::strerror(errno));
+            }
+            if (select_result == 0) {
+                return Result<std::vector<std::byte>>::error("Read timeout");
+            }
+
+            if (!FD_ISSET(iface.port_fd, &read_fds)) {
+                return Result<std::vector<std::byte>>::error("Select returned without UART readiness");
+            }
+
+            std::vector<std::byte> buffer(MAX_BYTES);
+            const ssize_t bytes_read = ::read(iface.port_fd, buffer.data(), buffer.size());
+            if (bytes_read < 0) {
+                if (errno == EINTR) {
+                    continue; // interrupted, retry
+                }
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                    // no data available now, loop to wait again
+                    continue;
+                }
+                return Result<std::vector<std::byte>>::error(
+                    std::string("Failed to read from UART: ") + std::strerror(errno));
+            }
+
+            if (bytes_read == 0) {
+                // EOF / device closed
+                return Result<std::vector<std::byte>>::error("UART device closed");
+            }
+
+            buffer.resize(static_cast<size_t>(bytes_read));
+            return Result<std::vector<std::byte>>::success(std::move(buffer));
+        }
     }
 
     bool Uart::isOpen() const {
-        return fd_ >= 0;
+        return iface.port_fd > 0;
     }
 }

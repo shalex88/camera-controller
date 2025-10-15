@@ -13,7 +13,7 @@ namespace camera_service::infrastructure::uart {
 
         Result<void> open() override;
         Result<void> close() override;
-        Result<size_t> write(std::span<const std::byte> data) override;
+        Result<void> write(std::span<const std::byte> data) override;
         Result<std::vector<std::byte>> read() override;
         bool isOpen() const override;
         Result<void> configure(int baud_rate = 115200, int data_bits = 8,

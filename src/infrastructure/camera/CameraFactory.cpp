@@ -26,9 +26,9 @@ namespace camera_service::infrastructure {
         }
 
         if (config.camera == "sony") {
-            // auto transport = std::make_unique<Uart>(config.device);
-            auto protocol = std::make_unique<Visca>();
-            auto camera = std::make_unique<SonyCamera>(config.device, std::move(protocol));
+            auto transport = std::make_unique<Uart>(config.device);
+            auto protocol = std::make_unique<Visca>(std::move(transport));
+            auto camera = std::make_unique<SonyCamera>(std::move(protocol));
             return std::make_unique<CameraHal>(std::move(camera), std::move(logger));
         }
 

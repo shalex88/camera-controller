@@ -3,29 +3,25 @@
 #include <chrono>
 #include <utility>
 
-#include "common/Logger/Logger.h"
-
 namespace camera_service::infrastructure {
-    SonyCamera::SonyCamera(std::string device_path, std::unique_ptr<Visca> protocol)
-        : device_path_(std::move(device_path)), protocol_(std::move(protocol)) {}
+    SonyCamera::SonyCamera(std::unique_ptr<Visca> protocol)
+        : protocol_(std::move(protocol)) {}
+
+    SonyCamera::~SonyCamera() {
+        [[maybe_unused]] const auto disconnect_result = disconnect();
+    }
 
     Result<void> SonyCamera::setZoom(const types::zoom zoom) const {
-        const auto result = protocol_->setZoomValue(static_cast<uint16_t>(zoom));
-        if (result == ErrorCode::Success) {
-            return Result<void>::success();
-        }
-        return Result<void>::error(getViscaErrorMessage(result));
+        return protocol_->setZoomValue(static_cast<uint16_t>(zoom));
     }
 
     Result<types::zoom> SonyCamera::getZoom() const {
-        uint16_t value = 0;
-        const auto result = protocol_->getZoomValue(&value);
-
-        if (result == ErrorCode::Success) {
-            return Result<types::zoom>::success(static_cast<types::zoom>(value));
+        const auto result = protocol_->getZoomValue();
+        if (result.isError()) {
+            return Result<types::zoom>::error(result.error());
         }
 
-        return Result<types::zoom>::error("Failed to get zoom value: " + getViscaErrorMessage(result));
+        return Result<types::zoom>::success(static_cast<types::zoom>(result.value()));
     }
 
     types::ZoomRange SonyCamera::getZoomLimits() const {
@@ -39,11 +35,7 @@ namespace camera_service::infrastructure {
             return Result<void>::error("Cannot set focus value while autofocus is enabled");
         }
 
-        const auto result = protocol_->setFocusValue(static_cast<uint16_t>(focus));
-        if (result == ErrorCode::Success) {
-            return Result<void>::success();
-        }
-        return Result<void>::error(getViscaErrorMessage(result));
+        return protocol_->setFocusValue(static_cast<uint16_t>(focus));
     }
 
     Result<types::focus> SonyCamera::getFocus() const {
@@ -53,14 +45,12 @@ namespace camera_service::infrastructure {
             return Result<types::focus>::error("Cannot get focus value while autofocus is enabled");
         }
 
-        uint16_t value = 0;
-        const auto result = protocol_->getFocusValue(&value);
-
-        if (result == ErrorCode::Success) {
-            return Result<types::focus>::success(static_cast<types::focus>(value));
+        const auto result = protocol_->getFocusValue();
+        if (result.isError()) {
+            return Result<types::focus>::error(result.error());
         }
 
-        return Result<types::focus>::error("Failed to get focus value: " + getViscaErrorMessage(result));
+        return Result<types::focus>::success(static_cast<types::focus>(result.value()));
     }
 
     types::FocusRange SonyCamera::getFocusLimits() const {
@@ -68,99 +58,47 @@ namespace camera_service::infrastructure {
     }
 
     Result<void> SonyCamera::enableAutoFocus(const bool on) const {
-        const auto result = protocol_->setFocusAuto(on);
-        if (result == ErrorCode::Success) {
-            return Result<void>::success();
-        }
-        return Result<void>::error(getViscaErrorMessage(result));
+        return protocol_->setFocusAuto(on);
     }
 
     Result<bool> SonyCamera::isAutoFocusEnabled() const {
-        bool on = false;
-        const auto result = protocol_->getFocusAuto(&on);
-
-        if (result == ErrorCode::Success) {
-            return Result<bool>::success(on);
-        }
-
-        return Result<bool>::error("Failed to get autofocus status: " + getViscaErrorMessage(result));
+        return protocol_->getFocusAuto();
     }
 
     Result<types::info> SonyCamera::getInfo() const {
-        if (const auto result = protocol_->getCameraInfo(); result != ErrorCode::Success) { //FIXME: return some string
-            return Result<types::info>::error("Failed to get camera info: " + getViscaErrorMessage(result));
+        const auto result = protocol_->getCameraInfo();
+        if (result.isError()) {
+            return Result<types::info>::error(result.error());
         }
 
-        std::string info_str = "Sony VISCA Camera - ";
-        info_str += "Vendor: 0x" + std::to_string(camera_.vendor) + ", ";
-        info_str += "Model: 0x" + std::to_string(camera_.model) + ", ";
-        info_str += "ROM Version: 0x" + std::to_string(camera_.rom_version) + ", ";
-        info_str += "Address: " + std::to_string(camera_.address);
-
-        return Result<types::info>::success(info_str);
+        return Result<types::info>::success(static_cast<types::info>(result.value()));
     }
 
     Result<void> SonyCamera::stabilize(const bool on) const {
-        const auto result = protocol_->setCamStabilizer(on ? VISCA_CAM_STABILIZER_ON : VISCA_CAM_STABILIZER_OFF);
-        if (result == ErrorCode::Success) {
-            return Result<void>::success();
-        }
-        return Result<void>::error(getViscaErrorMessage(result));
+        return protocol_->setCamStabilizer(on);
     }
 
     Result<void> SonyCamera::connect() {
-        auto result = protocol_->open(device_path_.c_str());
-        if (result != ErrorCode::Success) {
-            return Result<void>::error("Failed to open serial connection to device: " + device_path_);
+        if (const auto result = protocol_->open(); result.isError()) {
+            return Result<void>::error(result.error());
         }
 
-        result = protocol_->setAddress();
-        if (result != ErrorCode::Success) {
-            protocol_->close();
-            return Result<void>::error("Failed to set camera address");
+        if (const auto result = protocol_->setAddress(); result.isError()) {
+            return Result<void>::error(result.error());
         }
 
-        camera_.address = camera_address_;
-
-        result = protocol_->clear();
-        if (result != ErrorCode::Success) {
-            protocol_->close();
-            return Result<void>::error("Failed to clear camera commands");
+        if (const auto result = protocol_->clear(); result.isError()) {
+            return Result<void>::error(result.error());
         }
 
-        result = protocol_->getCameraInfo();
-        if (result != ErrorCode::Success) {
-            protocol_->close();
-            return Result<void>::error("Failed to get camera information");
+        if (const auto result = protocol_->getCameraInfo(); result.isError()) {
+            return Result<void>::error(result.error());
         }
 
         return Result<void>::success();
     }
 
     Result<void> SonyCamera::disconnect() {
-        if (const auto result = protocol_->close(); result != ErrorCode::Success) {
-            return Result<void>::error("Failed to close serial connection");
-        }
-
-        return Result<void>::success();
-    }
-
-    std::string SonyCamera::getViscaErrorMessage(const ErrorCode error_code) {
-        switch (error_code) {
-            case ErrorCode::ErrorMessageLength:
-                return "Invalid message length";
-            case ErrorCode::ErrorSyntax:
-                return "Syntax error";
-            case ErrorCode::ErrorCmdBufferFull:
-                return "Command buffer full";
-            case ErrorCode::ErrorCmdCancelled:
-                return "Command cancelled";
-            case ErrorCode::ErrorNoSocket:
-                return "No socket available";
-            case ErrorCode::ErrorCmdNotExecutable:
-                return "Command not executable";
-            default:
-                return "Unknown VISCA error: " + std::to_string(static_cast<uint32_t>(error_code));
-        }
+        return protocol_->close();
     }
 }
