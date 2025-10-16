@@ -7,8 +7,9 @@
 // #include "infrastructure/camera/transport/ITransport.h"
 #include "infrastructure/camera/transport/uart/Uart.h"
 
-using error_code = uint32_t;
+using error_code = uint8_t;
 
+inline constexpr uint8_t VISCA_START_BYTE = 0x80;
 inline constexpr uint8_t VISCA_COMMAND = 0x01;
 inline constexpr uint8_t VISCA_INQUIRY = 0x09;
 inline constexpr uint8_t VISCA_TERMINATOR = 0xFF;
@@ -20,7 +21,6 @@ inline constexpr uint8_t VISCA_CATEGORY_CAMERA2 = 0x07;
 enum class CameraVendors : uint16_t {
     Sony = 0x0020
 };
-
 
 enum class CameraModels : uint16_t {
     IX47X = 0x0401,
@@ -68,6 +68,7 @@ inline constexpr uint8_t VISCA_ZOOM_WIDE_SPEED = 0x30;
 inline constexpr uint8_t VISCA_ZOOM_VALUE = 0x47;
 inline constexpr uint8_t VISCA_ZOOM_FOCUS_VALUE = 0x47;
 inline constexpr uint8_t VISCA_DZOOM = 0x06;
+inline constexpr uint8_t VISCA_DZOOM_VALUE = 0x46;
 inline constexpr uint8_t VISCA_DZOOM_LIMIT = 0x26; /* implemented for H10 */
 inline constexpr uint8_t VISCA_DZOOM_1X = 0x00;
 inline constexpr uint8_t VISCA_DZOOM_1_5X = 0x01;
@@ -273,23 +274,23 @@ inline constexpr uint8_t VISCA_RESET = 0x00;
 inline constexpr uint8_t VISCA_UP = 0x02;
 inline constexpr uint8_t VISCA_DOWN = 0x03;
 
-enum class ErrorCode : error_code {
+enum class ResultCode : error_code {
     Success = 0x00,
     Failure = 0xFF,
-    ErrorMessageLength = 0x01,
-    ErrorSyntax = 0x02,
-    ErrorCmdBufferFull = 0x03,
-    ErrorCmdCancelled = 0x04,
-    ErrorNoSocket = 0x05,
-    ErrorCmdNotExecutable = 0x41
+    ErrorMessageLength = 0x01, //ResponseType 0x60 | camera.address + Message length error (>14 bytes)
+    ErrorSyntax = 0x02, //ResponseType 0x60 | camera.address + 0x02
+    ErrorCmdBufferFull = 0x03, //ResponseType 0x60 | camera.address + ErrorCmdBufferFull
+    ErrorCmdCancelled = 0x04, //ResponseType 0x60 | camera.address + ErrorCmdCancelled
+    ErrorNoSocket = 0x05, //ResponseType 0x60 | camera.address + ErrorNoSocket
+    ErrorCmdNotExecutable = 0x41 //ResponseType 0x60 | camera.address + ErrorCmdNotExecutable
 };
 
 enum class ResponseType : error_code {
     Clear = 0x40,
     Address = 0x30,
-    Ack = 0x40,
-    Completed = 0x50,
-    Error = 0x60
+    Ack = 0x40, // | camera.address
+    Completed = 0x50, // | camera.address
+    Error = 0x60 // | camera.address
 };
 
 /* timeout in us */
@@ -319,8 +320,8 @@ namespace camera_service::infrastructure {
         };
 
         struct ViscaPacket {
-            uint8_t bytes[32];
-            uint32_t size;
+            uint8_t bytes[16];
+            uint32_t size = 1;
         };
 
         explicit Visca(std::unique_ptr<Uart> transport);
@@ -328,229 +329,231 @@ namespace camera_service::infrastructure {
 
         Result<void> setAddress();
         Result<void> clear() const;
-        Result<std::string> getCameraInfo();
+        Result<std::string_view> getCameraInfo();
         Result<void> open() const;
         Result<void> close() const;
         /* COMMANDS */
-        ErrorCode setPower(uint8_t power);
-        ErrorCode setKeylock(uint8_t power);
-        ErrorCode setCameraId(uint16_t id);
-        ErrorCode setZoomTele();
-        ErrorCode setZoomWide();
-        ErrorCode setZoomStop();
-        ErrorCode setZoomTeleSpeed(uint32_t speed);
-        ErrorCode setZoomWideSpeed(uint32_t speed);
-        Result<void> setZoomValue(uint32_t zoom);
-        ErrorCode setZoomAndFocusValue(uint32_t zoom, uint32_t focus);
-        ErrorCode setDzoom(uint32_t power);
-        ErrorCode setDzoomLimit(uint32_t limit);
-        ErrorCode setDzoomMode(uint32_t power);
-        ErrorCode setFocusFar();
-        ErrorCode setFocusNear();
-        ErrorCode setFocusStop();
-        ErrorCode setFocusFarSpeed(uint32_t speed);
-        ErrorCode setFocusNearSpeed(uint32_t speed);
-        Result<void> setFocusValue(uint32_t focus);
-        Result<void> setFocusAuto(bool on);
-        ErrorCode setFocusOnePush();
-        ErrorCode setFocusInfinity();
-        ErrorCode setFocusAutosenseHigh();
-        ErrorCode setFocusAutosenseLow();
-        ErrorCode setFocusNearLimit(uint32_t limit);
-        ErrorCode setWhitebalMode(uint32_t mode);
-        ErrorCode setWhitebalOnePush();
-        ErrorCode setRgainUp();
-        ErrorCode setRgainDown();
-        ErrorCode setRgainReset();
-        ErrorCode setRgainValue(uint32_t value);
-        ErrorCode setBgainUp();
-        ErrorCode setBgainDown();
-        ErrorCode setBgainReset();
-        ErrorCode setBgainValue(uint32_t value);
-        ErrorCode setShutterUp();
-        ErrorCode setShutterDown();
-        ErrorCode setShutterReset();
-        ErrorCode setShutterValue(uint32_t value);
-        ErrorCode setIrisUp();
-        ErrorCode setIrisDown();
-        ErrorCode setIrisReset();
-        ErrorCode setIrisValue(uint32_t value);
-        ErrorCode setGainUp();
-        ErrorCode setGainDown();
-        ErrorCode setGainReset();
-        ErrorCode setGainValue(uint32_t value);
-        ErrorCode setBrightUp();
-        ErrorCode setBrightDown();
-        ErrorCode setBrightReset();
-        ErrorCode setBrightValue(uint32_t value);
-        ErrorCode setApertureUp();
-        ErrorCode setApertureDown();
-        ErrorCode setApertureReset();
-        ErrorCode setApertureValue(uint32_t value);
-        ErrorCode setExpCompUp();
-        ErrorCode setExpCompDown();
-        ErrorCode setExpCompReset();
-        ErrorCode setExpCompValue(uint32_t value);
-        ErrorCode setExpCompPower(uint8_t power);
-        ErrorCode setAutoExpMode(uint8_t mode);
-        ErrorCode setSlowShutterAuto(uint8_t power);
-        ErrorCode setBacklightComp(uint8_t power);
-        ErrorCode setZeroLuxShot(uint8_t power);
-        ErrorCode setIrLed(uint8_t power);
-        ErrorCode setWideMode(uint8_t mode);
-        ErrorCode setMirror(uint8_t power);
-        ErrorCode setFreeze(uint8_t power);
-        ErrorCode setPictureEffect(uint8_t mode);
-        ErrorCode setDigitalEffect(uint8_t mode);
-        ErrorCode setDigitalEffectLevel(uint8_t level);
-        Result<void> setCamStabilizer(bool power);
-        ErrorCode memorySet(uint8_t channel);
-        ErrorCode memoryRecall(uint8_t channel);
-        ErrorCode memoryReset(uint8_t channel);
-        ErrorCode setDisplay(uint8_t power);
-        ErrorCode setDateTime(uint32_t year, uint32_t month, uint32_t day, uint32_t hour, uint32_t minute);
-        ErrorCode setDateDisplay(uint8_t power);
-        ErrorCode setTimeDisplay(uint8_t power);
-        ErrorCode setTitleDisplay(uint8_t power);
-        ErrorCode setTitleClear();
-        ErrorCode setTitleParams(const ViscaTitleData* title);
-        ErrorCode setTitle(const ViscaTitleData* title);
-        ErrorCode setIrreceiveOn();
-        ErrorCode setIrreceiveOff();
-        ErrorCode setIrreceiveOnoff();
+        ResultCode setPower(uint8_t power) const;
+        ResultCode setKeylock(uint8_t power) const;
+        ResultCode setCameraId(uint16_t id) const;
+        ResultCode setZoomTele() const;
+        ResultCode setZoomWide() const;
+        ResultCode setZoomStop() const;
+        ResultCode setZoomTeleSpeed(uint32_t speed) const; //TODO: uint8_t?
+        ResultCode setZoomWideSpeed(uint32_t speed) const; //TODO: uint8_t?
+        Result<void> setZoomValue(uint16_t zoom) const;
+        ResultCode setZoomAndFocusValue(uint16_t zoom, uint16_t focus) const;
+        ResultCode setDzoomValue(uint8_t value) const;
+        ResultCode setDzoomLimit(uint8_t limit) const;
+        ResultCode setDzoomMode(uint8_t power) const;
+        ResultCode setFocusFar() const;
+        ResultCode setFocusNear() const;
+        ResultCode setFocusStop() const;
+        ResultCode setFocusFarSpeed(uint32_t speed) const; //TODO: uint8_t?
+        ResultCode setFocusNearSpeed(uint32_t speed) const; //TODO: uint8_t?
+        Result<void> setFocusValue(uint16_t focus) const;
+        Result<void> setFocusAuto(bool on) const;
+        ResultCode setFocusOnePush() const;
+        ResultCode setFocusInfinity() const;
+        ResultCode setFocusAutosenseHigh() const;
+        ResultCode setFocusAutosenseLow() const;
+        ResultCode setFocusNearLimit(uint16_t limit) const;
+        ResultCode setWhitebalMode(uint8_t mode) const;
+        ResultCode setWhitebalOnePush() const;
+        ResultCode setRgainUp() const;
+        ResultCode setRgainDown() const;
+        ResultCode setRgainReset() const;
+        ResultCode setRgainValue(uint8_t value) const;
+        ResultCode setBgainUp() const;
+        ResultCode setBgainDown() const;
+        ResultCode setBgainReset() const;
+        ResultCode setBgainValue(uint8_t value) const;
+        ResultCode setShutterUp() const;
+        ResultCode setShutterDown() const;
+        ResultCode setShutterReset() const;
+        ResultCode setShutterValue(uint8_t value) const;
+        ResultCode setIrisUp() const;
+        ResultCode setIrisDown() const;
+        ResultCode setIrisReset() const;
+        ResultCode setIrisValue(uint8_t value) const;
+        ResultCode setGainUp() const;
+        ResultCode setGainDown() const;
+        ResultCode setGainReset() const;
+        ResultCode setGainValue(uint8_t value) const;
+        ResultCode setBrightUp() const;
+        ResultCode setBrightDown() const;
+        ResultCode setBrightReset() const;
+        ResultCode setBrightValue(uint16_t value) const;
+        ResultCode setApertureUp() const;
+        ResultCode setApertureDown() const;
+        ResultCode setApertureReset() const;
+        ResultCode setApertureValue(uint16_t value) const;
+        ResultCode setExpCompUp() const;
+        ResultCode setExpCompDown() const;
+        ResultCode setExpCompReset() const;
+        ResultCode setExpCompValue(uint8_t value) const;
+        ResultCode setExpCompPower(uint8_t power) const;
+        ResultCode setAutoExpMode(uint8_t mode) const;
+        ResultCode setSlowShutterAuto(uint8_t power) const;
+        ResultCode setBacklightComp(uint8_t power) const;
+        ResultCode setZeroLuxShot(uint8_t power) const;
+        ResultCode setIrLed(uint8_t power) const;
+        ResultCode setWideMode(uint8_t mode) const;
+        ResultCode setMirror(uint8_t power) const;
+        ResultCode setFreeze(uint8_t power) const;
+        ResultCode setPictureEffect(uint8_t mode) const;
+        ResultCode setDigitalEffect(uint8_t mode) const;
+        ResultCode setDigitalEffectLevel(uint8_t level) const;
+        Result<void> setCamStabilizer(bool power) const;
+        ResultCode memorySet(uint8_t channel) const;
+        ResultCode memoryRecall(uint8_t channel) const;
+        ResultCode memoryReset(uint8_t channel) const;
+        ResultCode setDisplay(uint8_t power) const;
+        ResultCode setDateTime(uint16_t year, uint16_t month, uint16_t day, uint16_t hour, uint16_t minute) const;
+        ResultCode setDateDisplay(uint8_t power) const;
+        ResultCode setTimeDisplay(uint8_t power) const;
+        ResultCode setTitleDisplay(uint8_t power) const;
+        ResultCode setTitleClear() const;
+        ResultCode setTitleParams(const ViscaTitleData* title) const;
+        ResultCode setTitle(const ViscaTitleData* title) const;
+        ResultCode setIrreceiveOn() const;
+        ResultCode setIrreceiveOff() const;
+        ResultCode setIrreceiveOnoff() const;
         /*  pan_speed should be in the range 01 - 18.
             tilt_speed should be in the range 01 - 14 */
-        ErrorCode setPantiltUp(uint32_t pan_speed, uint32_t tilt_speed);
-        ErrorCode setPantiltDown(uint32_t pan_speed, uint32_t tilt_speed);
-        ErrorCode setPantiltLeft(uint32_t pan_speed, uint32_t tilt_speed);
-        ErrorCode setPantiltRight(uint32_t pan_speed, uint32_t tilt_speed);
-        ErrorCode setPantiltUpleft(uint32_t pan_speed, uint32_t tilt_speed);
-        ErrorCode setPantiltUpright(uint32_t pan_speed, uint32_t tilt_speed);
-        ErrorCode setPantiltDownleft(uint32_t pan_speed, uint32_t tilt_speed);
-        ErrorCode setPantiltDownright(uint32_t pan_speed, uint32_t tilt_speed);
-        ErrorCode setPantiltStop(uint32_t pan_speed, uint32_t tilt_speed);
+        ResultCode setPanTiltUp(uint8_t pan_speed, uint8_t tilt_speed) const;
+        ResultCode setPanTiltDown(uint8_t pan_speed, uint8_t tilt_speed) const;
+        ResultCode setPanTiltLeft(uint8_t pan_speed, uint8_t tilt_speed) const;
+        ResultCode setPanTiltRight(uint8_t pan_speed, uint8_t tilt_speed) const;
+        ResultCode setPanTiltUpleft(uint8_t pan_speed, uint8_t tilt_speed) const;
+        ResultCode setPanTiltUpright(uint8_t pan_speed, uint8_t tilt_speed) const;
+        ResultCode setPanTiltDownleft(uint8_t pan_speed, uint8_t tilt_speed) const;
+        ResultCode setPanTiltDownright(uint8_t pan_speed, uint8_t tilt_speed) const;
+        ResultCode setPanTiltStop(uint8_t pan_speed, uint8_t tilt_speed) const;
         /*  pan_speed should be in the range 01 - 18.
             tilt_speed should be in the range 01 - 14
             pan_position should be in the range -880 - 880 (0xFC90 - 0x370)
             tilt_position should be in range -300 - 300 (0xFED4 - 0x12C)  */
-        ErrorCode setPantiltAbsolutePosition(uint32_t pan_speed, uint32_t tilt_speed, uint32_t pan_position,
-                                             uint32_t tilt_position);
-        ErrorCode setPantiltRelativePosition(uint32_t pan_speed, uint32_t tilt_speed, uint32_t pan_position,
-                                             uint32_t tilt_position);
-        ErrorCode setPantiltHome();
-        ErrorCode setPantiltReset();
+        ResultCode setPanTiltAbsolutePosition(uint8_t pan_speed, uint8_t tilt_speed, uint16_t pan_position,
+                                              uint16_t tilt_position) const;
+        ResultCode setPanTiltRelativePosition(uint8_t pan_speed, uint8_t tilt_speed, uint16_t pan_position,
+                                              uint16_t tilt_position) const;
+        ResultCode setPanTiltHome() const;
+        ResultCode setPanTiltReset() const;
         /*  pan_limit should be in the range -880 - 880 (0xFC90 - 0x370)
             tilt_limit should be in range -300 - 300 (0xFED4 - 0x12C)  */
-        ErrorCode setPantiltLimitUpright(uint32_t pan_limit, uint32_t tilt_limit);
-        ErrorCode setPantiltLimitDownleft(uint32_t pan_limit, uint32_t tilt_limit);
-        ErrorCode setPantiltLimitDownleftClear();
-        ErrorCode setPantiltLimitUprightClear();
-        ErrorCode setDatascreenOn();
-        ErrorCode setDatascreenOff();
-        ErrorCode setDatascreenOnoff();
-        ErrorCode setSpotAeOn();
-        ErrorCode setSpotAeOff();
-        ErrorCode setSpotAePosition(uint8_t x_position, uint8_t y_position);
+        ResultCode setPanTiltLimitUpright(uint16_t pan_limit, uint16_t tilt_limit) const;
+        ResultCode setPanTiltLimitDownleft(uint16_t pan_limit, uint16_t tilt_limit) const;
+        ResultCode setPanTiltLimitDownleftClear() const;
+        ResultCode setPanTiltLimitUprightClear() const;
+        ResultCode setDatascreenOn() const;
+        ResultCode setDatascreenOff() const;
+        ResultCode setDatascreenOnoff() const;
+        ResultCode setSpotAeOn() const;
+        ResultCode setSpotAeOff() const;
+        ResultCode setSpotAePosition(uint8_t x_position, uint8_t y_position) const;
         /* INQUIRIES */
-        ErrorCode getPower(uint8_t* power);
-        ErrorCode getDzoom(uint8_t* power);
-        ErrorCode getDzoomLimit(uint8_t* value);
-        Result<uint16_t> getZoomValue();
-        Result<bool> getFocusAuto();
-        Result<uint16_t> getFocusValue();
-        ErrorCode getFocusAutoSense(uint8_t* mode);
-        ErrorCode getFocusNearLimit(uint16_t* value);
-        ErrorCode getWhitebalMode(uint8_t* mode);
-        ErrorCode getRgainValue(uint16_t* value);
-        ErrorCode getBgainValue(uint16_t* value);
-        ErrorCode getAutoExpMode(uint8_t* mode);
-        ErrorCode getSlowShutterAuto(uint8_t* mode);
-        ErrorCode getShutterValue(uint16_t* value);
-        ErrorCode getIrisValue(uint16_t* value);
-        ErrorCode getGainValue(uint16_t* value);
-        ErrorCode getBrightValue(uint16_t* value);
-        ErrorCode getExpCompPower(uint8_t* power);
-        ErrorCode getExpCompValue(uint16_t* value);
-        ErrorCode getBacklightComp(uint8_t* power);
-        ErrorCode getApertureValue(uint16_t* value);
-        ErrorCode getZeroLuxShot(uint8_t* power);
-        ErrorCode getIrLed(uint8_t* power);
-        ErrorCode getWideMode(uint8_t* mode);
-        ErrorCode getMirror(uint8_t* power);
-        ErrorCode getFreeze(uint8_t* power);
-        ErrorCode getPictureEffect(uint8_t* mode);
-        ErrorCode getDigitalEffect(uint8_t* mode);
-        ErrorCode getDigitalEffectLevel(uint16_t* value);
-        ErrorCode getMemory(uint8_t* channel);
-        ErrorCode getDisplay(uint8_t* power);
-        ErrorCode getId(uint16_t* id);
-        ErrorCode getVideosystem(uint8_t* system);
-        ErrorCode getPantiltMode(uint16_t* status);
-        ErrorCode getPantiltMaxspeed(uint8_t* max_pan_speed, uint8_t* max_tilt_speed);
-        ErrorCode getPantiltPosition(uint16_t* pan_position, uint16_t* tilt_position);
-        ErrorCode getDatascreen(uint8_t* status);
+        ResultCode getPower(uint8_t* power) const;
+        ResultCode getDzoomValue(uint8_t* value) const;
+        ResultCode getDzoomLimit(uint8_t* value) const;
+        Result<uint16_t> getZoomValue() const;
+        Result<bool> getFocusAuto() const;
+        Result<uint16_t> getFocusValue() const;
+        ResultCode getFocusAutoSense(uint8_t* mode) const;
+        ResultCode getFocusNearLimit(uint16_t* value) const;
+        ResultCode getWhitebalMode(uint8_t* mode) const;
+        ResultCode getRgainValue(uint8_t* value) const;
+        ResultCode getBgainValue(uint8_t* value) const;
+        ResultCode getAutoExpMode(uint8_t* mode) const;
+        ResultCode getSlowShutterAuto(uint8_t* mode) const;
+        ResultCode getShutterValue(uint8_t* value) const;
+        ResultCode getIrisValue(uint8_t* value) const;
+        ResultCode getGainValue(uint8_t* value) const;
+        ResultCode getBrightValue(uint16_t* value) const;
+        ResultCode getExpCompPower(uint8_t* power) const;
+        ResultCode getExpCompValue(uint16_t* value) const;
+        ResultCode getBacklightComp(uint8_t* power) const;
+        ResultCode getApertureValue(uint16_t* value) const;
+        ResultCode getZeroLuxShot(uint8_t* power) const;
+        ResultCode getIrLed(uint8_t* power) const;
+        ResultCode getWideMode(uint8_t* mode) const;
+        ResultCode getMirror(uint8_t* power) const;
+        ResultCode getFreeze(uint8_t* power) const;
+        ResultCode getPictureEffect(uint8_t* mode) const;
+        ResultCode getDigitalEffect(uint8_t* mode) const;
+        ResultCode getDigitalEffectLevel(uint16_t* value) const;
+        ResultCode getMemory(uint8_t* channel) const;
+        ResultCode getDisplay(uint8_t* power) const;
+        ResultCode getId(uint16_t* id) const;
+        ResultCode getVideoSystem(uint8_t* system) const;
+        ResultCode getPanTiltMode(uint16_t* status) const;
+        ResultCode getPanTiltMaxspeed(uint8_t* max_pan_speed, uint8_t* max_tilt_speed) const;
+        ResultCode getPanTiltPosition(uint16_t* pan_position, uint16_t* tilt_position) const;
+        ResultCode getDatascreen(uint8_t* status) const;
         /* SPECIAL FUNCTIONS FOR D30/31 */
-        ErrorCode setWideConLens(uint8_t power);
-        ErrorCode setAtModeOnoff();
-        ErrorCode setAtMode(uint8_t power);
-        ErrorCode setAtAeOnoff();
-        ErrorCode setAtAe(uint8_t power);
-        ErrorCode setAtAutozoomOnoff();
-        ErrorCode setAtAutozoom(uint8_t power);
-        ErrorCode setAtmdFramedisplayOnoff();
-        ErrorCode setAtmdFramedisplay(uint8_t power);
-        ErrorCode setAtFrameoffsetOnoff();
-        ErrorCode setAtFrameoffset(uint8_t power);
-        ErrorCode setAtmdStartstop();
-        ErrorCode setAtChase(uint8_t power);
-        ErrorCode setAtChaseNext();
-        ErrorCode setMdModeOnoff();
-        ErrorCode setMdMode(uint8_t power);
-        ErrorCode setMdFrame();
-        ErrorCode setMdDetect();
-        ErrorCode setAtEntry(uint8_t power);
-        ErrorCode setAtLostinfo();
-        ErrorCode setMdLostinfo();
-        ErrorCode setMdAdjustYlevel(uint8_t power);
-        ErrorCode setMdAdjustHuelevel(uint8_t power);
-        ErrorCode setMdAdjustSize(uint8_t power);
-        ErrorCode setMdAdjustDisptime(uint8_t power);
-        ErrorCode setMdAdjustRefmode(uint8_t power);
-        ErrorCode setMdAdjustReftime(uint8_t power);
-        ErrorCode setMdMeasureMode1Onoff();
-        ErrorCode setMdMeasureMode1(uint8_t power);
-        ErrorCode setMdMeasureMode2Onoff();
-        ErrorCode setMdMeasureMode2(uint8_t power);
-        ErrorCode getKeylock(uint8_t* power);
-        ErrorCode getWideConLens(uint8_t* power);
-        ErrorCode getAtmdMode(uint8_t* power);
-        ErrorCode getAtMode(uint16_t* value);
-        ErrorCode getAtEntry(uint8_t* power);
-        ErrorCode getMdMode(uint16_t* value);
-        ErrorCode getMdYlevel(uint8_t* power);
-        ErrorCode getMdHuelevel(uint8_t* power);
-        ErrorCode getMdSize(uint8_t* power);
-        ErrorCode getMdDisptime(uint8_t* power);
-        ErrorCode getMdRefmode(uint8_t* power);
-        ErrorCode getMdReftime(uint8_t* power);
-        ErrorCode getAtObjPos(uint8_t* xpos, uint8_t* ypos, uint8_t* status);
-        ErrorCode getMdObjPos(uint8_t* xpos, uint8_t* ypos, uint8_t* status);
-        ErrorCode setRegister(uint8_t reg_num, uint8_t reg_val);
-        ErrorCode getRegister(uint8_t reg_num, uint8_t* reg_val);
+        ResultCode setWideConLens(uint8_t power) const;
+        ResultCode setAtModeOnoff() const;
+        ResultCode setAtMode(uint8_t power) const;
+        ResultCode setAtAeOnoff() const;
+        ResultCode setAtAe(uint8_t power) const;
+        ResultCode setAtAutozoomOnoff() const;
+        ResultCode setAtAutozoom(uint8_t power) const;
+        ResultCode setAtmdFramedisplayOnoff() const;
+        ResultCode setAtmdFramedisplay(uint8_t power) const;
+        ResultCode setAtFrameoffsetOnoff() const;
+        ResultCode setAtFrameoffset(uint8_t power) const;
+        ResultCode setAtmdStartstop() const;
+        ResultCode setAtChase(uint8_t power) const;
+        ResultCode setAtChaseNext() const;
+        ResultCode setMdModeOnoff() const;
+        ResultCode setMdMode(uint8_t power) const;
+        ResultCode setMdFrame() const;
+        ResultCode setMdDetect() const;
+        ResultCode setAtEntry(uint8_t power) const;
+        ResultCode setAtLostinfo() const;
+        ResultCode setMdLostinfo() const;
+        ResultCode setMdAdjustYlevel(uint8_t power) const;
+        ResultCode setMdAdjustHuelevel(uint8_t power) const;
+        ResultCode setMdAdjustSize(uint8_t power) const;
+        ResultCode setMdAdjustDisptime(uint8_t power) const;
+        ResultCode setMdAdjustRefmode(uint8_t power) const;
+        ResultCode setMdAdjustReftime(uint8_t power) const;
+        ResultCode setMdMeasureMode1Onoff() const;
+        ResultCode setMdMeasureMode1(uint8_t power) const;
+        ResultCode setMdMeasureMode2Onoff() const;
+        ResultCode setMdMeasureMode2(uint8_t power) const;
+        ResultCode getKeylock(uint8_t* power) const;
+        ResultCode getWideConLens(uint8_t* power) const;
+        ResultCode getAtmdMode(uint8_t* power) const;
+        ResultCode getAtMode(uint16_t* value) const;
+        ResultCode getAtEntry(uint8_t* power) const;
+        ResultCode getMdMode(uint16_t* value) const;
+        ResultCode getMdYlevel(uint8_t* power) const;
+        ResultCode getMdHuelevel(uint8_t* power) const;
+        ResultCode getMdSize(uint8_t* power) const;
+        ResultCode getMdDisptime(uint8_t* power) const;
+        ResultCode getMdRefmode(uint8_t* power) const;
+        ResultCode getMdReftime(uint8_t* power) const;
+        ResultCode getAtObjPos(uint8_t* xpos, uint8_t* ypos, uint8_t* status) const;
+        ResultCode getMdObjPos(uint8_t* xpos, uint8_t* ypos, uint8_t* status) const;
+        ResultCode setRegister(uint8_t reg_num, uint8_t reg_val) const;
+        ResultCode getRegister(uint8_t reg_num, uint8_t* reg_val) const;
 
     private:
         std::unique_ptr<Uart> transport_; //TODO: use ITransport
         ViscaCamera camera{};
-        static std::string getViscaErrorMessage(ErrorCode error_code);
+        static std::string getViscaErrorMessage(ResultCode error_code);
         static void appendByte(ViscaPacket* packet, uint8_t byte);
-        static void initPacket(ViscaPacket* packet);
-        ErrorCode getReply() const;
-        ErrorCode sendPacketWithReply(ViscaPacket* packet) const;
-        ErrorCode write(const ViscaPacket* packet) const;
-        ErrorCode sendPacket(ViscaPacket* packet) const;
-        ErrorCode read() const;
-        ErrorCode unreadBytes(const uint8_t* buffer, uint32_t* buffer_size) const;
-        static std::string_view getCameraVendor(uint32_t vendor);
-        static std::string_view getCameraModel(uint32_t model);
+        static void appendAsNibbles(ViscaPacket* packet, uint16_t value);
+        uint16_t getFromNibbles() const;
+        uint8_t getByte() const;
+        ResultCode getReply() const;
+        ResultCode sendPacketWithReply(ViscaPacket* packet) const;
+        ResultCode write(const ViscaPacket* packet) const;
+        ResultCode sendPacket(ViscaPacket* packet) const;
+        ResultCode read() const;
+        ResultCode unreadBytes(const uint8_t* buffer, size_t* buffer_size) const;
+        static std::string_view getCameraVendor(uint16_t vendor);
+        static std::string_view getCameraModel(uint16_t model);
     };
 }

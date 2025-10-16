@@ -42,7 +42,7 @@ namespace camera_service::infrastructure {
     private:
         const types::ZoomRange zoom_limits_{
             .min = 0x0000,
-            .max = 0x4000
+            .max = 0x4000 // or 0x7AC0 for combined digital zoom
         };
 
         const types::FocusRange focus_limits_{
