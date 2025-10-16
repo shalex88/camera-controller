@@ -114,20 +114,20 @@ namespace camera_service::infrastructure {
         }
     }
 
-    ResultCode Visca::sendPacketWithReply(ViscaPacket* packet) const {
+    Result<void> Visca::sendPacketWithReply(ViscaPacket* packet) const {
         if (sendPacket(packet) != ResultCode::Success) {
-            return ResultCode::Failure;
+            return Result<void>::error("Failed to send packet");
         }
 
         if (getReply() != ResultCode::Success) {
-            return ResultCode::Failure;
+            return Result<void>::error("Failed to get reply");
         }
 
         if (transport_->iface.type == ResponseType::Error) {
-            return static_cast<ResultCode>(transport_->iface.ibuf[2]);
+            return Result<void>::error(getViscaErrorMessage(static_cast<ResultCode>(transport_->iface.ibuf[2])));
         }
 
-        return ResultCode::Success;
+        return Result<void>::success();
     }
 
     ResultCode Visca::unreadBytes(const uint8_t* buffer, size_t* buffer_size) const {
@@ -274,7 +274,7 @@ namespace camera_service::infrastructure {
     /*       COMMAND FUNCTIONS         */
     /***********************************/
 
-    ResultCode Visca::setPower(const uint8_t power) const {
+    Result<void> Visca::setPower(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -285,7 +285,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setKeylock(const uint8_t power) const {
+    Result<void> Visca::setKeylock(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -296,7 +296,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setCameraId(const uint16_t id) const {
+    Result<void> Visca::setCameraId(const uint16_t id) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -307,7 +307,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setZoomTele() const {
+    Result<void> Visca::setZoomTele() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -318,7 +318,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setZoomWide() const {
+    Result<void> Visca::setZoomWide() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -329,7 +329,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setZoomStop() const {
+    Result<void> Visca::setZoomStop() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -340,7 +340,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setZoomTeleSpeed(const uint32_t speed) const {
+    Result<void> Visca::setZoomTeleSpeed(const uint32_t speed) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -351,7 +351,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setZoomWideSpeed(const uint32_t speed) const {
+    Result<void> Visca::setZoomWideSpeed(const uint32_t speed) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -370,14 +370,10 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_ZOOM_VALUE);
         appendAsNibbles(&packet, zoom);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return Result<void>::error(getViscaErrorMessage(err));
-        }
-
-        return Result<void>::success();
+        return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setZoomAndFocusValue(const uint16_t zoom, const uint16_t focus) const {
+    Result<void> Visca::setZoomAndFocusValue(const uint16_t zoom, const uint16_t focus) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -389,7 +385,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setDzoomValue(const uint8_t value) const {
+    Result<void> Visca::setDzoomValue(const uint8_t value) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -400,7 +396,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setDzoomLimit(const uint8_t limit) const {
+    Result<void> Visca::setDzoomLimit(const uint8_t limit) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -411,7 +407,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setDzoomMode(const uint8_t power) const {
+    Result<void> Visca::setDzoomMode(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -422,7 +418,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setFocusFar() const {
+    Result<void> Visca::setFocusFar() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -433,7 +429,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setFocusNear() const {
+    Result<void> Visca::setFocusNear() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -444,7 +440,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setFocusStop() const {
+    Result<void> Visca::setFocusStop() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -455,7 +451,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setFocusFarSpeed(const uint32_t speed) const {
+    Result<void> Visca::setFocusFarSpeed(const uint32_t speed) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -466,7 +462,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setFocusNearSpeed(const uint32_t speed) const {
+    Result<void> Visca::setFocusNearSpeed(const uint32_t speed) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -485,11 +481,7 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_FOCUS_VALUE);
         appendAsNibbles(&packet, focus);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return Result<void>::error(getViscaErrorMessage(err));
-        }
-
-        return Result<void>::success();
+        return sendPacketWithReply(&packet);
     }
 
     Result<void> Visca::setFocusAuto(const bool on) const {
@@ -500,14 +492,10 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_FOCUS_AUTO);
         appendByte(&packet, on ? VISCA_ON : VISCA_OFF);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return Result<void>::error(getViscaErrorMessage(err));
-        }
-
-        return Result<void>::success();
+        return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setFocusOnePush() const {
+    Result<void> Visca::setFocusOnePush() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -518,7 +506,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setFocusInfinity() const {
+    Result<void> Visca::setFocusInfinity() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -529,7 +517,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setFocusAutosenseHigh() const {
+    Result<void> Visca::setFocusAutosenseHigh() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -540,7 +528,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setFocusAutosenseLow() const {
+    Result<void> Visca::setFocusAutosenseLow() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -551,7 +539,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setFocusNearLimit(const uint16_t limit) const {
+    Result<void> Visca::setFocusNearLimit(const uint16_t limit) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -562,7 +550,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setWhitebalMode(const uint8_t mode) const {
+    Result<void> Visca::setWhitebalMode(const uint8_t mode) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -573,7 +561,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setWhitebalOnePush() const {
+    Result<void> Visca::setWhitebalOnePush() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -584,7 +572,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setRgainUp() const {
+    Result<void> Visca::setRgainUp() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -595,7 +583,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setRgainDown() const {
+    Result<void> Visca::setRgainDown() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -606,7 +594,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setRgainReset() const {
+    Result<void> Visca::setRgainReset() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -617,7 +605,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setRgainValue(const uint8_t value) const {
+    Result<void> Visca::setRgainValue(const uint8_t value) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -628,7 +616,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setBgainUp() const {
+    Result<void> Visca::setBgainUp() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -639,7 +627,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setBgainDown() const {
+    Result<void> Visca::setBgainDown() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -650,7 +638,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setBgainReset() const {
+    Result<void> Visca::setBgainReset() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -661,7 +649,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setBgainValue(const uint8_t value) const {
+    Result<void> Visca::setBgainValue(const uint8_t value) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -672,7 +660,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setShutterUp() const {
+    Result<void> Visca::setShutterUp() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -683,7 +671,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setShutterDown() const {
+    Result<void> Visca::setShutterDown() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -694,7 +682,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setShutterReset() const {
+    Result<void> Visca::setShutterReset() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -705,7 +693,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setShutterValue(const uint8_t value) const {
+    Result<void> Visca::setShutterValue(const uint8_t value) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -716,7 +704,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setIrisUp() const {
+    Result<void> Visca::setIrisUp() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -727,7 +715,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setIrisDown() const {
+    Result<void> Visca::setIrisDown() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -738,7 +726,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setIrisReset() const {
+    Result<void> Visca::setIrisReset() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -749,7 +737,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setIrisValue(const uint8_t value) const {
+    Result<void> Visca::setIrisValue(const uint8_t value) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -760,7 +748,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setGainUp() const {
+    Result<void> Visca::setGainUp() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -771,7 +759,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setGainDown() const {
+    Result<void> Visca::setGainDown() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -782,7 +770,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setGainReset() const {
+    Result<void> Visca::setGainReset() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -793,7 +781,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setGainValue(const uint8_t value) const {
+    Result<void> Visca::setGainValue(const uint8_t value) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -804,7 +792,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setBrightUp() const {
+    Result<void> Visca::setBrightUp() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -815,7 +803,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setBrightDown() const {
+    Result<void> Visca::setBrightDown() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -826,7 +814,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setBrightReset() const {
+    Result<void> Visca::setBrightReset() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -837,7 +825,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setBrightValue(const uint16_t value) const {
+    Result<void> Visca::setBrightValue(const uint16_t value) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -848,7 +836,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setApertureUp() const {
+    Result<void> Visca::setApertureUp() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -859,7 +847,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setApertureDown() const {
+    Result<void> Visca::setApertureDown() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -870,7 +858,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setApertureReset() const {
+    Result<void> Visca::setApertureReset() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -881,7 +869,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setApertureValue(const uint16_t value) const {
+    Result<void> Visca::setApertureValue(const uint8_t value) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -892,7 +880,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setExpCompUp() const {
+    Result<void> Visca::setExpCompUp() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -903,7 +891,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setExpCompDown() const {
+    Result<void> Visca::setExpCompDown() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -914,7 +902,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setExpCompReset() const {
+    Result<void> Visca::setExpCompReset() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -925,7 +913,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setExpCompValue(const uint8_t value) const {
+    Result<void> Visca::setExpCompValue(const uint8_t value) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -936,7 +924,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setExpCompPower(const uint8_t power) const {
+    Result<void> Visca::setExpCompPower(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -947,7 +935,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setAutoExpMode(const uint8_t mode) const {
+    Result<void> Visca::setAutoExpMode(const uint8_t mode) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -958,7 +946,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setSlowShutterAuto(const uint8_t power) const {
+    Result<void> Visca::setSlowShutterAuto(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -969,18 +957,22 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setBacklightComp(const uint8_t power) const {
+    Result<void> Visca::setBacklightComp(const bool on) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_BACKLIGHT_COMP);
-        appendByte(&packet, power);
+        if (on) {
+            appendByte(&packet, VISCA_ON);
+        } else {
+            appendByte(&packet, VISCA_OFF);
+        }
 
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setZeroLuxShot(const uint8_t power) const {
+    Result<void> Visca::setZeroLuxShot(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -991,7 +983,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setIrLed(const uint8_t power) const {
+    Result<void> Visca::setIrLed(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1002,7 +994,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setWideMode(const uint8_t mode) const {
+    Result<void> Visca::setWideMode(const uint8_t mode) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1013,7 +1005,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setMirror(const uint8_t power) const {
+    Result<void> Visca::setMirror(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1024,7 +1016,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setFreeze(const uint8_t power) const {
+    Result<void> Visca::setFreeze(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1035,7 +1027,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setPictureEffect(const uint8_t mode) const {
+    Result<void> Visca::setPictureEffect(const uint8_t mode) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1046,7 +1038,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setDigitalEffect(const uint8_t mode) const {
+    Result<void> Visca::setDigitalEffect(const uint8_t mode) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1057,7 +1049,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setDigitalEffectLevel(const uint8_t level) const {
+    Result<void> Visca::setDigitalEffectLevel(const uint8_t level) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1082,14 +1074,10 @@ namespace camera_service::infrastructure {
             appendByte(&packet, VISCA_OFF);
         }
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return Result<void>::error(getViscaErrorMessage(err));
-        }
-
-        return Result<void>::success();
+        return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::memorySet(const uint8_t channel) const {
+    Result<void> Visca::memorySet(const uint8_t channel) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1101,7 +1089,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::memoryRecall(const uint8_t channel) const {
+    Result<void> Visca::memoryRecall(const uint8_t channel) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1113,7 +1101,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::memoryReset(const uint8_t channel) const {
+    Result<void> Visca::memoryReset(const uint8_t channel) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1125,7 +1113,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setDisplay(const uint8_t power) const {
+    Result<void> Visca::setDisplay(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1136,10 +1124,10 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setDateTime(const uint16_t year, const uint16_t month, const uint16_t day, const uint16_t hour,
+    Result<void> Visca::setDateTime(const uint16_t year, const uint16_t month, const uint16_t day, const uint16_t hour,
                                   const uint16_t minute) const {
         if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59) {
-            return ResultCode::Failure;
+            return Result<void>::error("Invalid input");
         }
 
         ViscaPacket packet{};
@@ -1161,7 +1149,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setDateDisplay(const uint8_t power) const {
+    Result<void> Visca::setDateDisplay(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1172,7 +1160,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setTimeDisplay(const uint8_t power) const {
+    Result<void> Visca::setTimeDisplay(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1183,7 +1171,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setTitleDisplay(const uint8_t power) const {
+    Result<void> Visca::setTitleDisplay(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1194,7 +1182,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setTitleClear() const {
+    Result<void> Visca::setTitleClear() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1205,7 +1193,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setTitleParams(const ViscaTitleData* title) const {
+    Result<void> Visca::setTitleParams(const ViscaTitleData* title) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1226,7 +1214,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setTitle(const ViscaTitleData* title) const {
+    Result<void> Visca::setTitle(const ViscaTitleData* title) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1238,8 +1226,8 @@ namespace camera_service::infrastructure {
             appendByte(&packet, title->title[i]);
         }
 
-        if (sendPacketWithReply(&packet) != ResultCode::Success) {
-            return ResultCode::Failure;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<void>::error(result.error());
         }
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1251,14 +1239,10 @@ namespace camera_service::infrastructure {
             appendByte(&packet, title->title[i + 10]);
         }
 
-        if (sendPacketWithReply(&packet) != ResultCode::Success) {
-            return ResultCode::Failure;
-        }
-
-        return ResultCode::Success;
+        return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setSpotAeOn() const {
+    Result<void> Visca::setSpotAeOn() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1269,7 +1253,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setSpotAeOff() const {
+    Result<void> Visca::setSpotAeOff() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1280,7 +1264,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setSpotAePosition(const uint8_t x_position, const uint8_t y_position) const {
+    Result<void> Visca::setSpotAePosition(const uint8_t x_position, const uint8_t y_position) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1305,8 +1289,8 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_INTERFACE);
         appendByte(&packet, VISCA_DEVICE_INFO);
 
-        if (sendPacketWithReply(&packet) != ResultCode::Success) {
-            return Result<std::string_view>::error("Failed to send getCameraInfo command");
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<std::string_view>::error(result.error());
         }
 
         camera.vendor = (transport_->iface.ibuf[2] << 8) + transport_->iface.ibuf[3];
@@ -1333,43 +1317,40 @@ namespace camera_service::infrastructure {
         });
     }
 
-    ResultCode Visca::getPower(uint8_t* power) const {
+    Result<uint8_t> Visca::getPower() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_POWER);
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *power = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getDzoomValue(uint8_t* value) const {
+    Result<uint8_t> Visca::getDzoomValue(uint8_t* value) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_DZOOM);
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *value = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getDzoomLimit(uint8_t* value) const {
+    Result<uint8_t> Visca::getDzoomLimit(uint8_t* value) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_DZOOM_LIMIT);
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *value = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
     Result<uint16_t> Visca::getZoomValue() const {
@@ -1379,12 +1360,10 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_ZOOM_VALUE);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return Result<uint16_t>::error(getViscaErrorMessage(err));
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint16_t>::error(result.error());
         }
-        const uint16_t value = (transport_->iface.ibuf[2] << 12) + (transport_->iface.ibuf[3] << 8) + (transport_->iface
-            .ibuf[4] << 4) + transport_->iface.ibuf[5];
-        return Result<uint16_t>::success(value);
+        return Result<uint16_t>::success(getFromNibbles());
     }
 
     Result<bool> Visca::getFocusAuto() const {
@@ -1394,14 +1373,13 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_FOCUS_AUTO);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return Result<bool>::error(getViscaErrorMessage(err));
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<bool>::error(result.error());
         }
 
         if (transport_->iface.ibuf[2] == VISCA_OFF) {
             return Result<bool>::success(false);
         }
-
         return Result<bool>::success(true);
     }
 
@@ -1412,125 +1390,114 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_FOCUS_VALUE);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return Result<uint16_t>::error(getViscaErrorMessage(err));
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint16_t>::error(result.error());
         }
-
-        const uint16_t value = (transport_->iface.ibuf[2] << 12) + (transport_->iface.ibuf[3] << 8) + (transport_->iface
-            .ibuf[4] << 4) + transport_->iface.ibuf[5];
-        return Result<uint16_t>::success(value);
+        return Result<uint16_t>::success(getFromNibbles());
     }
 
-    ResultCode Visca::getFocusAutoSense(uint8_t* mode) const {
+    Result<uint8_t> Visca::getFocusAutoSense() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_FOCUS_AUTO_SENSE);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *mode = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getFocusNearLimit(uint16_t* value) const {
+    Result<uint16_t> Visca::getFocusNearLimit() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_FOCUS_NEAR_LIMIT);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint16_t>::error(result.error());
         }
-        *value = getFromNibbles();
-        return ResultCode::Success;
+        return Result<uint16_t>::success(getFromNibbles());
     }
 
-    ResultCode Visca::getWhitebalMode(uint8_t* mode) const {
+    Result<uint8_t> Visca::getWhitebalMode() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_WB);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *mode = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getRgainValue(uint8_t* value) const {
+    Result<uint8_t> Visca::getRgainValue() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_RGAIN_VALUE);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *value = getFromNibbles();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getBgainValue(uint8_t* value) const {
+    Result<uint8_t> Visca::getBgainValue() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_BGAIN_VALUE);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *value = getFromNibbles();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getAutoExpMode(uint8_t* mode) const {
+    Result<uint8_t> Visca::getAutoExpMode() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_AUTO_EXP);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *mode = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getSlowShutterAuto(uint8_t* mode) const {
+    Result<uint8_t> Visca::getSlowShutterAuto() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_SLOW_SHUTTER);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *mode = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getShutterValue(uint8_t* value) const {
+    Result<uint8_t> Visca::getShutterValue() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_SHUTTER_VALUE);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *value = getFromNibbles();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(static_cast<uint8_t>(getFromNibbles()));
     }
 
     uint16_t Visca::getFromNibbles() const {
@@ -1538,264 +1505,248 @@ namespace camera_service::infrastructure {
             transport_->iface.ibuf[5];
     }
 
-    ResultCode Visca::getIrisValue(uint8_t* value) const {
+    Result<uint8_t> Visca::getIrisValue() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_IRIS_VALUE);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *value = getFromNibbles();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(static_cast<uint8_t>(getFromNibbles()));
     }
 
-    ResultCode Visca::getGainValue(uint8_t* value) const {
+    Result<uint8_t> Visca::getGainValue() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_GAIN_VALUE);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *value = getFromNibbles();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(static_cast<uint8_t>(getFromNibbles()));
     }
 
-    ResultCode Visca::getBrightValue(uint16_t* value) const {
+    Result<uint16_t> Visca::getBrightValue() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_BRIGHT_VALUE);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint16_t>::error(result.error());
         }
-        *value = getFromNibbles();
-        return ResultCode::Success;
+        return Result<uint16_t>::success(getFromNibbles());
     }
 
-    ResultCode Visca::getExpCompPower(uint8_t* power) const {
+    Result<uint8_t> Visca::getExpCompPower() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_EXP_COMP_POWER);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *power = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getExpCompValue(uint16_t* value) const {
+    Result<uint8_t> Visca::getExpCompValue() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_EXP_COMP_VALUE);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *value = getFromNibbles();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(static_cast<uint8_t>(getFromNibbles()));
     }
 
     uint8_t Visca::getByte() const {
         return transport_->iface.ibuf[2];
     }
 
-    ResultCode Visca::getBacklightComp(uint8_t* power) const {
+    Result<bool> Visca::getBacklightComp() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_BACKLIGHT_COMP);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<bool>::error(result.error());
         }
-        *power = getByte();
-        return ResultCode::Success;
+        if (getByte() == VISCA_OFF) {
+            return Result<bool>::success(false);
+        }
+        return Result<bool>::success(true);
     }
 
-    ResultCode Visca::getApertureValue(uint16_t* value) const {
+    Result<uint8_t> Visca::getApertureValue() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_APERTURE_VALUE);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *value = getFromNibbles();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(static_cast<uint8_t>(getFromNibbles()));
     }
 
-    ResultCode Visca::getZeroLuxShot(uint8_t* power) const {
+    Result<uint8_t> Visca::getZeroLuxShot() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_ZERO_LUX);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *power = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getIrLed(uint8_t* power) const {
+    Result<uint8_t> Visca::getIrLed() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_IR_LED);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *power = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getWideMode(uint8_t* mode) const {
+    Result<uint8_t> Visca::getWideMode() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_WIDE_MODE);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *mode = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getMirror(uint8_t* power) const {
+    Result<uint8_t> Visca::getMirror() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_MIRROR);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *power = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getFreeze(uint8_t* power) const {
+    Result<uint8_t> Visca::getFreeze() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_FREEZE);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *power = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getPictureEffect(uint8_t* mode) const {
+    Result<uint8_t> Visca::getPictureEffect() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_PICTURE_EFFECT);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *mode = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getDigitalEffect(uint8_t* mode) const {
+    Result<uint8_t> Visca::getDigitalEffect() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_DIGITAL_EFFECT);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *mode = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getDigitalEffectLevel(uint16_t* value) const {
+    Result<uint16_t> Visca::getDigitalEffectLevel() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_DIGITAL_EFFECT_LEVEL);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint16_t>::error(result.error());
         }
-        *value = getFromNibbles();
-        return ResultCode::Success;
+        return Result<uint16_t>::success(getFromNibbles());
     }
 
-    ResultCode Visca::getMemory(uint8_t* channel) const {
+    Result<uint8_t> Visca::getMemory() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_MEMORY);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *channel = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getDisplay(uint8_t* power) const {
+    Result<uint8_t> Visca::getDisplay() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_DISPLAY);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *power = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getId(uint16_t* id) const {
+    Result<uint16_t> Visca::getId() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_ID);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint16_t>::error(result.error());
         }
-        *id = (transport_->iface.ibuf[2] << 12) + (transport_->iface.ibuf[3] << 8) + (transport_->iface.ibuf[4] << 4) +
-            transport_->iface.ibuf[5];
-        return ResultCode::Success;
+        return Result<uint16_t>::success(getFromNibbles());
     }
 
-    ResultCode Visca::setIrreceiveOn() const {
+    Result<void> Visca::setIrreceiveOn() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1806,7 +1757,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setIrreceiveOff() const {
+    Result<void> Visca::setIrreceiveOff() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1817,7 +1768,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setIrreceiveOnoff() const {
+    Result<void> Visca::setIrreceiveOnoff() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1828,7 +1779,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setPanTiltUp(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> Visca::setPanTiltUp(const uint8_t pan_speed, const uint8_t tilt_speed) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1841,7 +1792,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setPanTiltDown(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> Visca::setPanTiltDown(const uint8_t pan_speed, const uint8_t tilt_speed) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1854,7 +1805,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setPanTiltLeft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> Visca::setPanTiltLeft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1867,7 +1818,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setPanTiltRight(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> Visca::setPanTiltRight(const uint8_t pan_speed, const uint8_t tilt_speed) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1880,7 +1831,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setPanTiltUpleft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> Visca::setPanTiltUpleft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1893,7 +1844,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setPanTiltUpright(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> Visca::setPanTiltUpright(const uint8_t pan_speed, const uint8_t tilt_speed) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1906,7 +1857,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setPanTiltDownleft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> Visca::setPanTiltDownleft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1919,7 +1870,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setPanTiltDownright(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> Visca::setPanTiltDownright(const uint8_t pan_speed, const uint8_t tilt_speed) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1932,7 +1883,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setPanTiltStop(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> Visca::setPanTiltStop(const uint8_t pan_speed, const uint8_t tilt_speed) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1945,7 +1896,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setPanTiltAbsolutePosition(const uint8_t pan_speed, const uint8_t tilt_speed,
+    Result<void> Visca::setPanTiltAbsolutePosition(const uint8_t pan_speed, const uint8_t tilt_speed,
                                                  const uint16_t pan_pos, const uint16_t tilt_pos) const {
         ViscaPacket packet{};
 
@@ -1960,7 +1911,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setPanTiltRelativePosition(const uint8_t pan_speed, const uint8_t tilt_speed,
+    Result<void> Visca::setPanTiltRelativePosition(const uint8_t pan_speed, const uint8_t tilt_speed,
                                                  const uint16_t pan_pos, const uint16_t tilt_pos) const {
         ViscaPacket packet{};
 
@@ -1983,7 +1934,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setPanTiltHome() const {
+    Result<void> Visca::setPanTiltHome() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -1992,7 +1943,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setPanTiltReset() const {
+    Result<void> Visca::setPanTiltReset() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2001,7 +1952,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setPanTiltLimitUpright(const uint16_t pan_limit, const uint16_t tilt_limit) const {
+    Result<void> Visca::setPanTiltLimitUpright(const uint16_t pan_limit, const uint16_t tilt_limit) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2015,7 +1966,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setPanTiltLimitDownleft(const uint16_t pan_limit, const uint16_t tilt_limit) const {
+    Result<void> Visca::setPanTiltLimitDownleft(const uint16_t pan_limit, const uint16_t tilt_limit) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2029,7 +1980,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setPanTiltLimitDownleftClear() const {
+    Result<void> Visca::setPanTiltLimitDownleftClear() const {
         ViscaPacket packet{};
 
         constexpr uint16_t pan_lmit = 0x7fff;
@@ -2046,7 +1997,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setPanTiltLimitUprightClear() const {
+    Result<void> Visca::setPanTiltLimitUprightClear() const {
         ViscaPacket packet{};
 
         constexpr uint16_t pan_limit = 0x7fff;
@@ -2063,7 +2014,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setDatascreenOn() const {
+    Result<void> Visca::setDatascreenOn() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2074,7 +2025,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setDatascreenOff() const {
+    Result<void> Visca::setDatascreenOff() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2085,7 +2036,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setDatascreenOnoff() const {
+    Result<void> Visca::setDatascreenOnoff() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2096,7 +2047,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setRegister(const uint8_t reg_num, const uint8_t reg_val) const {
+    Result<void> Visca::setRegister(const uint8_t reg_num, const uint8_t reg_val) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2112,82 +2063,79 @@ namespace camera_service::infrastructure {
     /*       INQUIRY FUNCTIONS         */
     /***********************************/
 
-    ResultCode Visca::getVideoSystem(uint8_t* system) const {
+    Result<uint8_t> Visca::getVideoSystem() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
         appendByte(&packet, VISCA_PT_VIDEOSYSTEM_INQ);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *system = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getPanTiltMode(uint16_t* status) const {
+    Result<uint16_t> Visca::getPanTiltMode() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
         appendByte(&packet, VISCA_PT_MODE_INQ);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint16_t>::error(result.error());
         }
-        *status = ((transport_->iface.ibuf[2] & 0xff) << 8) + (transport_->iface.ibuf[3] & 0xff);
-        return ResultCode::Success;
+        const uint16_t status = ((transport_->iface.ibuf[2] & 0xff) << 8) + (transport_->iface.ibuf[3] & 0xff);
+        return Result<uint16_t>::success(status);
     }
 
-    ResultCode Visca::getPanTiltMaxspeed(uint8_t* max_pan_speed, uint8_t* max_tilt_speed) const {
+    Result<std::pair<uint8_t, uint8_t>> Visca::getPanTiltMaxspeed() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
         appendByte(&packet, VISCA_PT_MAXSPEED_INQ);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<std::pair<uint8_t,uint8_t>>::error(result.error());
         }
-        *max_pan_speed = (transport_->iface.ibuf[2] & 0xff);
-        *max_tilt_speed = (transport_->iface.ibuf[3] & 0xff);
-        return ResultCode::Success;
+        const uint8_t max_pan_speed = (transport_->iface.ibuf[2] & 0xff);
+        const uint8_t max_tilt_speed = (transport_->iface.ibuf[3] & 0xff);
+        return Result<std::pair<uint8_t,uint8_t>>::success({max_pan_speed, max_tilt_speed});
     }
 
-    ResultCode Visca::getPanTiltPosition(uint16_t* pan_position, uint16_t* tilt_position) const {
+    Result<std::pair<uint16_t, uint16_t>> Visca::getPanTiltPosition() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
         appendByte(&packet, VISCA_PT_POSITION_INQ);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<std::pair<uint16_t, uint16_t>>::error(result.error());
         }
-        *pan_position = ((transport_->iface.ibuf[2] & 0xf) << 12) + ((transport_->iface.ibuf[3] & 0xf) << 8) + ((
-            transport_->iface.ibuf[4] & 0xf) << 4) + (transport_->iface.ibuf[5] & 0xf);
-        *tilt_position = ((transport_->iface.ibuf[6] & 0xf) << 12) + ((transport_->iface.ibuf[7] & 0xf) << 8) + ((
+        const uint16_t pan_position = getFromNibbles();
+        const uint16_t tilt_position = ((transport_->iface.ibuf[6] & 0xf) << 12) + ((transport_->iface.ibuf[7] & 0xf) << 8) + ((
             transport_->iface.ibuf[8] & 0xf) << 4) + (transport_->iface.ibuf[9] & 0xf);
 
-        return ResultCode::Success;
+        return Result<std::pair<uint16_t, uint16_t>>::success({pan_position, tilt_position});
     }
 
-    ResultCode Visca::getDatascreen(uint8_t* status) const {
+    Result<uint8_t> Visca::getDatascreen() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
         appendByte(&packet, VISCA_PT_DATASCREEN_INQ);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *status = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getRegister(const uint8_t reg_num, uint8_t* reg_val) const {
+    Result<uint8_t> Visca::getRegister(const uint8_t reg_num) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
@@ -2195,18 +2143,18 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_REGISTER_VALUE);
         appendByte(&packet, reg_num);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *reg_val = (transport_->iface.ibuf[2] << 4) + transport_->iface.ibuf[3];
-        return ResultCode::Success;
+        const uint8_t reg_val = (transport_->iface.ibuf[2] << 4) + transport_->iface.ibuf[3];
+        return Result<uint8_t>::success(reg_val);
     }
 
     /********************************/
     /* SPECIAL FUNCTIONS FOR D30/31 */
     /********************************/
 
-    ResultCode Visca::setWideConLens(const uint8_t power) const {
+    Result<void> Visca::setWideConLens(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2218,7 +2166,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setAtModeOnoff() const {
+    Result<void> Visca::setAtModeOnoff() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2229,7 +2177,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setAtMode(const uint8_t power) const {
+    Result<void> Visca::setAtMode(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2240,7 +2188,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setAtAeOnoff() const {
+    Result<void> Visca::setAtAeOnoff() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2251,7 +2199,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setAtAe(const uint8_t power) const {
+    Result<void> Visca::setAtAe(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2262,7 +2210,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setAtAutozoomOnoff() const {
+    Result<void> Visca::setAtAutozoomOnoff() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2273,7 +2221,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setAtAutozoom(const uint8_t power) const {
+    Result<void> Visca::setAtAutozoom(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2284,7 +2232,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setAtmdFramedisplayOnoff() const {
+    Result<void> Visca::setAtmdFramedisplayOnoff() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2295,7 +2243,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setAtmdFramedisplay(const uint8_t power) const {
+    Result<void> Visca::setAtmdFramedisplay(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2306,7 +2254,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setAtFrameoffsetOnoff() const {
+    Result<void> Visca::setAtFrameoffsetOnoff() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2317,7 +2265,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setAtFrameoffset(const uint8_t power) const {
+    Result<void> Visca::setAtFrameoffset(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2328,7 +2276,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setAtmdStartstop() const {
+    Result<void> Visca::setAtmdStartstop() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2339,7 +2287,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setAtChase(const uint8_t power) const {
+    Result<void> Visca::setAtChase(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2350,7 +2298,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setAtChaseNext() const {
+    Result<void> Visca::setAtChaseNext() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2361,7 +2309,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setMdModeOnoff() const {
+    Result<void> Visca::setMdModeOnoff() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2372,7 +2320,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setMdMode(const uint8_t power) const {
+    Result<void> Visca::setMdMode(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2383,7 +2331,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setMdFrame() const {
+    Result<void> Visca::setMdFrame() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2393,7 +2341,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setMdDetect() const {
+    Result<void> Visca::setMdDetect() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2404,7 +2352,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setAtEntry(const uint8_t power) const {
+    Result<void> Visca::setAtEntry(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2415,7 +2363,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setAtLostinfo() const {
+    Result<void> Visca::setAtLostinfo() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2427,7 +2375,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setMdLostinfo() const {
+    Result<void> Visca::setMdLostinfo() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2439,7 +2387,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setMdAdjustYlevel(const uint8_t power) const {
+    Result<void> Visca::setMdAdjustYlevel(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2451,7 +2399,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setMdAdjustHuelevel(const uint8_t power) const {
+    Result<void> Visca::setMdAdjustHuelevel(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2463,7 +2411,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setMdAdjustSize(const uint8_t power) const {
+    Result<void> Visca::setMdAdjustSize(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2475,7 +2423,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setMdAdjustDisptime(const uint8_t power) const {
+    Result<void> Visca::setMdAdjustDisptime(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2487,7 +2435,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setMdAdjustRefmode(const uint8_t power) const {
+    Result<void> Visca::setMdAdjustRefmode(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2498,7 +2446,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setMdAdjustReftime(const uint8_t power) const {
+    Result<void> Visca::setMdAdjustReftime(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2510,7 +2458,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setMdMeasureMode1Onoff() const {
+    Result<void> Visca::setMdMeasureMode1Onoff() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2521,7 +2469,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setMdMeasureMode1(const uint8_t power) const {
+    Result<void> Visca::setMdMeasureMode1(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2532,7 +2480,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setMdMeasureMode2Onoff() const {
+    Result<void> Visca::setMdMeasureMode2Onoff() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2543,7 +2491,7 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::setMdMeasureMode2(const uint8_t power) const {
+    Result<void> Visca::setMdMeasureMode2(const uint8_t power) const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_COMMAND);
@@ -2554,200 +2502,163 @@ namespace camera_service::infrastructure {
         return sendPacketWithReply(&packet);
     }
 
-    ResultCode Visca::getKeylock(uint8_t* power) const {
+    Result<uint8_t> Visca::getKeylock() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_KEYLOCK);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *power = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getWideConLens(uint8_t* power) const {
+    Result<uint8_t> Visca::getWideConLens() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA1);
         appendByte(&packet, VISCA_WIDE_CON_LENS);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *power = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getAtmdMode(uint8_t* power) const {
+    Result<uint8_t> Visca::getAtmdMode() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_ATMD_MODE);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *power = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getAtMode(uint16_t* value) const {
+    Result<uint16_t> Visca::getAtMode() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_AT_MODE_QUERY);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint16_t>::error(result.error());
         }
-        *value = ((transport_->iface.ibuf[2] & 0xff) << 8) + (transport_->iface.ibuf[3] & 0xff);
-        return ResultCode::Success;
+        const uint16_t value = ((transport_->iface.ibuf[2] & 0xff) << 8) + (transport_->iface.ibuf[3] & 0xff);
+        return Result<uint16_t>::success(value);
     }
 
-    ResultCode Visca::getAtEntry(uint8_t* power) const {
+    Result<uint8_t> Visca::getAtEntry() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_AT_ENTRY);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *power = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getMdMode(uint16_t* value) const {
+    Result<uint16_t> Visca::getMdMode() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_MD_MODE_QUERY);
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint16_t>::error(result.error());
         }
-        *value = ((transport_->iface.ibuf[2] & 0xff) << 8) + (transport_->iface.ibuf[3] & 0xff);
-        return ResultCode::Success;
+        const uint16_t value = ((transport_->iface.ibuf[2] & 0xff) << 8) + (transport_->iface.ibuf[3] & 0xff);
+        return Result<uint16_t>::success(value);
     }
 
-    ResultCode Visca::getMdYlevel(uint8_t* power) const {
+    Result<uint8_t> Visca::getMdYlevel() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_MD_ADJUST_YLEVEL);
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *power = (transport_->iface.ibuf[3] & 0x0f);
-        return ResultCode::Success;
+        const uint8_t power = (transport_->iface.ibuf[3] & 0x0f);
+        return Result<uint8_t>::success(power);
     }
 
-    ResultCode Visca::getMdHuelevel(uint8_t* power) const {
+    Result<uint8_t> Visca::getMdHuelevel() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_MD_ADJUST_HUELEVEL);
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *power = (transport_->iface.ibuf[3] & 0x0f);
-        return ResultCode::Success;
+        const uint8_t power = (transport_->iface.ibuf[3] & 0x0f);
+        return Result<uint8_t>::success(power);
     }
 
-    ResultCode Visca::getMdSize(uint8_t* power) const {
+    Result<uint8_t> Visca::getMdSize() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_MD_ADJUST_SIZE);
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *power = (transport_->iface.ibuf[3] & 0x0f);
-        return ResultCode::Success;
+        const uint8_t power = (transport_->iface.ibuf[3] & 0x0f);
+        return Result<uint8_t>::success(power);
     }
 
-    ResultCode Visca::getMdDisptime(uint8_t* power) const {
+    Result<uint8_t> Visca::getMdDisptime() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_MD_ADJUST_DISPTIME);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *power = (transport_->iface.ibuf[3] & 0x0f);
-        return ResultCode::Success;
+        const uint8_t power = (transport_->iface.ibuf[3] & 0x0f);
+        return Result<uint8_t>::success(power);
     }
 
-    ResultCode Visca::getMdRefmode(uint8_t* power) const {
+    Result<uint8_t> Visca::getMdRefmode() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_MD_ADJUST_REFMODE);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *power = getByte();
-        return ResultCode::Success;
+        return Result<uint8_t>::success(getByte());
     }
 
-    ResultCode Visca::getMdReftime(uint8_t* power) const {
+    Result<uint8_t> Visca::getMdReftime() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
         appendByte(&packet, VISCA_CATEGORY_CAMERA2);
         appendByte(&packet, VISCA_MD_REFTIME_QUERY);
 
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
+        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
+            return Result<uint8_t>::error(result.error());
         }
-        *power = (transport_->iface.ibuf[3] & 0x0f);
-        return ResultCode::Success;
-    }
-
-    ResultCode Visca::getAtObjPos(uint8_t* xpos, uint8_t* ypos, uint8_t* status) const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_AT_POSITION);
-
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
-        }
-        *xpos = getByte();
-        *ypos = transport_->iface.ibuf[3];
-        *status = (transport_->iface.ibuf[4] & 0x0f);
-        return ResultCode::Success;
-    }
-
-    ResultCode Visca::getMdObjPos(uint8_t* xpos, uint8_t* ypos, uint8_t* status) const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_POSITION);
-
-        if (const auto err = sendPacketWithReply(&packet); err != ResultCode::Success) {
-            return err;
-        }
-        *xpos = getByte();
-        *ypos = transport_->iface.ibuf[3];
-        *status = (transport_->iface.ibuf[4] & 0x0f);
-        return ResultCode::Success;
+        const uint8_t power = (transport_->iface.ibuf[3] & 0x0f);
+        return Result<uint8_t>::success(power);
     }
 
     std::string Visca::getViscaErrorMessage(const ResultCode error_code) {
