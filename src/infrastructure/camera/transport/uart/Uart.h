@@ -6,19 +6,6 @@
 #include "infrastructure/camera/transport/ITransport.h"
 
 namespace camera_service::infrastructure {
-    struct ViscaInterface {
-        // RS232 data:
-        int port_fd;
-        termios options;
-        uint32_t baud;
-        // VISCA data:
-        uint8_t address;
-        uint8_t broadcast;
-        // RS232 input buffer
-        std::array<uint8_t, 1024> ibuf{};
-        uint32_t size;
-    };
-
     class Uart final : public ITransport {
     public:
         explicit Uart(std::string device_path);
@@ -31,9 +18,11 @@ namespace camera_service::infrastructure {
         bool isOpen() const override;
         Result<void> configure(int baud_rate = 115200, int data_bits = 8,
                                int stop_bits = 1, char parity = 'N') const;
-        ViscaInterface iface{};
 
     private:
         std::string device_path_;
+        int port_fd_ = -1;
+        termios options_{};
+        uint32_t baud_ = 0;
     };
 }

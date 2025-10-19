@@ -2,8 +2,7 @@
 
 #include <memory>
 
-// #include "infrastructure/camera/transport/ITransport.h"
-#include "infrastructure/camera/transport/uart/Uart.h"
+#include "infrastructure/camera/transport/ITransport.h"
 
 using error_code = uint8_t;
 
@@ -285,7 +284,7 @@ namespace camera_service::infrastructure {
             size_t size = 1;
         };
 
-        explicit Visca(std::unique_ptr<Uart> transport);
+        explicit Visca(std::unique_ptr<ITransport> transport);
         ~Visca() = default;
 
         Result<void> setAddress();
@@ -499,7 +498,13 @@ namespace camera_service::infrastructure {
         Result<uint8_t> getRegister(uint8_t reg_num) const;
 
     private:
-        std::unique_ptr<Uart> transport_; //TODO: use ITransport
+        std::unique_ptr<ITransport> transport_;
+        uint8_t address_ = 0;
+        uint8_t broadcast_ = 0;
+        mutable std::array<uint8_t, 1024> input_buffer_{};
+        mutable uint32_t buffer_size_ = 0;
+        uint8_t cam_address_ = 0;
+
         static std::string getViscaErrorMessage(ResultCode error_code);
         static void appendByte(ViscaPacket* packet, uint8_t byte);
         static void appendAsNibbles(ViscaPacket* packet, uint16_t value);
@@ -512,9 +517,7 @@ namespace camera_service::infrastructure {
         void appendTerminator(ViscaPacket* packet) const;
         Result<void> sendPacket(ViscaPacket* packet) const;
         ResultCode read() const;
-        ResultCode unreadBytes(const uint8_t* buffer, size_t* buffer_size) const;
         static std::string_view getCameraVendor(uint16_t vendor);
         static std::string_view getCameraModel(uint16_t model);
-        uint8_t cam_address_{};
     };
 }

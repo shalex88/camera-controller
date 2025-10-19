@@ -37,33 +37,32 @@ namespace camera_service::infrastructure {
 
         fcntl(fd, F_SETFL, 0);
         /* Setting port parameters */
-        tcgetattr(fd, &iface.options);
+        tcgetattr(fd, &options_);
 
         /* control flags */
-        cfsetispeed(&iface.options,B9600); /* 9600 Bds   */
-        iface.options.c_cflag &= ~PARENB; /* No parity  */
-        iface.options.c_cflag &= ~CSTOPB; /*            */
-        iface.options.c_cflag &= ~CSIZE; /* 8bit       */
-        iface.options.c_cflag |= CS8; /*            */
-        iface.options.c_cflag &= ~CRTSCTS; /* No hdw ctl */
+        cfsetispeed(&options_,B9600); /* 9600 Bds   */
+        options_.c_cflag &= ~PARENB; /* No parity  */
+        options_.c_cflag &= ~CSTOPB; /*            */
+        options_.c_cflag &= ~CSIZE; /* 8bit       */
+        options_.c_cflag |= CS8; /*            */
+        options_.c_cflag &= ~CRTSCTS; /* No hdw ctl */
 
         /* local flags */
-        iface.options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); /* raw input */
+        options_.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); /* raw input */
 
         /* input flags */
         /*
-            iface.options.c_iflag &= ~(INPCK | ISTRIP); // no parity
-            iface.options.c_iflag &= ~(IXON | IXOFF | IXANY); // no soft ctl
+            options_.c_iflag &= ~(INPCK | ISTRIP); // no parity
+            options_.c_iflag &= ~(IXON | IXOFF | IXANY); // no soft ctl
             */
         /* patch: bpflegin: set to 0 in order to avoid invalid pan/tilt return values */
-        iface.options.c_iflag = 0;
+        options_.c_iflag = 0;
 
         /* output flags */
-        iface.options.c_oflag &= ~OPOST; /* raw output */
+        options_.c_oflag &= ~OPOST; /* raw output */
 
-        tcsetattr(fd, TCSANOW, &iface.options);
-        iface.port_fd = fd;
-        iface.address = 0;
+        tcsetattr(fd, TCSANOW, &options_);
+        port_fd_ = fd;
 
         return Result<void>::success();
     }
@@ -73,11 +72,11 @@ namespace camera_service::infrastructure {
             return Result<void>::success();
         }
 
-        if (::close(iface.port_fd) < 0) {
+        if (::close(port_fd_) < 0) {
             return Result<void>::error("Failed to close UART device: " + std::string(strerror(errno)));
         }
 
-        iface.port_fd = -1;
+        port_fd_ = -1;
         return Result<void>::success();
     }
 
@@ -90,7 +89,7 @@ namespace camera_service::infrastructure {
         termios tty{};
 
         // Get current terminal settings
-        if (tcgetattr(iface.port_fd, &tty) != 0) {
+        if (tcgetattr(port_fd_, &tty) != 0) {
             return Result<void>::error("Failed to get terminal attributes: " + std::string(strerror(errno)));
         }
 
@@ -224,7 +223,7 @@ namespace camera_service::infrastructure {
         tty.c_cc[VTIME] = 10; // 1 second timeout (in deciseconds)
 
         // Apply settings
-        if (tcsetattr(iface.port_fd, TCSANOW, &tty) != 0) {
+        if (tcsetattr(port_fd_, TCSANOW, &tty) != 0) {
             return Result<void>::error("Failed to set terminal attributes: " + std::string(strerror(errno)));
         }
 
@@ -241,7 +240,7 @@ namespace camera_service::infrastructure {
             return Result<void>::success();
         }
 
-        const auto bytes_written = ::write(iface.port_fd, data.data(), data.size());
+        const auto bytes_written = ::write(port_fd_, data.data(), data.size());
         if (bytes_written < 0) {
             return Result<void>::error("Failed to write to UART: " + std::string(strerror(errno)));
         }
@@ -260,12 +259,12 @@ namespace camera_service::infrastructure {
         while (true) {
             fd_set read_fds;
             FD_ZERO(&read_fds);
-            FD_SET(iface.port_fd, &read_fds);
+            FD_SET(port_fd_, &read_fds);
 
             // reinitialize timeout each select call because select may modify it
             timeval timeout = TIMEOUT_DEFAULT;
 
-            const auto select_result = ::select(iface.port_fd + 1, &read_fds, nullptr, nullptr, &timeout);
+            const auto select_result = ::select(port_fd_ + 1, &read_fds, nullptr, nullptr, &timeout);
             if (select_result < 0) {
                 if (errno == EINTR) {
                     continue; // interrupted by signal, retry
@@ -276,12 +275,12 @@ namespace camera_service::infrastructure {
                 return Result<std::vector<std::byte>>::error("Read timeout");
             }
 
-            if (!FD_ISSET(iface.port_fd, &read_fds)) {
+            if (!FD_ISSET(port_fd_, &read_fds)) {
                 return Result<std::vector<std::byte>>::error("Select returned without UART readiness");
             }
 
             std::vector<std::byte> buffer(MAX_BYTES);
-            const ssize_t bytes_read = ::read(iface.port_fd, buffer.data(), buffer.size());
+            const ssize_t bytes_read = ::read(port_fd_, buffer.data(), buffer.size());
             if (bytes_read < 0) {
                 if (errno == EINTR) {
                     continue; // interrupted, retry
@@ -305,6 +304,6 @@ namespace camera_service::infrastructure {
     }
 
     bool Uart::isOpen() const {
-        return iface.port_fd > 0;
+        return port_fd_ > 0;
     }
 }

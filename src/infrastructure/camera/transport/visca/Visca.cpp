@@ -1,11 +1,9 @@
 #include "Visca.h"
 
 #include <algorithm>
-#include <unistd.h>
-#include <sys/ioctl.h>
 
 namespace camera_service::infrastructure {
-    Visca::Visca(std::unique_ptr<Uart> transport)
+    Visca::Visca(std::unique_ptr<ITransport> transport)
         : transport_(std::move(transport)) {}
 
     Result<void> Visca::write(const ViscaPacket* packet) const {
@@ -15,9 +13,9 @@ namespace camera_service::infrastructure {
 
     void Visca::appendHeader(ViscaPacket* packet) const {
         packet->data.at(0) = VISCA_START_BYTE;
-        packet->data.at(0) |= (transport_->iface.address << 4);
-        if (transport_->iface.broadcast > 0) {
-            packet->data.at(0) |= (transport_->iface.broadcast << 3);
+        packet->data.at(0) |= (address_ << 4);
+        if (broadcast_ > 0) {
+            packet->data.at(0) |= (broadcast_ << 3);
             packet->data.at(0) &= 0xF8;
         } else {
             packet->data.at(0) |= cam_address_;
@@ -54,11 +52,11 @@ namespace camera_service::infrastructure {
         }
 
         // Calculate the number of bytes including the terminator
-        transport_->iface.size = std::distance(data.begin(), terminator_it) + 1;
+        buffer_size_ = std::distance(data.begin(), terminator_it) + 1;
 
-        // Copy data to ibuf
-        for (size_t i = 0; i < transport_->iface.size && i < sizeof(transport_->iface.ibuf); ++i) {
-            transport_->iface.ibuf.at(i) = static_cast<uint8_t>(data.at(i));
+        // Copy data to input_buffer_
+        for (size_t i = 0; i < buffer_size_ && i < input_buffer_.size(); ++i) {
+            input_buffer_.at(i) = static_cast<uint8_t>(data.at(i));
         }
 
         return ResultCode::Success;
@@ -87,13 +85,13 @@ namespace camera_service::infrastructure {
         if (read() != ResultCode::Success) {
             return Result<ResponseType>::error("Failed to read first reply from camera");
         }
-        auto type = static_cast<ResponseType>(transport_->iface.ibuf.at(1) & 0xF0);
+        auto type = static_cast<ResponseType>(input_buffer_.at(1) & 0xF0);
 
         while (type == ResponseType::Ack) {
             if (read() != ResultCode::Success) {
                 return Result<ResponseType>::error("Failed to read second reply from camera");
             }
-            type = static_cast<ResponseType>(transport_->iface.ibuf.at(1) & 0xF0);
+            type = static_cast<ResponseType>(input_buffer_.at(1) & 0xF0);
         }
 
         switch (type) {
@@ -116,41 +114,27 @@ namespace camera_service::infrastructure {
         if (const auto result = getReply(); result.isError()) {
             return Result<void>::error(result.error());
         } else if (result.value() == ResponseType::Error) {
-            return Result<void>::error(getViscaErrorMessage(static_cast<ResultCode>(transport_->iface.ibuf.at(2))));
+            return Result<void>::error(getViscaErrorMessage(static_cast<ResultCode>(input_buffer_.at(2))));
         }
 
         return Result<void>::success();
-    }
-
-    ResultCode Visca::unreadBytes(const uint8_t* buffer, size_t* buffer_size) const {
-        size_t bytes = 0;
-        *buffer_size = 0;
-
-        ioctl(transport_->iface.port_fd, FIONREAD, &bytes);
-        if (bytes > 0) {
-            bytes = (bytes > *buffer_size) ? *buffer_size : bytes;
-            ::read(transport_->iface.port_fd, &buffer, bytes);
-            *buffer_size = bytes;
-            return ResultCode::Failure;
-        }
-        return ResultCode::Success;
     }
 
     Result<void> Visca::setAddress() {
         ViscaPacket packet{};
         uint8_t camera_num = 0;
 
-        const auto backup = transport_->iface.broadcast;
+        const auto backup = broadcast_;
 
         appendByte(&packet, 0x30);
         appendByte(&packet, 0x01);
 
-        transport_->iface.broadcast = 1;
+        broadcast_ = 1;
         if (sendPacket(&packet).isError()) {
-            transport_->iface.broadcast = backup;
+            broadcast_ = backup;
             return Result<void>::error("Failed to send setAddress command");
         }
-        transport_->iface.broadcast = backup;
+        broadcast_ = backup;
 
         if (getReply().isError()) {
             return Result<void>::error("Failed to get reply for setAddress command");
@@ -160,11 +144,11 @@ namespace camera_service::infrastructure {
                every packet should be 88 30 0x FF, x being
                the camera id+1. The number of cams will thus be
                ibuf.at(bytes-2)-1  */
-        if ((transport_->iface.size & 0x3) != 0) {
+        if ((buffer_size_ & 0x3) != 0) {
             /* check multiple of 4 */
             return Result<void>::error("Invalid response length for setAddress command");
         }
-        camera_num = transport_->iface.ibuf.at(transport_->iface.size - 2) - 1;
+        camera_num = input_buffer_.at(buffer_size_ - 2) - 1;
         if ((camera_num == 0) || (camera_num > 7)) {
             return Result<void>::error("Invalid number of cameras detected");
         }
@@ -1224,17 +1208,17 @@ namespace camera_service::infrastructure {
             return Result<std::string_view>::error(result.error());
         }
 
-        const uint16_t vendor = (transport_->iface.ibuf.at(2) << 8) + transport_->iface.ibuf.at(3);
+        const uint16_t vendor = (input_buffer_.at(2) << 8) + input_buffer_.at(3);
         const auto vendor_str = getCameraVendor(vendor);
-        const uint16_t model = (transport_->iface.ibuf.at(4) << 8) + transport_->iface.ibuf.at(5);
+        const uint16_t model = (input_buffer_.at(4) << 8) + input_buffer_.at(5);
         const auto model_str = getCameraModel(model);
 
         if (vendor_str == "Unknown" || model_str == "Unknown") {
             return Result<std::string_view>::error("Unknown camera");
         }
 
-        const uint16_t rom_version = (transport_->iface.ibuf.at(6) << 8) + transport_->iface.ibuf.at(7);
-        const uint8_t socket_num = transport_->iface.ibuf.at(8);
+        const uint16_t rom_version = (input_buffer_.at(6) << 8) + input_buffer_.at(7);
+        const uint8_t socket_num = input_buffer_.at(8);
 
         thread_local std::array<char, 256> buffer{};
         const auto [out, size] = std::format_to_n(buffer.begin(), buffer.size() - 1,
@@ -1608,7 +1592,7 @@ namespace camera_service::infrastructure {
             return Result<bool>::error(result.error());
         }
 
-        if (transport_->iface.ibuf.at(2) == VISCA_OFF) {
+        if (input_buffer_.at(2) == VISCA_OFF) {
             return Result<bool>::success(false);
         }
         return Result<bool>::success(true);
@@ -1981,12 +1965,12 @@ namespace camera_service::infrastructure {
     }
 
     uint16_t Visca::getFromNibbles() const {
-        return (transport_->iface.ibuf.at(2) << 12) + (transport_->iface.ibuf.at(3) << 8) + (transport_->iface.ibuf.
-            at(4) << 4) + transport_->iface.ibuf.at(5);
+        return (input_buffer_.at(2) << 12) + (input_buffer_.at(3) << 8) + (input_buffer_.
+            at(4) << 4) + input_buffer_.at(5);
     }
 
     uint8_t Visca::getByte() const {
-        return transport_->iface.ibuf.at(2);
+        return input_buffer_.at(2);
     }
 
     /***********************************/
@@ -2016,7 +2000,7 @@ namespace camera_service::infrastructure {
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
             return Result<uint16_t>::error(result.error());
         }
-        const uint16_t status = ((transport_->iface.ibuf.at(2) & 0xff) << 8) + (transport_->iface.ibuf.at(3) & 0xff);
+        const uint16_t status = ((input_buffer_.at(2) & 0xff) << 8) + (input_buffer_.at(3) & 0xff);
         return Result<uint16_t>::success(status);
     }
 
@@ -2030,8 +2014,8 @@ namespace camera_service::infrastructure {
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
             return Result<std::pair<uint8_t, uint8_t>>::error(result.error());
         }
-        const uint8_t max_pan_speed = (transport_->iface.ibuf.at(2) & 0xff);
-        const uint8_t max_tilt_speed = (transport_->iface.ibuf.at(3) & 0xff);
+        const uint8_t max_pan_speed = (input_buffer_.at(2) & 0xff);
+        const uint8_t max_tilt_speed = (input_buffer_.at(3) & 0xff);
         return Result<std::pair<uint8_t, uint8_t>>::success({max_pan_speed, max_tilt_speed});
     }
 
@@ -2046,8 +2030,8 @@ namespace camera_service::infrastructure {
             return Result<std::pair<uint16_t, uint16_t>>::error(result.error());
         }
         const uint16_t pan_position = getFromNibbles();
-        const uint16_t tilt_position = ((transport_->iface.ibuf.at(6) & 0xf) << 12) + ((transport_->iface.ibuf.at(7) &
-            0xf) << 8) + ((transport_->iface.ibuf.at(8) & 0xf) << 4) + (transport_->iface.ibuf.at(9) & 0xf);
+        const uint16_t tilt_position = ((input_buffer_.at(6) & 0xf) << 12) + ((input_buffer_.at(7) &
+            0xf) << 8) + ((input_buffer_.at(8) & 0xf) << 4) + (input_buffer_.at(9) & 0xf);
 
         return Result<std::pair<uint16_t, uint16_t>>::success({pan_position, tilt_position});
     }
@@ -2076,7 +2060,7 @@ namespace camera_service::infrastructure {
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
             return Result<uint8_t>::error(result.error());
         }
-        const uint8_t reg_val = (transport_->iface.ibuf.at(2) << 4) + transport_->iface.ibuf.at(3);
+        const uint8_t reg_val = (input_buffer_.at(2) << 4) + input_buffer_.at(3);
         return Result<uint8_t>::success(reg_val);
     }
 
@@ -2481,7 +2465,7 @@ namespace camera_service::infrastructure {
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
             return Result<uint16_t>::error(result.error());
         }
-        const uint16_t value = ((transport_->iface.ibuf.at(2) & 0xff) << 8) + (transport_->iface.ibuf.at(3) & 0xff);
+        const uint16_t value = ((input_buffer_.at(2) & 0xff) << 8) + (input_buffer_.at(3) & 0xff);
         return Result<uint16_t>::success(value);
     }
 
@@ -2507,7 +2491,7 @@ namespace camera_service::infrastructure {
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
             return Result<uint16_t>::error(result.error());
         }
-        const uint16_t value = ((transport_->iface.ibuf.at(2) & 0xff) << 8) + (transport_->iface.ibuf.at(3) & 0xff);
+        const uint16_t value = ((input_buffer_.at(2) & 0xff) << 8) + (input_buffer_.at(3) & 0xff);
         return Result<uint16_t>::success(value);
     }
 
@@ -2520,7 +2504,7 @@ namespace camera_service::infrastructure {
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
             return Result<uint8_t>::error(result.error());
         }
-        const uint8_t power = (transport_->iface.ibuf.at(3) & 0x0f);
+        const uint8_t power = (input_buffer_.at(3) & 0x0f);
         return Result<uint8_t>::success(power);
     }
 
@@ -2533,7 +2517,7 @@ namespace camera_service::infrastructure {
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
             return Result<uint8_t>::error(result.error());
         }
-        const uint8_t power = (transport_->iface.ibuf.at(3) & 0x0f);
+        const uint8_t power = (input_buffer_.at(3) & 0x0f);
         return Result<uint8_t>::success(power);
     }
 
@@ -2546,7 +2530,7 @@ namespace camera_service::infrastructure {
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
             return Result<uint8_t>::error(result.error());
         }
-        const uint8_t power = (transport_->iface.ibuf.at(3) & 0x0f);
+        const uint8_t power = (input_buffer_.at(3) & 0x0f);
         return Result<uint8_t>::success(power);
     }
 
@@ -2560,7 +2544,7 @@ namespace camera_service::infrastructure {
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
             return Result<uint8_t>::error(result.error());
         }
-        const uint8_t power = (transport_->iface.ibuf.at(3) & 0x0f);
+        const uint8_t power = (input_buffer_.at(3) & 0x0f);
         return Result<uint8_t>::success(power);
     }
 
@@ -2587,7 +2571,7 @@ namespace camera_service::infrastructure {
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
             return Result<uint8_t>::error(result.error());
         }
-        const uint8_t power = (transport_->iface.ibuf.at(3) & 0x0f);
+        const uint8_t power = (input_buffer_.at(3) & 0x0f);
         return Result<uint8_t>::success(power);
     }
 
