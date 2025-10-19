@@ -255,7 +255,7 @@ namespace camera_service::infrastructure {
         }
 
         constexpr size_t MAX_BYTES = 1024;
-        constexpr timeval TIMEOUT_DEFAULT{1, 0};
+        constexpr timeval TIMEOUT_DEFAULT{10, 0}; // Long timeout for commands like go to wide/narrow
 
         while (true) {
             fd_set read_fds;

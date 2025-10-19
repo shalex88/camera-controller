@@ -5,37 +5,32 @@
 #include <sys/ioctl.h>
 
 namespace camera_service::infrastructure {
-    Visca::Visca(std::unique_ptr<Uart> transport) : transport_(std::move(transport)) {
+    Visca::Visca(std::unique_ptr<Uart> transport)
+        : transport_(std::move(transport)) {}
+
+    Result<void> Visca::write(const ViscaPacket* packet) const {
+        return transport_->write(
+            std::span<const std::byte>(reinterpret_cast<const std::byte*>(packet->data.data()), packet->size));
     }
 
-    ResultCode Visca::write(const ViscaPacket* packet) const {
-        if (const auto result = transport_->write(
-                std::span<const std::byte>(reinterpret_cast<const std::byte*>(packet->bytes), packet->size)); result.
-            isError()) {
-            return ResultCode::Failure;
-        }
-        return ResultCode::Success;
-    }
-
-    ResultCode Visca::sendPacket(ViscaPacket* packet) const {
-        // check data:
-        if ((transport_->iface.address > 7) || (camera.address > 7) || (transport_->iface.broadcast > 1)) {
-            return ResultCode::Failure;
-        }
-
-        // build header:
-        packet->bytes[0] = VISCA_START_BYTE;
-        packet->bytes[0] |= (transport_->iface.address << 4);
+    void Visca::appendHeader(ViscaPacket* packet) const {
+        packet->data.at(0) = VISCA_START_BYTE;
+        packet->data.at(0) |= (transport_->iface.address << 4);
         if (transport_->iface.broadcast > 0) {
-            packet->bytes[0] |= (transport_->iface.broadcast << 3);
-            packet->bytes[0] &= 0xF8;
+            packet->data.at(0) |= (transport_->iface.broadcast << 3);
+            packet->data.at(0) &= 0xF8;
+        } else {
+            packet->data.at(0) |= cam_address_;
         }
-        else {
-            packet->bytes[0] |= camera.address;
-        }
+    }
 
-        // append footer
-        appendByte(packet, VISCA_TERMINATOR);
+    void Visca::appendTerminator(ViscaPacket* packet) const {
+        packet->data.at(packet->size++) = VISCA_TERMINATOR;
+    }
+
+    Result<void> Visca::sendPacket(ViscaPacket* packet) const {
+        appendHeader(packet);
+        appendTerminator(packet);
 
         return write(packet);
     }
@@ -63,7 +58,7 @@ namespace camera_service::infrastructure {
 
         // Copy data to ibuf
         for (size_t i = 0; i < transport_->iface.size && i < sizeof(transport_->iface.ibuf); ++i) {
-            transport_->iface.ibuf[i] = static_cast<uint8_t>(data[i]);
+            transport_->iface.ibuf.at(i) = static_cast<uint8_t>(data.at(i));
         }
 
         return ResultCode::Success;
@@ -78,8 +73,7 @@ namespace camera_service::infrastructure {
     }
 
     void Visca::appendByte(ViscaPacket* packet, const uint8_t byte) {
-        packet->bytes[packet->size] = byte;
-        (packet->size)++;
+        packet->data.at(packet->size++) = byte;
     }
 
     void Visca::appendAsNibbles(ViscaPacket* packet, const uint16_t value) {
@@ -89,42 +83,40 @@ namespace camera_service::infrastructure {
         appendByte(packet, (value & 0x000F));
     }
 
-    ResultCode Visca::getReply() const {
-        if (read() != ResultCode::Success) { // Read first message
-            return ResultCode::Failure;
+    Result<ResponseType> Visca::getReply() const {
+        if (read() != ResultCode::Success) {
+            return Result<ResponseType>::error("Failed to read first reply from camera");
         }
-        transport_->iface.type = static_cast<ResponseType>(transport_->iface.ibuf[1] & 0xF0);
+        auto type = static_cast<ResponseType>(transport_->iface.ibuf.at(1) & 0xF0);
 
-        while (transport_->iface.type == ResponseType::Ack) { // Skip ack messages
-            if (read() != ResultCode::Success) { // Read second message
-                return ResultCode::Failure;
+        while (type == ResponseType::Ack) {
+            if (read() != ResultCode::Success) {
+                return Result<ResponseType>::error("Failed to read second reply from camera");
             }
-            transport_->iface.type = static_cast<ResponseType>(transport_->iface.ibuf[1] & 0xF0);
+            type = static_cast<ResponseType>(transport_->iface.ibuf.at(1) & 0xF0);
         }
 
-        switch (transport_->iface.type) {
+        switch (type) {
             case ResponseType::Clear:
             case ResponseType::Address:
             case ResponseType::Completed:
             case ResponseType::Error:
-                return ResultCode::Success;
+                return Result<ResponseType>::success(type);
                 break;
             default:
-                return ResultCode::Failure;
+                return Result<ResponseType>::error("Unknown response type from camera");
         }
     }
 
     Result<void> Visca::sendPacketWithReply(ViscaPacket* packet) const {
-        if (sendPacket(packet) != ResultCode::Success) {
+        if (sendPacket(packet).isError()) {
             return Result<void>::error("Failed to send packet");
         }
 
-        if (getReply() != ResultCode::Success) {
-            return Result<void>::error("Failed to get reply");
-        }
-
-        if (transport_->iface.type == ResponseType::Error) {
-            return Result<void>::error(getViscaErrorMessage(static_cast<ResultCode>(transport_->iface.ibuf[2])));
+        if (const auto result = getReply(); result.isError()) {
+            return Result<void>::error(result.error());
+        } else if (result.value() == ResponseType::Error) {
+            return Result<void>::error(getViscaErrorMessage(static_cast<ResultCode>(transport_->iface.ibuf.at(2))));
         }
 
         return Result<void>::success();
@@ -146,7 +138,7 @@ namespace camera_service::infrastructure {
 
     Result<void> Visca::setAddress() {
         ViscaPacket packet{};
-        int32_t camera_num = 0;
+        uint8_t camera_num = 0;
 
         const auto backup = transport_->iface.broadcast;
 
@@ -154,29 +146,29 @@ namespace camera_service::infrastructure {
         appendByte(&packet, 0x01);
 
         transport_->iface.broadcast = 1;
-        if (sendPacket(&packet) != ResultCode::Success) {
+        if (sendPacket(&packet).isError()) {
             transport_->iface.broadcast = backup;
             return Result<void>::error("Failed to send setAddress command");
         }
         transport_->iface.broadcast = backup;
 
-        if (getReply() != ResultCode::Success) {
+        if (getReply().isError()) {
             return Result<void>::error("Failed to get reply for setAddress command");
         }
         /* We parse the message from the camera here  */
         /* We expect to receive 4*camera_num bytes,
                every packet should be 88 30 0x FF, x being
                the camera id+1. The number of cams will thus be
-               ibuf[bytes-2]-1  */
+               ibuf.at(bytes-2)-1  */
         if ((transport_->iface.size & 0x3) != 0) {
             /* check multiple of 4 */
             return Result<void>::error("Invalid response length for setAddress command");
         }
-        camera_num = transport_->iface.ibuf[transport_->iface.size - 2] - 1;
+        camera_num = transport_->iface.ibuf.at(transport_->iface.size - 2) - 1;
         if ((camera_num == 0) || (camera_num > 7)) {
             return Result<void>::error("Invalid number of cameras detected");
         }
-        camera.address = camera_num;
+        cam_address_ = camera_num;
         return Result<void>::success();
     }
 
@@ -187,10 +179,10 @@ namespace camera_service::infrastructure {
         appendByte(&packet, 0x00);
         appendByte(&packet, 0x01);
 
-        if (sendPacket(&packet) != ResultCode::Success) {
+        if (sendPacket(&packet).isError()) {
             return Result<void>::error("Failed to send clear command");
         }
-        if (getReply() != ResultCode::Success) {
+        if (getReply().isError()) {
             return Result<void>::error("Failed to get reply for clear command");
         }
         return Result<void>::success();
@@ -207,72 +199,12 @@ namespace camera_service::infrastructure {
 
     std::string_view Visca::getCameraModel(const uint16_t model) {
         switch (static_cast<CameraModels>(model)) {
-            case CameraModels::IX47X:
-                return "IX47X";
-            case CameraModels::EX47XL:
-                return "EX47XL";
-            case CameraModels::IX10:
-                return "IX10";
-            case CameraModels::EX780:
-                return "EX780";
-            case CameraModels::EX480A:
-                return "EX480A";
-            case CameraModels::EX480AP:
-                return "EX480AP";
-            case CameraModels::EX48Ax:
-                return "EX48Ax";
-            case CameraModels::EX45M:
-                return "EX45M";
-            case CameraModels::EX45MCE:
-                return "EX45MCE";
-            case CameraModels::IX47A:
-                return "IX47A";
-            case CameraModels::IX47AP:
-                return "IX47AP";
-            case CameraModels::IX45A:
-                return "IX45A";
-            case CameraModels::IX45AP:
-                return "IX45AP";
-            case CameraModels::IX10A:
-                return "IX10A";
-            case CameraModels::IX10AP:
-                return "IX10AP";
-            case CameraModels::EX780B:
-                return "EX780B";
-            case CameraModels::EX780BP:
-                return "EX780BP";
-            case CameraModels::EX78B:
-                return "EX78B";
-            case CameraModels::EX78BP:
-                return "EX78BP";
-            case CameraModels::EX480B:
-                return "EX480B";
-            case CameraModels::EX480BP:
-                return "EX480BP";
-            case CameraModels::EX48B:
-                return "EX48B";
-            case CameraModels::EX48BP:
-                return "EX48BP";
-            case CameraModels::EX980S:
-                return "EX980S";
-            case CameraModels::EX980SP:
-                return "EX980SP";
-            case CameraModels::EX980:
-                return "EX980";
-            case CameraModels::EX980P:
-                return "EX980P";
             case CameraModels::EW9500H:
                 return "EW9500H";
-            case CameraModels::H10:
-                return "H10";
             default:
                 return "Unknown";
         }
     }
-
-    /***********************************/
-    /*       COMMAND FUNCTIONS         */
-    /***********************************/
 
     Result<void> Visca::setPower(const uint8_t power) const {
         ViscaPacket packet{};
@@ -1069,8 +1001,7 @@ namespace camera_service::infrastructure {
 
         if (power) {
             appendByte(&packet, VISCA_ON);
-        }
-        else {
+        } else {
             appendByte(&packet, VISCA_OFF);
         }
 
@@ -1125,7 +1056,7 @@ namespace camera_service::infrastructure {
     }
 
     Result<void> Visca::setDateTime(const uint16_t year, const uint16_t month, const uint16_t day, const uint16_t hour,
-                                  const uint16_t minute) const {
+                                    const uint16_t minute) const {
         if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59) {
             return Result<void>::error("Invalid input");
         }
@@ -1223,7 +1154,7 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_TITLE_SET_PART1);
 
         for (auto i = 0; i < 10; i++) {
-            appendByte(&packet, title->title[i]);
+            appendByte(&packet, title->title.at(i));
         }
 
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
@@ -1236,7 +1167,7 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_TITLE_SET_PART2);
 
         for (auto i = 0; i < 10; i++) {
-            appendByte(&packet, title->title[i + 10]);
+            appendByte(&packet, title->title.at(i + 10));
         }
 
         return sendPacketWithReply(&packet);
@@ -1293,28 +1224,328 @@ namespace camera_service::infrastructure {
             return Result<std::string_view>::error(result.error());
         }
 
-        camera.vendor = (transport_->iface.ibuf[2] << 8) + transport_->iface.ibuf[3];
-        const auto vendor_str = getCameraVendor(camera.vendor);
-        camera.model = (transport_->iface.ibuf[4] << 8) + transport_->iface.ibuf[5];
-        const auto model_str = getCameraModel(camera.model);
+        const uint16_t vendor = (transport_->iface.ibuf.at(2) << 8) + transport_->iface.ibuf.at(3);
+        const auto vendor_str = getCameraVendor(vendor);
+        const uint16_t model = (transport_->iface.ibuf.at(4) << 8) + transport_->iface.ibuf.at(5);
+        const auto model_str = getCameraModel(model);
 
         if (vendor_str == "Unknown" || model_str == "Unknown") {
             return Result<std::string_view>::error("Unknown camera");
         }
 
-        camera.rom_version = (transport_->iface.ibuf[6] << 8) + transport_->iface.ibuf[7];
-        camera.socket_num = transport_->iface.ibuf[8];
+        const uint16_t rom_version = (transport_->iface.ibuf.at(6) << 8) + transport_->iface.ibuf.at(7);
+        const uint8_t socket_num = transport_->iface.ibuf.at(8);
 
         thread_local std::array<char, 256> buffer{};
         const auto [out, size] = std::format_to_n(buffer.begin(), buffer.size() - 1,
                                                   "{} {}, ROM Version: 0x{:04X}, Socket: 0x{:02X}, Address: 0x{:02X}",
-                                                  vendor_str, model_str, camera.rom_version, camera.socket_num,
-                                                  camera.address);
+                                                  vendor_str, model_str, rom_version, socket_num, cam_address_);
         *out = '\0';
 
         return Result<std::string_view>::success(std::string_view{
             buffer.data(), static_cast<std::size_t>(out - buffer.begin())
         });
+    }
+
+    Result<void> Visca::setIrreceiveOn() const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_IRRECEIVE);
+        appendByte(&packet, VISCA_ON);
+
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setIrreceiveOff() const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_IRRECEIVE);
+        appendByte(&packet, VISCA_OFF);
+
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setIrreceiveOnoff() const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_IRRECEIVE);
+        appendByte(&packet, VISCA_IRRECEIVE_ONOFF);
+
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setPanTiltUp(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_DRIVE);
+        appendByte(&packet, pan_speed);
+        appendByte(&packet, tilt_speed);
+        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_STOP);
+        appendByte(&packet, VISCA_PT_DRIVE_VERT_UP);
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setPanTiltDown(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_DRIVE);
+        appendByte(&packet, pan_speed);
+        appendByte(&packet, tilt_speed);
+        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_STOP);
+        appendByte(&packet, VISCA_PT_DRIVE_VERT_DOWN);
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setPanTiltLeft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_DRIVE);
+        appendByte(&packet, pan_speed);
+        appendByte(&packet, tilt_speed);
+        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_LEFT);
+        appendByte(&packet, VISCA_PT_DRIVE_VERT_STOP);
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setPanTiltRight(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_DRIVE);
+        appendByte(&packet, pan_speed);
+        appendByte(&packet, tilt_speed);
+        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_RIGHT);
+        appendByte(&packet, VISCA_PT_DRIVE_VERT_STOP);
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setPanTiltUpleft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_DRIVE);
+        appendByte(&packet, pan_speed);
+        appendByte(&packet, tilt_speed);
+        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_LEFT);
+        appendByte(&packet, VISCA_PT_DRIVE_VERT_UP);
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setPanTiltUpright(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_DRIVE);
+        appendByte(&packet, pan_speed);
+        appendByte(&packet, tilt_speed);
+        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_RIGHT);
+        appendByte(&packet, VISCA_PT_DRIVE_VERT_UP);
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setPanTiltDownleft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_DRIVE);
+        appendByte(&packet, pan_speed);
+        appendByte(&packet, tilt_speed);
+        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_LEFT);
+        appendByte(&packet, VISCA_PT_DRIVE_VERT_DOWN);
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setPanTiltDownright(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_DRIVE);
+        appendByte(&packet, pan_speed);
+        appendByte(&packet, tilt_speed);
+        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_RIGHT);
+        appendByte(&packet, VISCA_PT_DRIVE_VERT_DOWN);
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setPanTiltStop(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_DRIVE);
+        appendByte(&packet, pan_speed);
+        appendByte(&packet, tilt_speed);
+        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_STOP);
+        appendByte(&packet, VISCA_PT_DRIVE_VERT_STOP);
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setPanTiltAbsolutePosition(const uint8_t pan_speed, const uint8_t tilt_speed,
+                                                   const uint16_t pan_pos, const uint16_t tilt_pos) const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_ABSOLUTE_POSITION);
+        appendByte(&packet, pan_speed);
+        appendByte(&packet, tilt_speed);
+        appendAsNibbles(&packet, pan_pos);
+        appendAsNibbles(&packet, tilt_pos);
+
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setPanTiltRelativePosition(const uint8_t pan_speed, const uint8_t tilt_speed,
+                                                   const uint16_t pan_pos, const uint16_t tilt_pos) const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_RELATIVE_POSITION);
+        appendByte(&packet, pan_speed);
+        appendByte(&packet, tilt_speed);
+
+        appendByte(&packet, (pan_pos & 0xf000) >> 12);
+        appendByte(&packet, (pan_pos & 0x0f00) >> 8);
+        appendByte(&packet, (pan_pos & 0x00f0) >> 4);
+        appendByte(&packet, pan_pos & 0x000f);
+
+        appendByte(&packet, (tilt_pos & 0xf000) >> 12);
+        appendByte(&packet, (tilt_pos & 0x0f00) >> 8);
+        appendByte(&packet, (tilt_pos & 0x00f0) >> 4);
+        appendByte(&packet, tilt_pos & 0x000f);
+
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setPanTiltHome() const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_HOME);
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setPanTiltReset() const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_RESET);
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setPanTiltLimitUpright(const uint16_t pan_limit, const uint16_t tilt_limit) const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_LIMITSET);
+        appendByte(&packet, VISCA_PT_LIMITSET_SET);
+        appendByte(&packet, VISCA_PT_LIMITSET_SET_UR);
+        appendAsNibbles(&packet, pan_limit);
+        appendAsNibbles(&packet, tilt_limit);
+
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setPanTiltLimitDownleft(const uint16_t pan_limit, const uint16_t tilt_limit) const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_LIMITSET);
+        appendByte(&packet, VISCA_PT_LIMITSET_SET);
+        appendByte(&packet, VISCA_PT_LIMITSET_SET_DL);
+        appendAsNibbles(&packet, pan_limit);
+        appendAsNibbles(&packet, tilt_limit);
+
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setPanTiltLimitDownleftClear() const {
+        ViscaPacket packet{};
+
+        constexpr uint16_t pan_lmit = 0x7fff;
+        constexpr uint16_t tilt_limit = 0x7fff;
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_LIMITSET);
+        appendByte(&packet, VISCA_PT_LIMITSET_CLEAR);
+        appendByte(&packet, VISCA_PT_LIMITSET_SET_DL);
+        appendAsNibbles(&packet, pan_lmit);
+        appendAsNibbles(&packet, tilt_limit);
+
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setPanTiltLimitUprightClear() const {
+        ViscaPacket packet{};
+
+        constexpr uint16_t pan_limit = 0x7fff;
+        constexpr uint16_t tilt_limit = 0x7fff;
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_LIMITSET);
+        appendByte(&packet, VISCA_PT_LIMITSET_CLEAR);
+        appendByte(&packet, VISCA_PT_LIMITSET_SET_UR);
+        appendAsNibbles(&packet, pan_limit);
+        appendAsNibbles(&packet, tilt_limit);
+
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setDatascreenOn() const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_DATASCREEN);
+        appendByte(&packet, VISCA_ON);
+
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setDatascreenOff() const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_DATASCREEN);
+        appendByte(&packet, VISCA_OFF);
+
+        return sendPacketWithReply(&packet);
+    }
+
+    Result<void> Visca::setDatascreenOnoff() const {
+        ViscaPacket packet{};
+
+        appendByte(&packet, VISCA_COMMAND);
+        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&packet, VISCA_PT_DATASCREEN);
+        appendByte(&packet, VISCA_PT_DATASCREEN_ONOFF);
+
+        return sendPacketWithReply(&packet);
     }
 
     Result<uint8_t> Visca::getPower() const {
@@ -1329,7 +1560,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(getByte());
     }
 
-    Result<uint8_t> Visca::getDzoomValue(uint8_t* value) const {
+    Result<uint8_t> Visca::getDzoomValue() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
@@ -1341,7 +1572,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(getByte());
     }
 
-    Result<uint8_t> Visca::getDzoomLimit(uint8_t* value) const {
+    Result<uint8_t> Visca::getDzoomLimit() const {
         ViscaPacket packet{};
 
         appendByte(&packet, VISCA_INQUIRY);
@@ -1377,7 +1608,7 @@ namespace camera_service::infrastructure {
             return Result<bool>::error(result.error());
         }
 
-        if (transport_->iface.ibuf[2] == VISCA_OFF) {
+        if (transport_->iface.ibuf.at(2) == VISCA_OFF) {
             return Result<bool>::success(false);
         }
         return Result<bool>::success(true);
@@ -1500,11 +1731,6 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(static_cast<uint8_t>(getFromNibbles()));
     }
 
-    uint16_t Visca::getFromNibbles() const {
-        return (transport_->iface.ibuf[2] << 12) + (transport_->iface.ibuf[3] << 8) + (transport_->iface.ibuf[4] << 4) +
-            transport_->iface.ibuf[5];
-    }
-
     Result<uint8_t> Visca::getIrisValue() const {
         ViscaPacket packet{};
 
@@ -1568,10 +1794,6 @@ namespace camera_service::infrastructure {
             return Result<uint8_t>::error(result.error());
         }
         return Result<uint8_t>::success(static_cast<uint8_t>(getFromNibbles()));
-    }
-
-    uint8_t Visca::getByte() const {
-        return transport_->iface.ibuf[2];
     }
 
     Result<bool> Visca::getBacklightComp() const {
@@ -1746,307 +1968,6 @@ namespace camera_service::infrastructure {
         return Result<uint16_t>::success(getFromNibbles());
     }
 
-    Result<void> Visca::setIrreceiveOn() const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_IRRECEIVE);
-        appendByte(&packet, VISCA_ON);
-
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setIrreceiveOff() const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_IRRECEIVE);
-        appendByte(&packet, VISCA_OFF);
-
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setIrreceiveOnoff() const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_IRRECEIVE);
-        appendByte(&packet, VISCA_IRRECEIVE_ONOFF);
-
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setPanTiltUp(const uint8_t pan_speed, const uint8_t tilt_speed) const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DRIVE);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_STOP);
-        appendByte(&packet, VISCA_PT_DRIVE_VERT_UP);
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setPanTiltDown(const uint8_t pan_speed, const uint8_t tilt_speed) const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DRIVE);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_STOP);
-        appendByte(&packet, VISCA_PT_DRIVE_VERT_DOWN);
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setPanTiltLeft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DRIVE);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_LEFT);
-        appendByte(&packet, VISCA_PT_DRIVE_VERT_STOP);
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setPanTiltRight(const uint8_t pan_speed, const uint8_t tilt_speed) const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DRIVE);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_RIGHT);
-        appendByte(&packet, VISCA_PT_DRIVE_VERT_STOP);
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setPanTiltUpleft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DRIVE);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_LEFT);
-        appendByte(&packet, VISCA_PT_DRIVE_VERT_UP);
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setPanTiltUpright(const uint8_t pan_speed, const uint8_t tilt_speed) const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DRIVE);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_RIGHT);
-        appendByte(&packet, VISCA_PT_DRIVE_VERT_UP);
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setPanTiltDownleft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DRIVE);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_LEFT);
-        appendByte(&packet, VISCA_PT_DRIVE_VERT_DOWN);
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setPanTiltDownright(const uint8_t pan_speed, const uint8_t tilt_speed) const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DRIVE);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_RIGHT);
-        appendByte(&packet, VISCA_PT_DRIVE_VERT_DOWN);
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setPanTiltStop(const uint8_t pan_speed, const uint8_t tilt_speed) const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DRIVE);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_STOP);
-        appendByte(&packet, VISCA_PT_DRIVE_VERT_STOP);
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setPanTiltAbsolutePosition(const uint8_t pan_speed, const uint8_t tilt_speed,
-                                                 const uint16_t pan_pos, const uint16_t tilt_pos) const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_ABSOLUTE_POSITION);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendAsNibbles(&packet, pan_pos);
-        appendAsNibbles(&packet, tilt_pos);
-
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setPanTiltRelativePosition(const uint8_t pan_speed, const uint8_t tilt_speed,
-                                                 const uint16_t pan_pos, const uint16_t tilt_pos) const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_RELATIVE_POSITION);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-
-        appendByte(&packet, (pan_pos & 0xf000) >> 12);
-        appendByte(&packet, (pan_pos & 0x0f00) >> 8);
-        appendByte(&packet, (pan_pos & 0x00f0) >> 4);
-        appendByte(&packet, pan_pos & 0x000f);
-
-        appendByte(&packet, (tilt_pos & 0xf000) >> 12);
-        appendByte(&packet, (tilt_pos & 0x0f00) >> 8);
-        appendByte(&packet, (tilt_pos & 0x00f0) >> 4);
-        appendByte(&packet, tilt_pos & 0x000f);
-
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setPanTiltHome() const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_HOME);
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setPanTiltReset() const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_RESET);
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setPanTiltLimitUpright(const uint16_t pan_limit, const uint16_t tilt_limit) const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_LIMITSET);
-        appendByte(&packet, VISCA_PT_LIMITSET_SET);
-        appendByte(&packet, VISCA_PT_LIMITSET_SET_UR);
-        appendAsNibbles(&packet, pan_limit);
-        appendAsNibbles(&packet, tilt_limit);
-
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setPanTiltLimitDownleft(const uint16_t pan_limit, const uint16_t tilt_limit) const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_LIMITSET);
-        appendByte(&packet, VISCA_PT_LIMITSET_SET);
-        appendByte(&packet, VISCA_PT_LIMITSET_SET_DL);
-        appendAsNibbles(&packet, pan_limit);
-        appendAsNibbles(&packet, tilt_limit);
-
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setPanTiltLimitDownleftClear() const {
-        ViscaPacket packet{};
-
-        constexpr uint16_t pan_lmit = 0x7fff;
-        constexpr uint16_t tilt_limit = 0x7fff;
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_LIMITSET);
-        appendByte(&packet, VISCA_PT_LIMITSET_CLEAR);
-        appendByte(&packet, VISCA_PT_LIMITSET_SET_DL);
-        appendAsNibbles(&packet, pan_lmit);
-        appendAsNibbles(&packet, tilt_limit);
-
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setPanTiltLimitUprightClear() const {
-        ViscaPacket packet{};
-
-        constexpr uint16_t pan_limit = 0x7fff;
-        constexpr uint16_t tilt_limit = 0x7fff;
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_LIMITSET);
-        appendByte(&packet, VISCA_PT_LIMITSET_CLEAR);
-        appendByte(&packet, VISCA_PT_LIMITSET_SET_UR);
-        appendAsNibbles(&packet, pan_limit);
-        appendAsNibbles(&packet, tilt_limit);
-
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setDatascreenOn() const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DATASCREEN);
-        appendByte(&packet, VISCA_ON);
-
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setDatascreenOff() const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DATASCREEN);
-        appendByte(&packet, VISCA_OFF);
-
-        return sendPacketWithReply(&packet);
-    }
-
-    Result<void> Visca::setDatascreenOnoff() const {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DATASCREEN);
-        appendByte(&packet, VISCA_PT_DATASCREEN_ONOFF);
-
-        return sendPacketWithReply(&packet);
-    }
-
     Result<void> Visca::setRegister(const uint8_t reg_num, const uint8_t reg_val) const {
         ViscaPacket packet{};
 
@@ -2057,6 +1978,15 @@ namespace camera_service::infrastructure {
         appendByte(&packet, (reg_val & 0xF0) >> 4);
         appendByte(&packet, (reg_val & 0x0F));
         return sendPacketWithReply(&packet);
+    }
+
+    uint16_t Visca::getFromNibbles() const {
+        return (transport_->iface.ibuf.at(2) << 12) + (transport_->iface.ibuf.at(3) << 8) + (transport_->iface.ibuf.
+            at(4) << 4) + transport_->iface.ibuf.at(5);
+    }
+
+    uint8_t Visca::getByte() const {
+        return transport_->iface.ibuf.at(2);
     }
 
     /***********************************/
@@ -2086,7 +2016,7 @@ namespace camera_service::infrastructure {
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
             return Result<uint16_t>::error(result.error());
         }
-        const uint16_t status = ((transport_->iface.ibuf[2] & 0xff) << 8) + (transport_->iface.ibuf[3] & 0xff);
+        const uint16_t status = ((transport_->iface.ibuf.at(2) & 0xff) << 8) + (transport_->iface.ibuf.at(3) & 0xff);
         return Result<uint16_t>::success(status);
     }
 
@@ -2098,11 +2028,11 @@ namespace camera_service::infrastructure {
         appendByte(&packet, VISCA_PT_MAXSPEED_INQ);
 
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<std::pair<uint8_t,uint8_t>>::error(result.error());
+            return Result<std::pair<uint8_t, uint8_t>>::error(result.error());
         }
-        const uint8_t max_pan_speed = (transport_->iface.ibuf[2] & 0xff);
-        const uint8_t max_tilt_speed = (transport_->iface.ibuf[3] & 0xff);
-        return Result<std::pair<uint8_t,uint8_t>>::success({max_pan_speed, max_tilt_speed});
+        const uint8_t max_pan_speed = (transport_->iface.ibuf.at(2) & 0xff);
+        const uint8_t max_tilt_speed = (transport_->iface.ibuf.at(3) & 0xff);
+        return Result<std::pair<uint8_t, uint8_t>>::success({max_pan_speed, max_tilt_speed});
     }
 
     Result<std::pair<uint16_t, uint16_t>> Visca::getPanTiltPosition() const {
@@ -2116,8 +2046,8 @@ namespace camera_service::infrastructure {
             return Result<std::pair<uint16_t, uint16_t>>::error(result.error());
         }
         const uint16_t pan_position = getFromNibbles();
-        const uint16_t tilt_position = ((transport_->iface.ibuf[6] & 0xf) << 12) + ((transport_->iface.ibuf[7] & 0xf) << 8) + ((
-            transport_->iface.ibuf[8] & 0xf) << 4) + (transport_->iface.ibuf[9] & 0xf);
+        const uint16_t tilt_position = ((transport_->iface.ibuf.at(6) & 0xf) << 12) + ((transport_->iface.ibuf.at(7) &
+            0xf) << 8) + ((transport_->iface.ibuf.at(8) & 0xf) << 4) + (transport_->iface.ibuf.at(9) & 0xf);
 
         return Result<std::pair<uint16_t, uint16_t>>::success({pan_position, tilt_position});
     }
@@ -2146,7 +2076,7 @@ namespace camera_service::infrastructure {
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
             return Result<uint8_t>::error(result.error());
         }
-        const uint8_t reg_val = (transport_->iface.ibuf[2] << 4) + transport_->iface.ibuf[3];
+        const uint8_t reg_val = (transport_->iface.ibuf.at(2) << 4) + transport_->iface.ibuf.at(3);
         return Result<uint8_t>::success(reg_val);
     }
 
@@ -2551,7 +2481,7 @@ namespace camera_service::infrastructure {
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
             return Result<uint16_t>::error(result.error());
         }
-        const uint16_t value = ((transport_->iface.ibuf[2] & 0xff) << 8) + (transport_->iface.ibuf[3] & 0xff);
+        const uint16_t value = ((transport_->iface.ibuf.at(2) & 0xff) << 8) + (transport_->iface.ibuf.at(3) & 0xff);
         return Result<uint16_t>::success(value);
     }
 
@@ -2577,7 +2507,7 @@ namespace camera_service::infrastructure {
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
             return Result<uint16_t>::error(result.error());
         }
-        const uint16_t value = ((transport_->iface.ibuf[2] & 0xff) << 8) + (transport_->iface.ibuf[3] & 0xff);
+        const uint16_t value = ((transport_->iface.ibuf.at(2) & 0xff) << 8) + (transport_->iface.ibuf.at(3) & 0xff);
         return Result<uint16_t>::success(value);
     }
 
@@ -2590,7 +2520,7 @@ namespace camera_service::infrastructure {
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
             return Result<uint8_t>::error(result.error());
         }
-        const uint8_t power = (transport_->iface.ibuf[3] & 0x0f);
+        const uint8_t power = (transport_->iface.ibuf.at(3) & 0x0f);
         return Result<uint8_t>::success(power);
     }
 
@@ -2603,7 +2533,7 @@ namespace camera_service::infrastructure {
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
             return Result<uint8_t>::error(result.error());
         }
-        const uint8_t power = (transport_->iface.ibuf[3] & 0x0f);
+        const uint8_t power = (transport_->iface.ibuf.at(3) & 0x0f);
         return Result<uint8_t>::success(power);
     }
 
@@ -2616,7 +2546,7 @@ namespace camera_service::infrastructure {
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
             return Result<uint8_t>::error(result.error());
         }
-        const uint8_t power = (transport_->iface.ibuf[3] & 0x0f);
+        const uint8_t power = (transport_->iface.ibuf.at(3) & 0x0f);
         return Result<uint8_t>::success(power);
     }
 
@@ -2630,7 +2560,7 @@ namespace camera_service::infrastructure {
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
             return Result<uint8_t>::error(result.error());
         }
-        const uint8_t power = (transport_->iface.ibuf[3] & 0x0f);
+        const uint8_t power = (transport_->iface.ibuf.at(3) & 0x0f);
         return Result<uint8_t>::success(power);
     }
 
@@ -2657,7 +2587,7 @@ namespace camera_service::infrastructure {
         if (const auto result = sendPacketWithReply(&packet); result.isError()) {
             return Result<uint8_t>::error(result.error());
         }
-        const uint8_t power = (transport_->iface.ibuf[3] & 0x0f);
+        const uint8_t power = (transport_->iface.ibuf.at(3) & 0x0f);
         return Result<uint8_t>::success(power);
     }
 

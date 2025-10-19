@@ -6,26 +6,17 @@
 #include "infrastructure/camera/transport/ITransport.h"
 
 namespace camera_service::infrastructure {
-    enum class ResponseType : uint32_t {
-        Clear = 0x40,
-        Address = 0x30,
-        Ack = 0x40,
-        Completed = 0x50,
-        Error = 0x60
-    };
-
     struct ViscaInterface {
         // RS232 data:
         int port_fd;
         termios options;
         uint32_t baud;
         // VISCA data:
-        uint32_t address;
-        uint32_t broadcast;
+        uint8_t address;
+        uint8_t broadcast;
         // RS232 input buffer
-        uint8_t ibuf[1024];
+        std::array<uint8_t, 1024> ibuf{};
         uint32_t size;
-        ResponseType type;
     };
 
     class Uart final : public ITransport {
