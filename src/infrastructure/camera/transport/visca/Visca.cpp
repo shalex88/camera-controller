@@ -6,60 +6,61 @@ namespace camera_service::infrastructure {
     Visca::Visca(std::unique_ptr<ITransport> transport)
         : transport_(std::move(transport)) {}
 
-    Result<void> Visca::write(const ViscaPacket* packet) const {
-        return transport_->write(
-            std::span<const std::byte>(reinterpret_cast<const std::byte*>(packet->data.data()), packet->size));
+    std::span<uint8_t> Visca::serialize(ViscaPayload* payload) {
+        return {payload->data.data(), payload->size};
     }
 
-    void Visca::appendHeader(ViscaPacket* packet) const {
-        packet->data.at(0) = VISCA_START_BYTE;
-        packet->data.at(0) |= (address_ << 4);
+    Visca::ViscaPayload Visca::deserialize(std::span<const uint8_t> buffer) {
+        ViscaPayload payload{};
+        payload.size = buffer.size();
+        std::ranges::copy(buffer, payload.data.begin());
+        return payload;
+    }
+
+    std::vector<uint8_t> Visca::encode(std::span<const uint8_t> payload) const {
+        std::vector<uint8_t> frame(payload.size() + 2);
+        frame.at(0) = VISCA_START_BYTE;
+        frame.at(0) |= (address_ << 4);
         if (broadcast_ > 0) {
-            packet->data.at(0) |= (broadcast_ << 3);
-            packet->data.at(0) &= 0xF8;
+            frame.at(0) |= (broadcast_ << 3);
+            frame.at(0) &= 0xF8;
         } else {
-            packet->data.at(0) |= cam_address_;
+            frame.at(0) |= cam_address_;
         }
+
+        std::ranges::copy(payload, frame.begin() + 1);
+
+        frame.at(frame.size() - 1) = VISCA_TERMINATOR;
+        return frame;
     }
 
-    void Visca::appendTerminator(ViscaPacket* packet) const {
-        packet->data.at(packet->size++) = VISCA_TERMINATOR;
+    std::vector<uint8_t> Visca::decode(const std::span<const uint8_t> buffer) const {
+        if (buffer.size() < 2) {
+            return {};
+        }
+
+        if (buffer.front() != VISCA_RESPONSE_START_BYTE && buffer.front() != 0x88) { //TODO: magic number
+            return {};
+        }
+
+        const auto terminator_it = std::ranges::find(rx_buffer_, static_cast<uint8_t>(VISCA_TERMINATOR));
+        if (terminator_it == rx_buffer_.end()) {
+            return {};
+        }
+
+        buffer_size_ = std::distance(rx_buffer_.begin(), terminator_it) + 1;
+
+        std::vector<uint8_t> payload(buffer_size_ - 3);
+        std::ranges::copy(rx_buffer_.begin() + 2, rx_buffer_.begin() + buffer_size_ - 1, payload.begin());
+
+        return payload;
     }
 
-    Result<void> Visca::sendPacket(ViscaPacket* packet) const {
-        appendHeader(packet);
-        appendTerminator(packet);
+    Result<void> Visca::send(ViscaPayload* payload) const {
+        const auto serialized_payload = serialize(payload);
+        const auto frame = encode(serialized_payload);
 
-        return write(packet);
-    }
-
-    ResultCode Visca::read() const {
-        auto result = transport_->read();
-        if (result.isError()) {
-            return ResultCode::Failure;
-        }
-
-        auto data = std::move(result).value();
-        if (data.empty()) {
-            return ResultCode::Failure;
-        }
-
-        // Find the terminator in the received data
-        const auto terminator_it = std::ranges::find(data, static_cast<std::byte>(VISCA_TERMINATOR));
-        if (terminator_it == data.end()) {
-            // No terminator found, this shouldn't happen in a valid VISCA message
-            return ResultCode::Failure;
-        }
-
-        // Calculate the number of bytes including the terminator
-        buffer_size_ = std::distance(data.begin(), terminator_it) + 1;
-
-        // Copy data to input_buffer_
-        for (size_t i = 0; i < buffer_size_ && i < input_buffer_.size(); ++i) {
-            input_buffer_.at(i) = static_cast<uint8_t>(data.at(i));
-        }
-
-        return ResultCode::Success;
+        return transport_->write(frame);
     }
 
     Result<void> Visca::open() const {
@@ -70,28 +71,28 @@ namespace camera_service::infrastructure {
         return transport_->close();
     }
 
-    void Visca::appendByte(ViscaPacket* packet, const uint8_t byte) {
-        packet->data.at(packet->size++) = byte;
+    void Visca::appendByte(ViscaPayload* payload, const uint8_t byte) {
+        payload->data.at(payload->size++) = byte;
     }
 
-    void Visca::appendAsNibbles(ViscaPacket* packet, const uint16_t value) {
-        appendByte(packet, (value & 0xF000) >> 12);
-        appendByte(packet, (value & 0x0F00) >> 8);
-        appendByte(packet, (value & 0x00F0) >> 4);
-        appendByte(packet, (value & 0x000F));
+    void Visca::appendAsNibbles(ViscaPayload* payload, const uint16_t value) {
+        appendByte(payload, (value & 0xF000) >> 12);
+        appendByte(payload, (value & 0x0F00) >> 8);
+        appendByte(payload, (value & 0x00F0) >> 4);
+        appendByte(payload, (value & 0x000F));
     }
 
     Result<ResponseType> Visca::getReply() const {
-        if (read() != ResultCode::Success) {
-            return Result<ResponseType>::error("Failed to read first reply from camera");
+        if (const auto result = transport_->read(rx_buffer_); result.isError()) {
+            return Result<ResponseType>::error(result.error());
         }
-        auto type = static_cast<ResponseType>(input_buffer_.at(1) & 0xF0);
+        auto type = static_cast<ResponseType>(rx_buffer_.at(1) & 0xF0);
 
         while (type == ResponseType::Ack) {
-            if (read() != ResultCode::Success) {
-                return Result<ResponseType>::error("Failed to read second reply from camera");
+            if (const auto result = transport_->read(rx_buffer_); result.isError()) {
+                return Result<ResponseType>::error(result.error());
             }
-            type = static_cast<ResponseType>(input_buffer_.at(1) & 0xF0);
+            type = static_cast<ResponseType>(rx_buffer_.at(1) & 0xF0); //TODO: payload
         }
 
         switch (type) {
@@ -106,68 +107,54 @@ namespace camera_service::infrastructure {
         }
     }
 
-    Result<void> Visca::sendPacketWithReply(ViscaPacket* packet) const {
-        if (sendPacket(packet).isError()) {
-            return Result<void>::error("Failed to send packet");
+    Result<Visca::ViscaPayload> Visca::sendAndReceiveReply(ViscaPayload* payload) const {
+        if (const auto result = send(payload); result.isError()) {
+            return Result<ViscaPayload>::error(result.error());
         }
 
         if (const auto result = getReply(); result.isError()) {
-            return Result<void>::error(result.error());
+            return Result<ViscaPayload>::error(result.error());
         } else if (result.value() == ResponseType::Error) {
-            return Result<void>::error(getViscaErrorMessage(static_cast<ResultCode>(input_buffer_.at(2))));
+            return Result<ViscaPayload>::error(getViscaErrorMessage(static_cast<ResultCode>(rx_buffer_.at(2))));
+            //TODO: payload
         }
 
-        return Result<void>::success();
+        const auto response_payload = deserialize(decode(rx_buffer_));
+
+        return Result<ViscaPayload>::success(response_payload);
     }
 
     Result<void> Visca::setAddress() {
-        ViscaPacket packet{};
-        uint8_t camera_num = 0;
+        ViscaPayload tx_payload{};
+
+        appendByte(&tx_payload, VISCA_ADDRESS);
+        appendByte(&tx_payload, 0x01);
 
         const auto backup = broadcast_;
-
-        appendByte(&packet, 0x30);
-        appendByte(&packet, 0x01);
-
         broadcast_ = 1;
-        if (sendPacket(&packet).isError()) {
-            broadcast_ = backup;
-            return Result<void>::error("Failed to send setAddress command");
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
         }
+
+        cam_address_ = get8Bit(rx_payload.value(), 0) - 1;
         broadcast_ = backup;
 
-        if (getReply().isError()) {
-            return Result<void>::error("Failed to get reply for setAddress command");
-        }
-        /* We parse the message from the camera here  */
-        /* We expect to receive 4*camera_num bytes,
-               every packet should be 88 30 0x FF, x being
-               the camera id+1. The number of cams will thus be
-               ibuf.at(bytes-2)-1  */
-        if ((buffer_size_ & 0x3) != 0) {
-            /* check multiple of 4 */
-            return Result<void>::error("Invalid response length for setAddress command");
-        }
-        camera_num = input_buffer_.at(buffer_size_ - 2) - 1;
-        if ((camera_num == 0) || (camera_num > 7)) {
-            return Result<void>::error("Invalid number of cameras detected");
-        }
-        cam_address_ = camera_num;
         return Result<void>::success();
     }
 
     Result<void> Visca::clear() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, 0x01);
-        appendByte(&packet, 0x00);
-        appendByte(&packet, 0x01);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, 0x00);
+        appendByte(&tx_payload, 0x01);
 
-        if (sendPacket(&packet).isError()) {
-            return Result<void>::error("Failed to send clear command");
+        if (const auto result = send(&tx_payload); result.isError()) {
+            return Result<void>::error(result.error());
         }
-        if (getReply().isError()) {
-            return Result<void>::error("Failed to get reply for clear command");
+        if (const auto result = getReply(); result.isError()) {
+            return Result<void>::error(result.error());
         }
         return Result<void>::success();
     }
@@ -191,852 +178,1156 @@ namespace camera_service::infrastructure {
     }
 
     Result<void> Visca::setPower(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_POWER);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_POWER);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setKeylock(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_KEYLOCK);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_KEYLOCK);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setCameraId(const uint16_t id) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_ID);
-        appendAsNibbles(&packet, id);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_ID);
+        appendAsNibbles(&tx_payload, id);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setZoomTele() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_ZOOM);
-        appendByte(&packet, VISCA_ZOOM_TELE);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_ZOOM);
+        appendByte(&tx_payload, VISCA_ZOOM_TELE);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setZoomWide() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_ZOOM);
-        appendByte(&packet, VISCA_ZOOM_WIDE);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_ZOOM);
+        appendByte(&tx_payload, VISCA_ZOOM_WIDE);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setZoomStop() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_ZOOM);
-        appendByte(&packet, VISCA_ZOOM_STOP);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_ZOOM);
+        appendByte(&tx_payload, VISCA_ZOOM_STOP);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setZoomTeleSpeed(const uint32_t speed) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_ZOOM);
-        appendByte(&packet, VISCA_ZOOM_TELE_SPEED | (speed & 0x7));
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_ZOOM);
+        appendByte(&tx_payload, VISCA_ZOOM_TELE_SPEED | (speed & 0x7));
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setZoomWideSpeed(const uint32_t speed) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_ZOOM);
-        appendByte(&packet, VISCA_ZOOM_WIDE_SPEED | (speed & 0x7));
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_ZOOM);
+        appendByte(&tx_payload, VISCA_ZOOM_WIDE_SPEED | (speed & 0x7));
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setZoomValue(const uint16_t zoom) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_ZOOM_VALUE);
-        appendAsNibbles(&packet, zoom);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_ZOOM_VALUE);
+        appendAsNibbles(&tx_payload, zoom);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setZoomAndFocusValue(const uint16_t zoom, const uint16_t focus) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_ZOOM_FOCUS_VALUE);
-        appendAsNibbles(&packet, zoom);
-        appendAsNibbles(&packet, focus);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_ZOOM_FOCUS_VALUE);
+        appendAsNibbles(&tx_payload, zoom);
+        appendAsNibbles(&tx_payload, focus);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setDzoomValue(const uint8_t value) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_DZOOM_VALUE);
-        appendAsNibbles(&packet, value);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_DZOOM_VALUE);
+        appendAsNibbles(&tx_payload, value);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setDzoomLimit(const uint8_t limit) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_DZOOM_LIMIT);
-        appendByte(&packet, limit);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_DZOOM_LIMIT);
+        appendByte(&tx_payload, limit);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setDzoomMode(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_DZOOM_MODE);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_DZOOM_MODE);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setFocusFar() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_FOCUS);
-        appendByte(&packet, VISCA_FOCUS_FAR);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_FOCUS);
+        appendByte(&tx_payload, VISCA_FOCUS_FAR);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setFocusNear() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_FOCUS);
-        appendByte(&packet, VISCA_FOCUS_NEAR);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_FOCUS);
+        appendByte(&tx_payload, VISCA_FOCUS_NEAR);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setFocusStop() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_FOCUS);
-        appendByte(&packet, VISCA_FOCUS_STOP);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_FOCUS);
+        appendByte(&tx_payload, VISCA_FOCUS_STOP);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setFocusFarSpeed(const uint32_t speed) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_FOCUS);
-        appendByte(&packet, VISCA_FOCUS_FAR_SPEED | (speed & 0x7));
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_FOCUS);
+        appendByte(&tx_payload, VISCA_FOCUS_FAR_SPEED | (speed & 0x7));
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setFocusNearSpeed(const uint32_t speed) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_FOCUS);
-        appendByte(&packet, VISCA_FOCUS_NEAR_SPEED | (speed & 0x7));
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_FOCUS);
+        appendByte(&tx_payload, VISCA_FOCUS_NEAR_SPEED | (speed & 0x7));
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setFocusValue(const uint16_t focus) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_FOCUS_VALUE);
-        appendAsNibbles(&packet, focus);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_FOCUS_VALUE);
+        appendAsNibbles(&tx_payload, focus);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setFocusAuto(const bool on) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_FOCUS_AUTO);
-        appendByte(&packet, on ? VISCA_ON : VISCA_OFF);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_FOCUS_AUTO);
+        appendByte(&tx_payload, on ? VISCA_ON : VISCA_OFF);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setFocusOnePush() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_FOCUS_ONE_PUSH);
-        appendByte(&packet, VISCA_FOCUS_ONE_PUSH_TRIG);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_FOCUS_ONE_PUSH);
+        appendByte(&tx_payload, VISCA_FOCUS_ONE_PUSH_TRIG);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setFocusInfinity() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_FOCUS_ONE_PUSH);
-        appendByte(&packet, VISCA_FOCUS_ONE_PUSH_INF);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_FOCUS_ONE_PUSH);
+        appendByte(&tx_payload, VISCA_FOCUS_ONE_PUSH_INF);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setFocusAutosenseHigh() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_FOCUS_AUTO_SENSE);
-        appendByte(&packet, VISCA_FOCUS_AUTO_SENSE_HIGH);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_FOCUS_AUTO_SENSE);
+        appendByte(&tx_payload, VISCA_FOCUS_AUTO_SENSE_HIGH);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setFocusAutosenseLow() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_FOCUS_AUTO_SENSE);
-        appendByte(&packet, VISCA_FOCUS_AUTO_SENSE_LOW);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_FOCUS_AUTO_SENSE);
+        appendByte(&tx_payload, VISCA_FOCUS_AUTO_SENSE_LOW);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setFocusNearLimit(const uint16_t limit) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_FOCUS_NEAR_LIMIT);
-        appendAsNibbles(&packet, limit);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_FOCUS_NEAR_LIMIT);
+        appendAsNibbles(&tx_payload, limit);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setWhitebalMode(const uint8_t mode) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_WB);
-        appendByte(&packet, mode);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_WB);
+        appendByte(&tx_payload, mode);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setWhitebalOnePush() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_WB_TRIGGER);
-        appendByte(&packet, VISCA_WB_ONE_PUSH_TRIG);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_WB_TRIGGER);
+        appendByte(&tx_payload, VISCA_WB_ONE_PUSH_TRIG);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setRgainUp() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_RGAIN);
-        appendByte(&packet, VISCA_UP);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_RGAIN);
+        appendByte(&tx_payload, VISCA_UP);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setRgainDown() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_RGAIN);
-        appendByte(&packet, VISCA_DOWN);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_RGAIN);
+        appendByte(&tx_payload, VISCA_DOWN);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setRgainReset() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_RGAIN);
-        appendByte(&packet, VISCA_RESET);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_RGAIN);
+        appendByte(&tx_payload, VISCA_RESET);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setRgainValue(const uint8_t value) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_RGAIN_VALUE);
-        appendAsNibbles(&packet, value);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_RGAIN_VALUE);
+        appendAsNibbles(&tx_payload, value);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setBgainUp() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_BGAIN);
-        appendByte(&packet, VISCA_UP);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_BGAIN);
+        appendByte(&tx_payload, VISCA_UP);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setBgainDown() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_BGAIN);
-        appendByte(&packet, VISCA_DOWN);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_BGAIN);
+        appendByte(&tx_payload, VISCA_DOWN);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setBgainReset() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_BGAIN);
-        appendByte(&packet, VISCA_RESET);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_BGAIN);
+        appendByte(&tx_payload, VISCA_RESET);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setBgainValue(const uint8_t value) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_BGAIN_VALUE);
-        appendAsNibbles(&packet, value);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_BGAIN_VALUE);
+        appendAsNibbles(&tx_payload, value);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setShutterUp() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_SHUTTER);
-        appendByte(&packet, VISCA_UP);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_SHUTTER);
+        appendByte(&tx_payload, VISCA_UP);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setShutterDown() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_SHUTTER);
-        appendByte(&packet, VISCA_DOWN);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_SHUTTER);
+        appendByte(&tx_payload, VISCA_DOWN);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setShutterReset() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_SHUTTER);
-        appendByte(&packet, VISCA_RESET);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_SHUTTER);
+        appendByte(&tx_payload, VISCA_RESET);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setShutterValue(const uint8_t value) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_SHUTTER_VALUE);
-        appendAsNibbles(&packet, value);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_SHUTTER_VALUE);
+        appendAsNibbles(&tx_payload, value);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setIrisUp() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_IRIS);
-        appendByte(&packet, VISCA_UP);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_IRIS);
+        appendByte(&tx_payload, VISCA_UP);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setIrisDown() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_IRIS);
-        appendByte(&packet, VISCA_DOWN);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_IRIS);
+        appendByte(&tx_payload, VISCA_DOWN);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setIrisReset() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_IRIS);
-        appendByte(&packet, VISCA_RESET);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_IRIS);
+        appendByte(&tx_payload, VISCA_RESET);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setIrisValue(const uint8_t value) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_IRIS_VALUE);
-        appendAsNibbles(&packet, value);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_IRIS_VALUE);
+        appendAsNibbles(&tx_payload, value);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setGainUp() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_GAIN);
-        appendByte(&packet, VISCA_UP);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_GAIN);
+        appendByte(&tx_payload, VISCA_UP);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setGainDown() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_GAIN);
-        appendByte(&packet, VISCA_DOWN);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_GAIN);
+        appendByte(&tx_payload, VISCA_DOWN);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setGainReset() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_GAIN);
-        appendByte(&packet, VISCA_RESET);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_GAIN);
+        appendByte(&tx_payload, VISCA_RESET);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setGainValue(const uint8_t value) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_GAIN_VALUE);
-        appendAsNibbles(&packet, value);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_GAIN_VALUE);
+        appendAsNibbles(&tx_payload, value);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setBrightUp() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_BRIGHT);
-        appendByte(&packet, VISCA_UP);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_BRIGHT);
+        appendByte(&tx_payload, VISCA_UP);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setBrightDown() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_BRIGHT);
-        appendByte(&packet, VISCA_DOWN);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_BRIGHT);
+        appendByte(&tx_payload, VISCA_DOWN);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setBrightReset() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_BRIGHT);
-        appendByte(&packet, VISCA_RESET);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_BRIGHT);
+        appendByte(&tx_payload, VISCA_RESET);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setBrightValue(const uint16_t value) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_BRIGHT_VALUE);
-        appendAsNibbles(&packet, value);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_BRIGHT_VALUE);
+        appendAsNibbles(&tx_payload, value);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setApertureUp() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_APERTURE);
-        appendByte(&packet, VISCA_UP);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_APERTURE);
+        appendByte(&tx_payload, VISCA_UP);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setApertureDown() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_APERTURE);
-        appendByte(&packet, VISCA_DOWN);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_APERTURE);
+        appendByte(&tx_payload, VISCA_DOWN);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setApertureReset() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_APERTURE);
-        appendByte(&packet, VISCA_RESET);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_APERTURE);
+        appendByte(&tx_payload, VISCA_RESET);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setApertureValue(const uint8_t value) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_APERTURE_VALUE);
-        appendAsNibbles(&packet, value);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_APERTURE_VALUE);
+        appendAsNibbles(&tx_payload, value);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setExpCompUp() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_EXP_COMP);
-        appendByte(&packet, VISCA_UP);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_EXP_COMP);
+        appendByte(&tx_payload, VISCA_UP);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setExpCompDown() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_EXP_COMP);
-        appendByte(&packet, VISCA_DOWN);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_EXP_COMP);
+        appendByte(&tx_payload, VISCA_DOWN);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setExpCompReset() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_EXP_COMP);
-        appendByte(&packet, VISCA_RESET);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_EXP_COMP);
+        appendByte(&tx_payload, VISCA_RESET);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setExpCompValue(const uint8_t value) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_EXP_COMP_VALUE);
-        appendAsNibbles(&packet, value);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_EXP_COMP_VALUE);
+        appendAsNibbles(&tx_payload, value);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setExpCompPower(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_EXP_COMP_POWER);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_EXP_COMP_POWER);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setAutoExpMode(const uint8_t mode) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_AUTO_EXP);
-        appendByte(&packet, mode);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_AUTO_EXP);
+        appendByte(&tx_payload, mode);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setSlowShutterAuto(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_SLOW_SHUTTER);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_SLOW_SHUTTER);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setBacklightComp(const bool on) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_BACKLIGHT_COMP);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_BACKLIGHT_COMP);
         if (on) {
-            appendByte(&packet, VISCA_ON);
+            appendByte(&tx_payload, VISCA_ON);
         } else {
-            appendByte(&packet, VISCA_OFF);
+            appendByte(&tx_payload, VISCA_OFF);
         }
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setZeroLuxShot(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_ZERO_LUX);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_ZERO_LUX);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setIrLed(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_IR_LED);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_IR_LED);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setWideMode(const uint8_t mode) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_WIDE_MODE);
-        appendByte(&packet, mode);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_WIDE_MODE);
+        appendByte(&tx_payload, mode);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setMirror(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_MIRROR);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_MIRROR);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setFreeze(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_FREEZE);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_FREEZE);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setPictureEffect(const uint8_t mode) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_PICTURE_EFFECT);
-        appendByte(&packet, mode);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_PICTURE_EFFECT);
+        appendByte(&tx_payload, mode);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setDigitalEffect(const uint8_t mode) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_DIGITAL_EFFECT);
-        appendByte(&packet, mode);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_DIGITAL_EFFECT);
+        appendByte(&tx_payload, mode);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setDigitalEffectLevel(const uint8_t level) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_DIGITAL_EFFECT_LEVEL);
-        appendByte(&packet, level);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_DIGITAL_EFFECT_LEVEL);
+        appendByte(&tx_payload, level);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setCamStabilizer(const bool power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_CAM_STABILIZER);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_CAM_STABILIZER);
 
         if (power) {
-            appendByte(&packet, VISCA_ON);
+            appendByte(&tx_payload, VISCA_ON);
         } else {
-            appendByte(&packet, VISCA_OFF);
+            appendByte(&tx_payload, VISCA_OFF);
         }
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::memorySet(const uint8_t channel) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_MEMORY);
-        appendByte(&packet, VISCA_MEMORY_SET);
-        appendByte(&packet, channel);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_MEMORY);
+        appendByte(&tx_payload, VISCA_MEMORY_SET);
+        appendByte(&tx_payload, channel);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::memoryRecall(const uint8_t channel) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_MEMORY);
-        appendByte(&packet, VISCA_MEMORY_RECALL);
-        appendByte(&packet, channel);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_MEMORY);
+        appendByte(&tx_payload, VISCA_MEMORY_RECALL);
+        appendByte(&tx_payload, channel);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::memoryReset(const uint8_t channel) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_MEMORY);
-        appendByte(&packet, VISCA_MEMORY_RESET);
-        appendByte(&packet, channel);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_MEMORY);
+        appendByte(&tx_payload, VISCA_MEMORY_RESET);
+        appendByte(&tx_payload, channel);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setDisplay(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_DISPLAY);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_DISPLAY);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setDateTime(const uint16_t year, const uint16_t month, const uint16_t day, const uint16_t hour,
@@ -1045,180 +1336,217 @@ namespace camera_service::infrastructure {
             return Result<void>::error("Invalid input");
         }
 
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_DATE_TIME_SET);
-        appendByte(&packet, year / 10);
-        appendByte(&packet, year - 10 * (year / 10));
-        appendByte(&packet, month / 10);
-        appendByte(&packet, month - 10 * (month / 10));
-        appendByte(&packet, day / 10);
-        appendByte(&packet, day - 10 * (day / 10));
-        appendByte(&packet, hour / 10);
-        appendByte(&packet, hour - 10 * (hour / 10));
-        appendByte(&packet, minute / 10);
-        appendByte(&packet, minute - 10 * (minute / 10));
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_DATE_TIME_SET);
+        appendByte(&tx_payload, year / 10);
+        appendByte(&tx_payload, year - 10 * (year / 10));
+        appendByte(&tx_payload, month / 10);
+        appendByte(&tx_payload, month - 10 * (month / 10));
+        appendByte(&tx_payload, day / 10);
+        appendByte(&tx_payload, day - 10 * (day / 10));
+        appendByte(&tx_payload, hour / 10);
+        appendByte(&tx_payload, hour - 10 * (hour / 10));
+        appendByte(&tx_payload, minute / 10);
+        appendByte(&tx_payload, minute - 10 * (minute / 10));
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setDateDisplay(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_DATE_DISPLAY);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_DATE_DISPLAY);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setTimeDisplay(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_TIME_DISPLAY);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_TIME_DISPLAY);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setTitleDisplay(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_TITLE_DISPLAY);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_TITLE_DISPLAY);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setTitleClear() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_TITLE_DISPLAY);
-        appendByte(&packet, VISCA_TITLE_DISPLAY_CLEAR);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_TITLE_DISPLAY);
+        appendByte(&tx_payload, VISCA_TITLE_DISPLAY_CLEAR);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setTitleParams(const ViscaTitleData* title) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_TITLE_SET);
-        appendByte(&packet, VISCA_TITLE_SET_PARAMS);
-        appendByte(&packet, title->vposition);
-        appendByte(&packet, title->hposition);
-        appendByte(&packet, title->color);
-        appendByte(&packet, title->blink);
-        appendByte(&packet, 0);
-        appendByte(&packet, 0);
-        appendByte(&packet, 0);
-        appendByte(&packet, 0);
-        appendByte(&packet, 0);
-        appendByte(&packet, 0);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_TITLE_SET);
+        appendByte(&tx_payload, VISCA_TITLE_SET_PARAMS);
+        appendByte(&tx_payload, title->vposition);
+        appendByte(&tx_payload, title->hposition);
+        appendByte(&tx_payload, title->color);
+        appendByte(&tx_payload, title->blink);
+        appendByte(&tx_payload, 0);
+        appendByte(&tx_payload, 0);
+        appendByte(&tx_payload, 0);
+        appendByte(&tx_payload, 0);
+        appendByte(&tx_payload, 0);
+        appendByte(&tx_payload, 0);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setTitle(const ViscaTitleData* title) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_TITLE_SET);
-        appendByte(&packet, VISCA_TITLE_SET_PART1);
-
-        for (auto i = 0; i < 10; i++) {
-            appendByte(&packet, title->title.at(i));
-        }
-
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<void>::error(result.error());
-        }
-
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_TITLE_SET);
-        appendByte(&packet, VISCA_TITLE_SET_PART2);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_TITLE_SET);
+        appendByte(&tx_payload, VISCA_TITLE_SET_PART1);
 
         for (auto i = 0; i < 10; i++) {
-            appendByte(&packet, title->title.at(i + 10));
+            appendByte(&tx_payload, title->title.at(i));
         }
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_TITLE_SET);
+        appendByte(&tx_payload, VISCA_TITLE_SET_PART2);
+
+        for (auto i = 0; i < 10; i++) {
+            appendByte(&tx_payload, title->title.at(i + 10));
+        }
+
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setSpotAeOn() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_SPOT_AE);
-        appendByte(&packet, VISCA_ON);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_SPOT_AE);
+        appendByte(&tx_payload, VISCA_ON);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setSpotAeOff() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_SPOT_AE);
-        appendByte(&packet, VISCA_OFF);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_SPOT_AE);
+        appendByte(&tx_payload, VISCA_OFF);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setSpotAePosition(const uint8_t x_position, const uint8_t y_position) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_SPOT_AE_POSITION);
-        appendByte(&packet, (x_position & 0xF0) >> 4);
-        appendByte(&packet, (x_position & 0x0F));
-        appendByte(&packet, (y_position & 0xF0) >> 4);
-        appendByte(&packet, (y_position & 0x0F));
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_SPOT_AE_POSITION);
+        appendByte(&tx_payload, (x_position & 0xF0) >> 4);
+        appendByte(&tx_payload, (x_position & 0x0F));
+        appendByte(&tx_payload, (y_position & 0xF0) >> 4);
+        appendByte(&tx_payload, (y_position & 0x0F));
 
-        return sendPacketWithReply(&packet);
-    }
-
-    /***********************************/
-    /*       INQUIRY FUNCTIONS         */
-    /***********************************/
-
-    Result<std::string_view> Visca::getCameraInfo() {
-        ViscaPacket packet{};
-
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_INTERFACE);
-        appendByte(&packet, VISCA_DEVICE_INFO);
-
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<std::string_view>::error(result.error());
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
         }
 
-        const uint16_t vendor = (input_buffer_.at(2) << 8) + input_buffer_.at(3);
+        return Result<void>::success();
+    }
+
+    Result<std::string_view> Visca::getCameraInfo() {
+        ViscaPayload tx_payload{};
+
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_INTERFACE);
+        appendByte(&tx_payload, VISCA_DEVICE_INFO);
+
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<std::string_view>::error(rx_payload.error());
+        }
+
+        const auto vendor = get16Bit(rx_payload.value(), 0);
         const auto vendor_str = getCameraVendor(vendor);
-        const uint16_t model = (input_buffer_.at(4) << 8) + input_buffer_.at(5);
+        const auto model = get16Bit(rx_payload.value(), 2);
         const auto model_str = getCameraModel(model);
 
         if (vendor_str == "Unknown" || model_str == "Unknown") {
             return Result<std::string_view>::error("Unknown camera");
         }
 
-        const uint16_t rom_version = (input_buffer_.at(6) << 8) + input_buffer_.at(7);
-        const uint8_t socket_num = input_buffer_.at(8);
+        const auto rom_version = get16Bit(rx_payload.value(), 4);
+        const auto socket_num = get8Bit(rx_payload.value(), 6);
 
         thread_local std::array<char, 256> buffer{};
         const auto [out, size] = std::format_to_n(buffer.begin(), buffer.size() - 1,
@@ -1232,835 +1560,981 @@ namespace camera_service::infrastructure {
     }
 
     Result<void> Visca::setIrreceiveOn() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_IRRECEIVE);
-        appendByte(&packet, VISCA_ON);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_IRRECEIVE);
+        appendByte(&tx_payload, VISCA_ON);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setIrreceiveOff() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_IRRECEIVE);
-        appendByte(&packet, VISCA_OFF);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_IRRECEIVE);
+        appendByte(&tx_payload, VISCA_OFF);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setIrreceiveOnoff() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_IRRECEIVE);
-        appendByte(&packet, VISCA_IRRECEIVE_ONOFF);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_IRRECEIVE);
+        appendByte(&tx_payload, VISCA_IRRECEIVE_ONOFF);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setPanTiltUp(const uint8_t pan_speed, const uint8_t tilt_speed) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DRIVE);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_STOP);
-        appendByte(&packet, VISCA_PT_DRIVE_VERT_UP);
-        return sendPacketWithReply(&packet);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_DRIVE);
+        appendByte(&tx_payload, pan_speed);
+        appendByte(&tx_payload, tilt_speed);
+        appendByte(&tx_payload, VISCA_PT_DRIVE_HORIZ_STOP);
+        appendByte(&tx_payload, VISCA_PT_DRIVE_VERT_UP);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setPanTiltDown(const uint8_t pan_speed, const uint8_t tilt_speed) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DRIVE);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_STOP);
-        appendByte(&packet, VISCA_PT_DRIVE_VERT_DOWN);
-        return sendPacketWithReply(&packet);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_DRIVE);
+        appendByte(&tx_payload, pan_speed);
+        appendByte(&tx_payload, tilt_speed);
+        appendByte(&tx_payload, VISCA_PT_DRIVE_HORIZ_STOP);
+        appendByte(&tx_payload, VISCA_PT_DRIVE_VERT_DOWN);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setPanTiltLeft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DRIVE);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_LEFT);
-        appendByte(&packet, VISCA_PT_DRIVE_VERT_STOP);
-        return sendPacketWithReply(&packet);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_DRIVE);
+        appendByte(&tx_payload, pan_speed);
+        appendByte(&tx_payload, tilt_speed);
+        appendByte(&tx_payload, VISCA_PT_DRIVE_HORIZ_LEFT);
+        appendByte(&tx_payload, VISCA_PT_DRIVE_VERT_STOP);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setPanTiltRight(const uint8_t pan_speed, const uint8_t tilt_speed) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DRIVE);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_RIGHT);
-        appendByte(&packet, VISCA_PT_DRIVE_VERT_STOP);
-        return sendPacketWithReply(&packet);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_DRIVE);
+        appendByte(&tx_payload, pan_speed);
+        appendByte(&tx_payload, tilt_speed);
+        appendByte(&tx_payload, VISCA_PT_DRIVE_HORIZ_RIGHT);
+        appendByte(&tx_payload, VISCA_PT_DRIVE_VERT_STOP);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setPanTiltUpleft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DRIVE);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_LEFT);
-        appendByte(&packet, VISCA_PT_DRIVE_VERT_UP);
-        return sendPacketWithReply(&packet);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_DRIVE);
+        appendByte(&tx_payload, pan_speed);
+        appendByte(&tx_payload, tilt_speed);
+        appendByte(&tx_payload, VISCA_PT_DRIVE_HORIZ_LEFT);
+        appendByte(&tx_payload, VISCA_PT_DRIVE_VERT_UP);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setPanTiltUpright(const uint8_t pan_speed, const uint8_t tilt_speed) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DRIVE);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_RIGHT);
-        appendByte(&packet, VISCA_PT_DRIVE_VERT_UP);
-        return sendPacketWithReply(&packet);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_DRIVE);
+        appendByte(&tx_payload, pan_speed);
+        appendByte(&tx_payload, tilt_speed);
+        appendByte(&tx_payload, VISCA_PT_DRIVE_HORIZ_RIGHT);
+        appendByte(&tx_payload, VISCA_PT_DRIVE_VERT_UP);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setPanTiltDownleft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DRIVE);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_LEFT);
-        appendByte(&packet, VISCA_PT_DRIVE_VERT_DOWN);
-        return sendPacketWithReply(&packet);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_DRIVE);
+        appendByte(&tx_payload, pan_speed);
+        appendByte(&tx_payload, tilt_speed);
+        appendByte(&tx_payload, VISCA_PT_DRIVE_HORIZ_LEFT);
+        appendByte(&tx_payload, VISCA_PT_DRIVE_VERT_DOWN);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setPanTiltDownright(const uint8_t pan_speed, const uint8_t tilt_speed) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DRIVE);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_RIGHT);
-        appendByte(&packet, VISCA_PT_DRIVE_VERT_DOWN);
-        return sendPacketWithReply(&packet);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_DRIVE);
+        appendByte(&tx_payload, pan_speed);
+        appendByte(&tx_payload, tilt_speed);
+        appendByte(&tx_payload, VISCA_PT_DRIVE_HORIZ_RIGHT);
+        appendByte(&tx_payload, VISCA_PT_DRIVE_VERT_DOWN);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setPanTiltStop(const uint8_t pan_speed, const uint8_t tilt_speed) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DRIVE);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendByte(&packet, VISCA_PT_DRIVE_HORIZ_STOP);
-        appendByte(&packet, VISCA_PT_DRIVE_VERT_STOP);
-        return sendPacketWithReply(&packet);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_DRIVE);
+        appendByte(&tx_payload, pan_speed);
+        appendByte(&tx_payload, tilt_speed);
+        appendByte(&tx_payload, VISCA_PT_DRIVE_HORIZ_STOP);
+        appendByte(&tx_payload, VISCA_PT_DRIVE_VERT_STOP);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setPanTiltAbsolutePosition(const uint8_t pan_speed, const uint8_t tilt_speed,
                                                    const uint16_t pan_pos, const uint16_t tilt_pos) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_ABSOLUTE_POSITION);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
-        appendAsNibbles(&packet, pan_pos);
-        appendAsNibbles(&packet, tilt_pos);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_ABSOLUTE_POSITION);
+        appendByte(&tx_payload, pan_speed);
+        appendByte(&tx_payload, tilt_speed);
+        appendAsNibbles(&tx_payload, pan_pos);
+        appendAsNibbles(&tx_payload, tilt_pos);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setPanTiltRelativePosition(const uint8_t pan_speed, const uint8_t tilt_speed,
                                                    const uint16_t pan_pos, const uint16_t tilt_pos) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_RELATIVE_POSITION);
-        appendByte(&packet, pan_speed);
-        appendByte(&packet, tilt_speed);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_RELATIVE_POSITION);
+        appendByte(&tx_payload, pan_speed);
+        appendByte(&tx_payload, tilt_speed);
 
-        appendByte(&packet, (pan_pos & 0xf000) >> 12);
-        appendByte(&packet, (pan_pos & 0x0f00) >> 8);
-        appendByte(&packet, (pan_pos & 0x00f0) >> 4);
-        appendByte(&packet, pan_pos & 0x000f);
+        appendByte(&tx_payload, (pan_pos & 0xf000) >> 12);
+        appendByte(&tx_payload, (pan_pos & 0x0f00) >> 8);
+        appendByte(&tx_payload, (pan_pos & 0x00f0) >> 4);
+        appendByte(&tx_payload, pan_pos & 0x000f);
 
-        appendByte(&packet, (tilt_pos & 0xf000) >> 12);
-        appendByte(&packet, (tilt_pos & 0x0f00) >> 8);
-        appendByte(&packet, (tilt_pos & 0x00f0) >> 4);
-        appendByte(&packet, tilt_pos & 0x000f);
+        appendByte(&tx_payload, (tilt_pos & 0xf000) >> 12);
+        appendByte(&tx_payload, (tilt_pos & 0x0f00) >> 8);
+        appendByte(&tx_payload, (tilt_pos & 0x00f0) >> 4);
+        appendByte(&tx_payload, tilt_pos & 0x000f);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setPanTiltHome() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_HOME);
-        return sendPacketWithReply(&packet);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_HOME);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setPanTiltReset() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_RESET);
-        return sendPacketWithReply(&packet);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_RESET);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setPanTiltLimitUpright(const uint16_t pan_limit, const uint16_t tilt_limit) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_LIMITSET);
-        appendByte(&packet, VISCA_PT_LIMITSET_SET);
-        appendByte(&packet, VISCA_PT_LIMITSET_SET_UR);
-        appendAsNibbles(&packet, pan_limit);
-        appendAsNibbles(&packet, tilt_limit);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_LIMITSET);
+        appendByte(&tx_payload, VISCA_PT_LIMITSET_SET);
+        appendByte(&tx_payload, VISCA_PT_LIMITSET_SET_UR);
+        appendAsNibbles(&tx_payload, pan_limit);
+        appendAsNibbles(&tx_payload, tilt_limit);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setPanTiltLimitDownleft(const uint16_t pan_limit, const uint16_t tilt_limit) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_LIMITSET);
-        appendByte(&packet, VISCA_PT_LIMITSET_SET);
-        appendByte(&packet, VISCA_PT_LIMITSET_SET_DL);
-        appendAsNibbles(&packet, pan_limit);
-        appendAsNibbles(&packet, tilt_limit);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_LIMITSET);
+        appendByte(&tx_payload, VISCA_PT_LIMITSET_SET);
+        appendByte(&tx_payload, VISCA_PT_LIMITSET_SET_DL);
+        appendAsNibbles(&tx_payload, pan_limit);
+        appendAsNibbles(&tx_payload, tilt_limit);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setPanTiltLimitDownleftClear() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
         constexpr uint16_t pan_lmit = 0x7fff;
         constexpr uint16_t tilt_limit = 0x7fff;
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_LIMITSET);
-        appendByte(&packet, VISCA_PT_LIMITSET_CLEAR);
-        appendByte(&packet, VISCA_PT_LIMITSET_SET_DL);
-        appendAsNibbles(&packet, pan_lmit);
-        appendAsNibbles(&packet, tilt_limit);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_LIMITSET);
+        appendByte(&tx_payload, VISCA_PT_LIMITSET_CLEAR);
+        appendByte(&tx_payload, VISCA_PT_LIMITSET_SET_DL);
+        appendAsNibbles(&tx_payload, pan_lmit);
+        appendAsNibbles(&tx_payload, tilt_limit);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setPanTiltLimitUprightClear() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
         constexpr uint16_t pan_limit = 0x7fff;
         constexpr uint16_t tilt_limit = 0x7fff;
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_LIMITSET);
-        appendByte(&packet, VISCA_PT_LIMITSET_CLEAR);
-        appendByte(&packet, VISCA_PT_LIMITSET_SET_UR);
-        appendAsNibbles(&packet, pan_limit);
-        appendAsNibbles(&packet, tilt_limit);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_LIMITSET);
+        appendByte(&tx_payload, VISCA_PT_LIMITSET_CLEAR);
+        appendByte(&tx_payload, VISCA_PT_LIMITSET_SET_UR);
+        appendAsNibbles(&tx_payload, pan_limit);
+        appendAsNibbles(&tx_payload, tilt_limit);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setDatascreenOn() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DATASCREEN);
-        appendByte(&packet, VISCA_ON);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_DATASCREEN);
+        appendByte(&tx_payload, VISCA_ON);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setDatascreenOff() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DATASCREEN);
-        appendByte(&packet, VISCA_OFF);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_DATASCREEN);
+        appendByte(&tx_payload, VISCA_OFF);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setDatascreenOnoff() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DATASCREEN);
-        appendByte(&packet, VISCA_PT_DATASCREEN_ONOFF);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_DATASCREEN);
+        appendByte(&tx_payload, VISCA_PT_DATASCREEN_ONOFF);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<uint8_t> Visca::getPower() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_POWER);
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_POWER);
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getDzoomValue() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_DZOOM);
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_DZOOM);
+
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getDzoomLimit() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_DZOOM_LIMIT);
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_DZOOM_LIMIT);
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint16_t> Visca::getZoomValue() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_ZOOM_VALUE);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_ZOOM_VALUE);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint16_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint16_t>::error(rx_payload.error());
         }
-        return Result<uint16_t>::success(getFromNibbles());
+        return Result<uint16_t>::success(get16BitFromNibbles(rx_payload.value(), 0));
     }
 
     Result<bool> Visca::getFocusAuto() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_FOCUS_AUTO);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_FOCUS_AUTO);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<bool>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<bool>::error(rx_payload.error());
         }
 
-        if (input_buffer_.at(2) == VISCA_OFF) {
+        if (get8Bit(rx_payload.value(), 0) == VISCA_OFF) {
             return Result<bool>::success(false);
         }
         return Result<bool>::success(true);
     }
 
     Result<uint16_t> Visca::getFocusValue() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_FOCUS_VALUE);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_FOCUS_VALUE);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint16_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint16_t>::error(rx_payload.error());
         }
-        return Result<uint16_t>::success(getFromNibbles());
+        return Result<uint16_t>::success(get16BitFromNibbles(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getFocusAutoSense() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_FOCUS_AUTO_SENSE);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_FOCUS_AUTO_SENSE);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint16_t> Visca::getFocusNearLimit() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_FOCUS_NEAR_LIMIT);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_FOCUS_NEAR_LIMIT);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint16_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint16_t>::error(rx_payload.error());
         }
-        return Result<uint16_t>::success(getFromNibbles());
+        return Result<uint16_t>::success(get16BitFromNibbles(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getWhitebalMode() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_WB);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_WB);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getRgainValue() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_RGAIN_VALUE);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_RGAIN_VALUE);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getBgainValue() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_BGAIN_VALUE);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_BGAIN_VALUE);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getAutoExpMode() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_AUTO_EXP);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_AUTO_EXP);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getSlowShutterAuto() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_SLOW_SHUTTER);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_SLOW_SHUTTER);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getShutterValue() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_SHUTTER_VALUE);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_SHUTTER_VALUE);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(static_cast<uint8_t>(getFromNibbles()));
+        return Result<uint8_t>::success(static_cast<uint8_t>(get16BitFromNibbles(rx_payload.value(), 0)));
     }
 
     Result<uint8_t> Visca::getIrisValue() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_IRIS_VALUE);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_IRIS_VALUE);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(static_cast<uint8_t>(getFromNibbles()));
+        return Result<uint8_t>::success(static_cast<uint8_t>(get16BitFromNibbles(rx_payload.value(), 0)));
     }
 
     Result<uint8_t> Visca::getGainValue() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_GAIN_VALUE);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_GAIN_VALUE);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(static_cast<uint8_t>(getFromNibbles()));
+        return Result<uint8_t>::success(static_cast<uint8_t>(get16BitFromNibbles(rx_payload.value(), 0)));
     }
 
     Result<uint16_t> Visca::getBrightValue() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_BRIGHT_VALUE);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_BRIGHT_VALUE);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint16_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint16_t>::error(rx_payload.error());
         }
-        return Result<uint16_t>::success(getFromNibbles());
+        return Result<uint16_t>::success(get16BitFromNibbles(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getExpCompPower() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_EXP_COMP_POWER);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_EXP_COMP_POWER);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getExpCompValue() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_EXP_COMP_VALUE);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_EXP_COMP_VALUE);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(static_cast<uint8_t>(getFromNibbles()));
+        return Result<uint8_t>::success(static_cast<uint8_t>(get16BitFromNibbles(rx_payload.value(), 0)));
     }
 
     Result<bool> Visca::getBacklightComp() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_BACKLIGHT_COMP);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_BACKLIGHT_COMP);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<bool>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<bool>::error(rx_payload.error());
         }
-        if (getByte() == VISCA_OFF) {
+
+        if (get8Bit(rx_payload.value(), 0) == VISCA_OFF) {
             return Result<bool>::success(false);
         }
         return Result<bool>::success(true);
     }
 
     Result<uint8_t> Visca::getApertureValue() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_APERTURE_VALUE);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_APERTURE_VALUE);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(static_cast<uint8_t>(getFromNibbles()));
+        return Result<uint8_t>::success(static_cast<uint8_t>(get16BitFromNibbles(rx_payload.value(), 0)));
     }
 
     Result<uint8_t> Visca::getZeroLuxShot() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_ZERO_LUX);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_ZERO_LUX);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getIrLed() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_IR_LED);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_IR_LED);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getWideMode() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_WIDE_MODE);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_WIDE_MODE);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getMirror() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_MIRROR);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_MIRROR);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getFreeze() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_FREEZE);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_FREEZE);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getPictureEffect() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_PICTURE_EFFECT);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_PICTURE_EFFECT);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getDigitalEffect() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_DIGITAL_EFFECT);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_DIGITAL_EFFECT);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint16_t> Visca::getDigitalEffectLevel() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_DIGITAL_EFFECT_LEVEL);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_DIGITAL_EFFECT_LEVEL);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint16_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint16_t>::error(rx_payload.error());
         }
-        return Result<uint16_t>::success(getFromNibbles());
+        return Result<uint16_t>::success(get16BitFromNibbles(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getMemory() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_MEMORY);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_MEMORY);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getDisplay() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_DISPLAY);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_DISPLAY);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint16_t> Visca::getId() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_ID);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_ID);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint16_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint16_t>::error(rx_payload.error());
         }
-        return Result<uint16_t>::success(getFromNibbles());
+        return Result<uint16_t>::success(get16BitFromNibbles(rx_payload.value(), 0));
     }
 
     Result<void> Visca::setRegister(const uint8_t reg_num, const uint8_t reg_val) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_REGISTER_VALUE);
-        appendByte(&packet, reg_num);
-        appendByte(&packet, (reg_val & 0xF0) >> 4);
-        appendByte(&packet, (reg_val & 0x0F));
-        return sendPacketWithReply(&packet);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_REGISTER_VALUE);
+        appendByte(&tx_payload, reg_num);
+        appendByte(&tx_payload, (reg_val & 0xF0) >> 4);
+        appendByte(&tx_payload, (reg_val & 0x0F));
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
-    uint16_t Visca::getFromNibbles() const {
-        return (input_buffer_.at(2) << 12) + (input_buffer_.at(3) << 8) + (input_buffer_.
-            at(4) << 4) + input_buffer_.at(5);
+    uint8_t Visca::get8Bit(const ViscaPayload& payload, const size_t index) {
+        return static_cast<uint8_t>(payload.data.at(index));
     }
 
-    uint8_t Visca::getByte() const {
-        return input_buffer_.at(2);
+    uint8_t Visca::get8BitFromNibbles(const ViscaPayload& payload, const size_t index) {
+        const auto high = static_cast<uint16_t>(payload.data.at(index)) << 4;
+        const auto low = static_cast<uint16_t>(payload.data.at(index + 1));
+        return static_cast<uint8_t>(high | low);
     }
 
-    /***********************************/
-    /*       INQUIRY FUNCTIONS         */
-    /***********************************/
+    uint16_t Visca::get16Bit(const ViscaPayload& payload, const size_t index) {
+        const auto high = static_cast<uint16_t>(payload.data.at(index)) << 8;
+        const auto low = static_cast<uint16_t>(payload.data.at(index + 1));
+        return static_cast<uint16_t>(high | low);
+    }
+
+    uint16_t Visca::get16BitFromNibbles(const ViscaPayload& payload, const size_t index) {
+        const auto b0 = static_cast<uint16_t>(payload.data.at(index)) << 12;
+        const auto b1 = static_cast<uint16_t>(payload.data.at(index + 1)) << 8;
+        const auto b2 = static_cast<uint16_t>(payload.data.at(index + 2)) << 4;
+        const auto b3 = static_cast<uint16_t>(payload.data.at(index + 3));
+        return static_cast<uint16_t>(b0 | b1 | b2 | b3);
+    }
 
     Result<uint8_t> Visca::getVideoSystem() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_VIDEOSYSTEM_INQ);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_VIDEOSYSTEM_INQ);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint16_t> Visca::getPanTiltMode() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_MODE_INQ);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_MODE_INQ);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint16_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint16_t>::error(rx_payload.error());
         }
-        const uint16_t status = ((input_buffer_.at(2) & 0xff) << 8) + (input_buffer_.at(3) & 0xff);
+        const uint16_t status = get16Bit(rx_payload.value(), 1);
         return Result<uint16_t>::success(status);
     }
 
     Result<std::pair<uint8_t, uint8_t>> Visca::getPanTiltMaxspeed() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_MAXSPEED_INQ);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_MAXSPEED_INQ);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<std::pair<uint8_t, uint8_t>>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<std::pair<uint8_t, uint8_t>>::error(rx_payload.error());
         }
-        const uint8_t max_pan_speed = (input_buffer_.at(2) & 0xff);
-        const uint8_t max_tilt_speed = (input_buffer_.at(3) & 0xff);
+        const uint8_t max_pan_speed = get8Bit(rx_payload.value(), 0);
+        const uint8_t max_tilt_speed = get8Bit(rx_payload.value(), 1);
         return Result<std::pair<uint8_t, uint8_t>>::success({max_pan_speed, max_tilt_speed});
     }
 
     Result<std::pair<uint16_t, uint16_t>> Visca::getPanTiltPosition() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_POSITION_INQ);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_POSITION_INQ);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<std::pair<uint16_t, uint16_t>>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<std::pair<uint16_t, uint16_t>>::error(rx_payload.error());
         }
-        const uint16_t pan_position = getFromNibbles();
-        const uint16_t tilt_position = ((input_buffer_.at(6) & 0xf) << 12) + ((input_buffer_.at(7) &
-            0xf) << 8) + ((input_buffer_.at(8) & 0xf) << 4) + (input_buffer_.at(9) & 0xf);
+        const auto pan_position = get16BitFromNibbles(rx_payload.value(), 0);
+        const auto tilt_position = get16BitFromNibbles(rx_payload.value(), 4);
 
         return Result<std::pair<uint16_t, uint16_t>>::success({pan_position, tilt_position});
     }
 
     Result<uint8_t> Visca::getDatascreen() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_PT_DATASCREEN_INQ);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_PT_DATASCREEN_INQ);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getRegister(const uint8_t reg_num) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_REGISTER_VALUE);
-        appendByte(&packet, reg_num);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_REGISTER_VALUE);
+        appendByte(&tx_payload, reg_num);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        const uint8_t reg_val = (input_buffer_.at(2) << 4) + input_buffer_.at(3);
+        const uint8_t reg_val = get8Bit(rx_payload.value(), 0);
         return Result<uint8_t>::success(reg_val);
     }
 
@@ -2069,509 +2543,645 @@ namespace camera_service::infrastructure {
     /********************************/
 
     Result<void> Visca::setWideConLens(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_WIDE_CON_LENS);
-        appendByte(&packet, VISCA_WIDE_CON_LENS_SET);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_WIDE_CON_LENS);
+        appendByte(&tx_payload, VISCA_WIDE_CON_LENS_SET);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setAtModeOnoff() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_AT_MODE);
-        appendByte(&packet, VISCA_AT_ONOFF);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_AT_MODE);
+        appendByte(&tx_payload, VISCA_AT_ONOFF);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setAtMode(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_AT_MODE);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_AT_MODE);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setAtAeOnoff() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_AT_AE);
-        appendByte(&packet, VISCA_AT_ONOFF);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_AT_AE);
+        appendByte(&tx_payload, VISCA_AT_ONOFF);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setAtAe(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_AT_AE);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_AT_AE);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setAtAutozoomOnoff() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_AT_AUTOZOOM);
-        appendByte(&packet, VISCA_AT_ONOFF);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_AT_AUTOZOOM);
+        appendByte(&tx_payload, VISCA_AT_ONOFF);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setAtAutozoom(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_AT_AUTOZOOM);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_AT_AUTOZOOM);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setAtmdFramedisplayOnoff() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_ATMD_FRAMEDISPLAY);
-        appendByte(&packet, VISCA_AT_ONOFF);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_ATMD_FRAMEDISPLAY);
+        appendByte(&tx_payload, VISCA_AT_ONOFF);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setAtmdFramedisplay(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_ATMD_FRAMEDISPLAY);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_ATMD_FRAMEDISPLAY);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setAtFrameoffsetOnoff() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_AT_FRAMEOFFSET);
-        appendByte(&packet, VISCA_AT_ONOFF);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_AT_FRAMEOFFSET);
+        appendByte(&tx_payload, VISCA_AT_ONOFF);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setAtFrameoffset(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_AT_FRAMEOFFSET);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_AT_FRAMEOFFSET);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setAtmdStartstop() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_ATMD_STARTSTOP);
-        appendByte(&packet, VISCA_AT_ONOFF);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_ATMD_STARTSTOP);
+        appendByte(&tx_payload, VISCA_AT_ONOFF);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setAtChase(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_AT_CHASE);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_AT_CHASE);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setAtChaseNext() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_AT_CHASE);
-        appendByte(&packet, VISCA_AT_CHASE_NEXT);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_AT_CHASE);
+        appendByte(&tx_payload, VISCA_AT_CHASE_NEXT);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setMdModeOnoff() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_MODE);
-        appendByte(&packet, VISCA_MD_ONOFF);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_MODE);
+        appendByte(&tx_payload, VISCA_MD_ONOFF);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setMdMode(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_MODE);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_MODE);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setMdFrame() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_FRAME);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_FRAME);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setMdDetect() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_DETECT);
-        appendByte(&packet, VISCA_MD_ONOFF);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_DETECT);
+        appendByte(&tx_payload, VISCA_MD_ONOFF);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setAtEntry(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_AT_ENTRY);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_AT_ENTRY);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setAtLostinfo() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_ATMD_LOSTINFO1);
-        appendByte(&packet, VISCA_ATMD_LOSTINFO2);
-        appendByte(&packet, VISCA_AT_LOSTINFO);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_ATMD_LOSTINFO1);
+        appendByte(&tx_payload, VISCA_ATMD_LOSTINFO2);
+        appendByte(&tx_payload, VISCA_AT_LOSTINFO);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setMdLostinfo() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_PAN_TILTER);
-        appendByte(&packet, VISCA_ATMD_LOSTINFO1);
-        appendByte(&packet, VISCA_ATMD_LOSTINFO2);
-        appendByte(&packet, VISCA_MD_LOSTINFO);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        appendByte(&tx_payload, VISCA_ATMD_LOSTINFO1);
+        appendByte(&tx_payload, VISCA_ATMD_LOSTINFO2);
+        appendByte(&tx_payload, VISCA_MD_LOSTINFO);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setMdAdjustYlevel(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_ADJUST_YLEVEL);
-        appendByte(&packet, VISCA_MD_ADJUST);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_ADJUST_YLEVEL);
+        appendByte(&tx_payload, VISCA_MD_ADJUST);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setMdAdjustHuelevel(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_ADJUST_HUELEVEL);
-        appendByte(&packet, VISCA_MD_ADJUST);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_ADJUST_HUELEVEL);
+        appendByte(&tx_payload, VISCA_MD_ADJUST);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setMdAdjustSize(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_ADJUST_SIZE);
-        appendByte(&packet, VISCA_MD_ADJUST);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_ADJUST_SIZE);
+        appendByte(&tx_payload, VISCA_MD_ADJUST);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setMdAdjustDisptime(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_ADJUST_DISPTIME);
-        appendByte(&packet, VISCA_MD_ADJUST);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_ADJUST_DISPTIME);
+        appendByte(&tx_payload, VISCA_MD_ADJUST);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setMdAdjustRefmode(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_ADJUST_REFMODE);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_ADJUST_REFMODE);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setMdAdjustReftime(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_ADJUST_REFTIME);
-        appendByte(&packet, VISCA_MD_ADJUST);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_REFTIME_QUERY);
+        appendByte(&tx_payload, VISCA_MD_ADJUST);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setMdMeasureMode1Onoff() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_MEASURE_MODE_1);
-        appendByte(&packet, VISCA_MD_ONOFF);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_MEASURE_MODE_1);
+        appendByte(&tx_payload, VISCA_MD_ONOFF);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setMdMeasureMode1(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_MEASURE_MODE_1);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_MEASURE_MODE_1);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setMdMeasureMode2Onoff() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_MEASURE_MODE_2);
-        appendByte(&packet, VISCA_MD_ONOFF);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_MEASURE_MODE_2);
+        appendByte(&tx_payload, VISCA_MD_ONOFF);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<void> Visca::setMdMeasureMode2(const uint8_t power) const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_COMMAND);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_MEASURE_MODE_2);
-        appendByte(&packet, power);
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_MEASURE_MODE_2);
+        appendByte(&tx_payload, power);
 
-        return sendPacketWithReply(&packet);
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
     }
 
     Result<uint8_t> Visca::getKeylock() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_KEYLOCK);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_KEYLOCK);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getWideConLens() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA1);
-        appendByte(&packet, VISCA_WIDE_CON_LENS);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_WIDE_CON_LENS);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getAtmdMode() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_ATMD_MODE);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_ATMD_MODE);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint16_t> Visca::getAtMode() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_AT_MODE_QUERY);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_AT_MODE_QUERY);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint16_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint16_t>::error(rx_payload.error());
         }
-        const uint16_t value = ((input_buffer_.at(2) & 0xff) << 8) + (input_buffer_.at(3) & 0xff);
+        const uint16_t value = get16Bit(rx_payload.value(), 1);
         return Result<uint16_t>::success(value);
     }
 
     Result<uint8_t> Visca::getAtEntry() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_AT_ENTRY);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_AT_ENTRY);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint16_t> Visca::getMdMode() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_MODE_QUERY);
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint16_t>::error(result.error());
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_MODE_QUERY);
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint16_t>::error(rx_payload.error());
         }
-        const uint16_t value = ((input_buffer_.at(2) & 0xff) << 8) + (input_buffer_.at(3) & 0xff);
+        const uint16_t value = get16Bit(rx_payload.value(), 1);
         return Result<uint16_t>::success(value);
     }
 
     Result<uint8_t> Visca::getMdYlevel() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_ADJUST_YLEVEL);
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_ADJUST_YLEVEL);
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        const uint8_t power = (input_buffer_.at(3) & 0x0f);
+        const uint8_t power = get8BitFromNibbles(rx_payload.value(), 0);
         return Result<uint8_t>::success(power);
     }
 
     Result<uint8_t> Visca::getMdHuelevel() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_ADJUST_HUELEVEL);
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_ADJUST_HUELEVEL);
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        const uint8_t power = (input_buffer_.at(3) & 0x0f);
+        const uint8_t power = get8BitFromNibbles(rx_payload.value(), 0);
         return Result<uint8_t>::success(power);
     }
 
     Result<uint8_t> Visca::getMdSize() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_ADJUST_SIZE);
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_ADJUST_SIZE);
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        const uint8_t power = (input_buffer_.at(3) & 0x0f);
+        const uint8_t power = get8BitFromNibbles(rx_payload.value(), 0);
         return Result<uint8_t>::success(power);
     }
 
     Result<uint8_t> Visca::getMdDisptime() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_ADJUST_DISPTIME);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_ADJUST_DISPTIME);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        const uint8_t power = (input_buffer_.at(3) & 0x0f);
+        const uint8_t power = get8BitFromNibbles(rx_payload.value(), 0);
         return Result<uint8_t>::success(power);
     }
 
     Result<uint8_t> Visca::getMdRefmode() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_ADJUST_REFMODE);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_ADJUST_REFMODE);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(getByte());
+        return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
     Result<uint8_t> Visca::getMdReftime() const {
-        ViscaPacket packet{};
+        ViscaPayload tx_payload{};
 
-        appendByte(&packet, VISCA_INQUIRY);
-        appendByte(&packet, VISCA_CATEGORY_CAMERA2);
-        appendByte(&packet, VISCA_MD_REFTIME_QUERY);
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA2);
+        appendByte(&tx_payload, VISCA_MD_REFTIME_QUERY);
 
-        if (const auto result = sendPacketWithReply(&packet); result.isError()) {
-            return Result<uint8_t>::error(result.error());
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<uint8_t>::error(rx_payload.error());
         }
-        const uint8_t power = (input_buffer_.at(3) & 0x0f);
+        const uint8_t power = get8BitFromNibbles(rx_payload.value(), 0);
         return Result<uint8_t>::success(power);
     }
 

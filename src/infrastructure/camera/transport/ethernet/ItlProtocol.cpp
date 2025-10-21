@@ -18,17 +18,16 @@ namespace camera_service::infrastructure {
 
     Result<std::vector<std::byte>> ItlProtocol::sendPayload(std::array<std::byte, 4> opcode, std::span<const std::byte> payload) const {
         const auto message = createMessage(opcode, payload);
-        const auto send_result = transport_->write(message);
-        if (send_result.isError()) {
+        if (const auto send_result = transport_->write(message); send_result.isError()) {
             return Result<std::vector<std::byte>>::error(send_result.error());
         }
 
-        auto serialized_response = transport_->read();
+        auto serialized_response = transport_->read(rx_buffer_);
         if (serialized_response.isError()) {
             return Result<std::vector<std::byte>>::error(serialized_response.error());
         }
 
-        const auto deserialized_response = deserialize(serialized_response.value());
+        const auto deserialized_response = deserialize(rx_buffer_);
         if (deserialized_response.isError()) {
             return Result<std::vector<std::byte>>::error(deserialized_response.error());
         }

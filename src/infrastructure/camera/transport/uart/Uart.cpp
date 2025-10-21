@@ -231,7 +231,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Uart::write(std::span<const std::byte> data) {
+    Result<void> Uart::write(const std::span<const std::byte> data) {
         if (!isOpen()) {
             return Result<void>::error("UART device is not open");
         }
@@ -248,13 +248,10 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<std::vector<std::byte>> Uart::read() {
+    Result<void> Uart::read(std::span<std::byte> rx_data) {
         if (!isOpen()) {
-            return Result<std::vector<std::byte>>::error("UART device is not open");
+            return Result<void>::error("UART device is not open");
         }
-
-        constexpr size_t MAX_BYTES = 1024;
-        constexpr timeval TIMEOUT_DEFAULT{10, 0}; // Long timeout for commands like go to wide/narrow
 
         while (true) {
             fd_set read_fds;
@@ -262,25 +259,24 @@ namespace camera_service::infrastructure {
             FD_SET(port_fd_, &read_fds);
 
             // reinitialize timeout each select call because select may modify it
-            timeval timeout = TIMEOUT_DEFAULT;
+            timeval timeout{10, 0};;
 
             const auto select_result = ::select(port_fd_ + 1, &read_fds, nullptr, nullptr, &timeout);
             if (select_result < 0) {
                 if (errno == EINTR) {
                     continue; // interrupted by signal, retry
                 }
-                return Result<std::vector<std::byte>>::error(std::string("Select failed: ") + std::strerror(errno));
+                return Result<void>::error(std::string("Select failed: ") + std::strerror(errno));
             }
             if (select_result == 0) {
-                return Result<std::vector<std::byte>>::error("Read timeout");
+                return Result<void>::error("Read timeout");
             }
 
             if (!FD_ISSET(port_fd_, &read_fds)) {
-                return Result<std::vector<std::byte>>::error("Select returned without UART readiness");
+                return Result<void>::error("Select returned without UART readiness");
             }
 
-            std::vector<std::byte> buffer(MAX_BYTES);
-            const ssize_t bytes_read = ::read(port_fd_, buffer.data(), buffer.size());
+            const ssize_t bytes_read = ::read(port_fd_, rx_data.data(), rx_data.size());
             if (bytes_read < 0) {
                 if (errno == EINTR) {
                     continue; // interrupted, retry
@@ -289,17 +285,16 @@ namespace camera_service::infrastructure {
                     // no data available now, loop to wait again
                     continue;
                 }
-                return Result<std::vector<std::byte>>::error(
+                return Result<void>::error(
                     std::string("Failed to read from UART: ") + std::strerror(errno));
             }
 
             if (bytes_read == 0) {
                 // EOF / device closed
-                return Result<std::vector<std::byte>>::error("UART device closed");
+                return Result<void>::error("UART device closed");
             }
 
-            buffer.resize(static_cast<size_t>(bytes_read));
-            return Result<std::vector<std::byte>>::success(std::move(buffer));
+            return Result<void>::success();
         }
     }
 

@@ -14,7 +14,7 @@ namespace camera_service::infrastructure {
         Result<void> open() override;
         Result<void> close() override;
         Result<void> write(std::span<const std::byte> data) override;
-        Result<std::vector<std::byte>> read() override;
+        Result<void> read(std::span<std::byte> rx_data) override;
         bool isOpen() const override;
         Result<void> configure(int baud_rate = 115200, int data_bits = 8,
                                int stop_bits = 1, char parity = 'N') const;

@@ -7,6 +7,7 @@
 using error_code = uint8_t;
 
 inline constexpr uint8_t VISCA_START_BYTE = 0x80;
+inline constexpr uint8_t VISCA_RESPONSE_START_BYTE = 0x90;
 inline constexpr uint8_t VISCA_COMMAND = 0x01;
 inline constexpr uint8_t VISCA_INQUIRY = 0x09;
 inline constexpr uint8_t VISCA_TERMINATOR = 0xFF;
@@ -25,6 +26,7 @@ enum class CameraModels : uint16_t {
 
 // Commands/inquiries codes
 inline constexpr uint8_t VISCA_POWER = 0x00;
+inline constexpr uint8_t VISCA_ADDRESS = 0x30;
 inline constexpr uint8_t VISCA_DEVICE_INFO = 0x02;
 inline constexpr uint8_t VISCA_KEYLOCK = 0x17;
 inline constexpr uint8_t VISCA_ID = 0x22;
@@ -264,7 +266,7 @@ enum class ResultCode : error_code {
 
 /* timeout in us */
 inline constexpr uint32_t VISCA_SERIAL_WAIT = 100000;
-/* size of the local packet buffer */
+/* size of the local payload buffer */
 inline constexpr uint32_t VISCA_INPUT_BUFFER_SIZE = 1024;
 inline constexpr uint32_t VISCA_SERIAL_PACKET_SIZE = 16;
 
@@ -279,9 +281,9 @@ namespace camera_service::infrastructure {
             std::array<uint8_t, 20> title{};
         };
 
-        struct ViscaPacket { //different for Visca over IP
+        struct ViscaPayload { //different for Visca over IP
             std::array<uint8_t, VISCA_SERIAL_PACKET_SIZE> data{};
-            size_t size = 1;
+            size_t size = 0;
         };
 
         explicit Visca(std::unique_ptr<ITransport> transport);
@@ -412,7 +414,6 @@ namespace camera_service::infrastructure {
         Result<void> setSpotAeOn() const;
         Result<void> setSpotAeOff() const;
         Result<void> setSpotAePosition(uint8_t x_position, uint8_t y_position) const;
-        /* INQUIRIES */
         Result<uint8_t> getPower() const;
         Result<uint8_t> getDzoomValue() const;
         Result<uint8_t> getDzoomLimit() const;
@@ -501,23 +502,26 @@ namespace camera_service::infrastructure {
         std::unique_ptr<ITransport> transport_;
         uint8_t address_ = 0;
         uint8_t broadcast_ = 0;
-        mutable std::array<uint8_t, 1024> input_buffer_{};
+        mutable std::array<uint8_t, 1024> rx_buffer_{};
         mutable uint32_t buffer_size_ = 0;
         uint8_t cam_address_ = 0;
 
         static std::string getViscaErrorMessage(ResultCode error_code);
-        static void appendByte(ViscaPacket* packet, uint8_t byte);
-        static void appendAsNibbles(ViscaPacket* packet, uint16_t value);
-        uint16_t getFromNibbles() const;
-        uint8_t getByte() const;
+        static void appendByte(ViscaPayload* payload, uint8_t byte);
+        static void appendAsNibbles(ViscaPayload* payload, uint16_t value);
+        static uint16_t get16BitFromNibbles(const ViscaPayload& payload, size_t index);
+        static uint8_t get8Bit(const ViscaPayload& payload, size_t index);
+        static uint8_t get8BitFromNibbles(const ViscaPayload& payload, size_t index);
+        static uint16_t get16Bit(const ViscaPayload& payload, std::size_t index);
         Result<ResponseType> getReply() const;
-        Result<void> sendPacketWithReply(ViscaPacket* packet) const;
-        Result<void> write(const ViscaPacket* packet) const;
-        void appendHeader(ViscaPacket* packet) const;
-        void appendTerminator(ViscaPacket* packet) const;
-        Result<void> sendPacket(ViscaPacket* packet) const;
+        Result<ViscaPayload> sendAndReceiveReply(ViscaPayload* payload) const;
+        Result<void> send(ViscaPayload* payload) const;
         ResultCode read() const;
         static std::string_view getCameraVendor(uint16_t vendor);
         static std::string_view getCameraModel(uint16_t model);
+        static std::span<uint8_t> serialize(ViscaPayload* payload);
+        static ViscaPayload deserialize(std::span<const uint8_t> buffer);
+        std::vector<uint8_t> encode(std::span<const uint8_t> payload) const;
+        std::vector<uint8_t> decode(std::span<const uint8_t> buffer) const;
     };
 }

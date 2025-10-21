@@ -91,10 +91,6 @@ namespace camera_service::infrastructure {
             return Result<void>::error(result.error());
         }
 
-        if (const auto result = protocol_->getCameraInfo(); result.isError()) {
-            return Result<void>::error(result.error());
-        }
-
         return Result<void>::success();
     }
 

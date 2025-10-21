@@ -37,6 +37,7 @@ namespace camera_service::infrastructure {
 
     private:
         std::unique_ptr<ITransport> transport_;
+        mutable std::array<std::byte, 1024> rx_buffer_{};
         static std::vector<std::byte> createMessage(std::array<std::byte, 4> opcode, std::span<const std::byte> payload);
         static std::vector<std::byte> serialize(const ItlMessage& message);
         static std::vector<std::byte> serializeHeader(const ItlHeader& header);

@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <vector>
 
 #include "infrastructure/camera/transport/ITransport.h"
 #include "common/types/Result.h"
@@ -15,8 +14,8 @@ namespace camera_service::infrastructure {
         Result<void> open() override;
         Result<void> close() override;
         bool isOpen() const override;
-        Result<void> write(std::span<const std::byte> data) override;
-        Result<std::vector<std::byte>> read() override;
+        Result<void> write(std::span<const std::byte> tx_data) override;
+        Result<void> read(std::span<std::byte> rx_data) override;
 
     private:
         std::string ip_;

@@ -50,23 +50,23 @@ namespace camera_service::infrastructure::uart {
         return Result<void>::success();
     }
 
-    Result<void> FakeUart::write(std::span<const std::byte> data) {
+    Result<void> FakeUart::write(std::span<const std::byte> tx_data) {
         std::unique_lock lock(data_mutex_);
         if (!is_open_) {
             return Result<void>::error("Fake UART device is not open");
         }
 
-        stored_data_.assign(data.begin(), data.end());
+        stored_data_.assign(tx_data.begin(), tx_data.end());
         return Result<void>::success();
     }
 
-    Result<std::vector<std::byte>> FakeUart::read() {
+    Result<void> FakeUart::read(const std::span<std::byte> rx_data) {
         std::shared_lock lock(data_mutex_);
         if (!is_open_) {
-            return Result<std::vector<std::byte>>::error("Fake UART device is not open");
+            return Result<void>::error("Fake UART device is not open");
         }
 
-        return Result<std::span<std::byte>>::success(stored_data_);
+        return Result<void>::success();
     }
 
     bool FakeUart::isOpen() const {

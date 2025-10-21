@@ -80,15 +80,15 @@ namespace camera_service::infrastructure {
         return true;
     }
 
-    Result<void> TcpClient::write(std::span<const std::byte> data) {
+    Result<void> TcpClient::write(const std::span<const std::byte> tx_data) {
         if (!isOpen()) {
             return Result<void>::error("Not connected");
         }
 
         size_t total_sent = 0;
 
-        while (total_sent < data.size()) {
-            const ssize_t sent = ::send(socket_fd_, data.data() + total_sent, data.size() - total_sent, 0);
+        while (total_sent < tx_data.size()) {
+            const ssize_t sent = ::send(socket_fd_, tx_data.data() + total_sent, tx_data.size() - total_sent, 0);
             if (sent < 0) {
                 return Result<void>::error("Send failed");
             }
@@ -97,13 +97,10 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<std::vector<std::byte>> TcpClient::read() {
+    Result<void> TcpClient::read(std::span<std::byte> rx_data) {
         if (!isOpen()) {
-            return Result<std::vector<std::byte>>::error("Not connected");
+            return Result<void>::error("Not connected");
         }
-
-        constexpr size_t MAX_BYTES = 4096;
-        constexpr timeval TIMEOUT_DEFAULT{1, 0};
 
         while (true) {
             fd_set read_fds;
@@ -111,7 +108,7 @@ namespace camera_service::infrastructure {
             FD_SET(socket_fd_, &read_fds);
 
             // reinitialize timeout each select call because select may modify it
-            timeval timeout = TIMEOUT_DEFAULT;
+            timeval timeout{1, 0};
 
             const auto select_result = ::select(socket_fd_ + 1, &read_fds, nullptr, nullptr, &timeout);
             if (select_result < 0) {
@@ -119,34 +116,32 @@ namespace camera_service::infrastructure {
                     // interrupted by signal, retry
                     continue;
                 }
-                return Result<std::vector<std::byte>>::error(std::string("Select failed: ") + std::strerror(errno));
+                return Result<void>::error(std::string("Select failed: ") + std::strerror(errno));
             }
             if (select_result == 0) {
-                return Result<std::vector<std::byte>>::error("Read timeout");
+                return Result<void>::error("Read timeout");
             }
 
             if (!FD_ISSET(socket_fd_, &read_fds)) {
                 // unexpected: select reported activity but socket not set
-                return Result<std::vector<std::byte>>::error("Select returned without socket readiness");
+                return Result<void>::error("Select returned without socket readiness");
             }
 
-            std::vector<std::byte> buffer(MAX_BYTES);
-            const ssize_t bytes_read = ::recv(socket_fd_, buffer.data(), buffer.size(), 0);
+            const ssize_t bytes_read = ::recv(socket_fd_, rx_data.data(), rx_data.size(), 0);
             if (bytes_read < 0) {
                 if (errno == EAGAIN || errno == EWOULDBLOCK) {
                     // try again (non-blocking case)
                     continue;
                 }
-                return Result<std::vector<std::byte>>::error(
+                return Result<void>::error(
                     std::string("Failed to receive from TCP: ") + std::strerror(errno));
             }
             if (bytes_read == 0) {
                 // peer performed orderly shutdown
-                return Result<std::vector<std::byte>>::error("Connection closed by peer");
+                return Result<void>::error("Connection closed by peer");
             }
 
-            buffer.resize(static_cast<size_t>(bytes_read));
-            return Result<std::vector<std::byte>>::success(std::move(buffer));
+            return Result<void>::success();
         }
     }
 }
