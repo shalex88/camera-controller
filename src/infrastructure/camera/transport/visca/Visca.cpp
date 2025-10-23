@@ -3,126 +3,380 @@
 #include <algorithm>
 
 namespace camera_service::infrastructure {
-    Visca::Visca(std::unique_ptr<ITransport> transport)
-        : transport_(std::move(transport)) {}
+    constexpr uint32_t VISCA_INPUT_BUFFER_SIZE = 16;
+    constexpr uint32_t VISCA_PAYLOAD_SIZE = 14;
+    constexpr uint32_t VISCA_SOCKET_NUM = 0;
+    constexpr uint8_t VISCA_START_BYTE = 0x80;
+    constexpr uint8_t VISCA_RESPONSE_START_BYTE = 0x90;
+    constexpr uint8_t VISCA_COMMAND = 0x01;
+    constexpr uint8_t VISCA_INQUIRY = 0x09;
+    constexpr uint8_t VISCA_TERMINATOR = 0xFF;
+    constexpr uint8_t VISCA_CATEGORY_INTERFACE = 0x00;
+    constexpr uint8_t VISCA_CATEGORY_CAMERA1 = 0x04;
+    constexpr uint8_t VISCA_CATEGORY_PAN_TILTER = 0x06;
+    constexpr uint8_t VISCA_CATEGORY_CAMERA2 = 0x07;
+    // Commands/inquiries codes
+    constexpr uint8_t VISCA_POWER = 0x00;
+    constexpr uint8_t VISCA_ADDRESS = 0x30;
+    constexpr uint8_t VISCA_DEVICE_INFO = 0x02;
+    constexpr uint8_t VISCA_KEYLOCK = 0x17;
+    constexpr uint8_t VISCA_ID = 0x22;
+    constexpr uint8_t VISCA_ZOOM = 0x07;
+    constexpr uint8_t VISCA_ZOOM_STOP = 0x00;
+    constexpr uint8_t VISCA_ZOOM_TELE = 0x02;
+    constexpr uint8_t VISCA_ZOOM_WIDE = 0x03;
+    constexpr uint8_t VISCA_ZOOM_TELE_SPEED = 0x20;
+    constexpr uint8_t VISCA_ZOOM_WIDE_SPEED = 0x30;
+    constexpr uint8_t VISCA_ZOOM_VALUE = 0x47;
+    constexpr uint8_t VISCA_ZOOM_FOCUS_VALUE = 0x47;
+    constexpr uint8_t VISCA_DZOOM = 0x06;
+    constexpr uint8_t VISCA_DZOOM_VALUE = 0x46;
+    constexpr uint8_t VISCA_DZOOM_LIMIT = 0x26; /* implemented for H10 */
+    constexpr uint8_t VISCA_DZOOM_1X = 0x00;
+    constexpr uint8_t VISCA_DZOOM_1_5X = 0x01;
+    constexpr uint8_t VISCA_DZOOM_2X = 0x02;
+    constexpr uint8_t VISCA_DZOOM_4X = 0x03;
+    constexpr uint8_t VISCA_DZOOM_8X = 0x04;
+    constexpr uint8_t VISCA_DZOOM_12X = 0x05;
+    constexpr uint8_t VISCA_DZOOM_MODE = 0x36;
+    constexpr uint8_t VISCA_DZOOM_COMBINE = 0x00;
+    constexpr uint8_t VISCA_DZOOM_SEPARATE = 0x01;
+    constexpr uint8_t VISCA_FOCUS = 0x08;
+    constexpr uint8_t VISCA_FOCUS_STOP = 0x00;
+    constexpr uint8_t VISCA_FOCUS_FAR = 0x02;
+    constexpr uint8_t VISCA_FOCUS_NEAR = 0x03;
+    constexpr uint8_t VISCA_FOCUS_FAR_SPEED = 0x20;
+    constexpr uint8_t VISCA_FOCUS_NEAR_SPEED = 0x30;
+    constexpr uint8_t VISCA_FOCUS_VALUE = 0x48;
+    constexpr uint8_t VISCA_FOCUS_AUTO = 0x38;
+    constexpr uint8_t VISCA_FOCUS_AUTO_MAN = 0x10;
+    constexpr uint8_t VISCA_FOCUS_ONE_PUSH = 0x18;
+    constexpr uint8_t VISCA_FOCUS_ONE_PUSH_TRIG = 0x01;
+    constexpr uint8_t VISCA_FOCUS_ONE_PUSH_INF = 0x02;
+    constexpr uint8_t VISCA_FOCUS_AUTO_SENSE = 0x58;
+    constexpr uint8_t VISCA_FOCUS_AUTO_SENSE_HIGH = 0x02;
+    constexpr uint8_t VISCA_FOCUS_AUTO_SENSE_LOW = 0x03;
+    constexpr uint8_t VISCA_FOCUS_NEAR_LIMIT = 0x28;
+    constexpr uint8_t VISCA_WB = 0x35;
+    constexpr uint8_t VISCA_WB_AUTO = 0x00;
+    constexpr uint8_t VISCA_WB_INDOOR = 0x01;
+    constexpr uint8_t VISCA_WB_OUTDOOR = 0x02;
+    constexpr uint8_t VISCA_WB_ONE_PUSH = 0x03;
+    constexpr uint8_t VISCA_WB_ATW = 0x04;
+    constexpr uint8_t VISCA_WB_MANUAL = 0x05;
+    constexpr uint8_t VISCA_WB_TRIGGER = 0x10;
+    constexpr uint8_t VISCA_WB_ONE_PUSH_TRIG = 0x05;
+    constexpr uint8_t VISCA_RGAIN = 0x03;
+    constexpr uint8_t VISCA_RGAIN_VALUE = 0x43;
+    constexpr uint8_t VISCA_BGAIN = 0x04;
+    constexpr uint8_t VISCA_BGAIN_VALUE = 0x44;
+    constexpr uint8_t VISCA_AUTO_EXP = 0x39;
+    constexpr uint8_t VISCA_AUTO_EXP_FULL_AUTO = 0x00;
+    constexpr uint8_t VISCA_AUTO_EXP_MANUAL = 0x03;
+    constexpr uint8_t VISCA_AUTO_EXP_SHUTTER_PRIORITY = 0x0A;
+    constexpr uint8_t VISCA_AUTO_EXP_IRIS_PRIORITY = 0x0B;
+    constexpr uint8_t VISCA_AUTO_EXP_GAIN_PRIORITY = 0x0C;
+    constexpr uint8_t VISCA_AUTO_EXP_BRIGHT = 0x0D;
+    constexpr uint8_t VISCA_AUTO_EXP_SHUTTER_AUTO = 0x1A;
+    constexpr uint8_t VISCA_AUTO_EXP_IRIS_AUTO = 0x1B;
+    constexpr uint8_t VISCA_AUTO_EXP_GAIN_AUTO = 0x1C;
+    constexpr uint8_t VISCA_SLOW_SHUTTER = 0x5A;
+    constexpr uint8_t VISCA_SLOW_SHUTTER_AUTO = 0x02;
+    constexpr uint8_t VISCA_SLOW_SHUTTER_MANUAL = 0x03;
+    constexpr uint8_t VISCA_SHUTTER = 0x0A;
+    constexpr uint8_t VISCA_SHUTTER_VALUE = 0x4A;
+    constexpr uint8_t VISCA_IRIS = 0x0B;
+    constexpr uint8_t VISCA_IRIS_VALUE = 0x4B;
+    constexpr uint8_t VISCA_GAIN = 0x0C;
+    constexpr uint8_t VISCA_GAIN_VALUE = 0x4C;
+    constexpr uint8_t VISCA_BRIGHT = 0x0D;
+    constexpr uint8_t VISCA_BRIGHT_VALUE = 0x4D;
+    constexpr uint8_t VISCA_EXP_COMP = 0x0E;
+    constexpr uint8_t VISCA_EXP_COMP_POWER = 0x3E;
+    constexpr uint8_t VISCA_EXP_COMP_VALUE = 0x4E;
+    constexpr uint8_t VISCA_BACKLIGHT_COMP = 0x33;
+    constexpr uint8_t VISCA_SPOT_AE = 0x59;
+    constexpr uint8_t VISCA_SPOT_AE_POSITION = 0x29;
+    constexpr uint8_t VISCA_APERTURE = 0x02;
+    constexpr uint8_t VISCA_APERTURE_VALUE = 0x42;
+    constexpr uint8_t VISCA_ZERO_LUX = 0x01;
+    constexpr uint8_t VISCA_IR_LED = 0x31;
+    constexpr uint8_t VISCA_WIDE_MODE = 0x60;
+    constexpr uint8_t VISCA_WIDE_MODE_OFF = 0x00;
+    constexpr uint8_t VISCA_WIDE_MODE_CINEMA = 0x01;
+    constexpr uint8_t VISCA_WIDE_MODE_16_9 = 0x02;
+    constexpr uint8_t VISCA_MIRROR = 0x61;
+    constexpr uint8_t VISCA_FREEZE = 0x62;
+    constexpr uint8_t VISCA_PICTURE_EFFECT = 0x63;
+    constexpr uint8_t VISCA_PICTURE_EFFECT_OFF = 0x00;
+    constexpr uint8_t VISCA_PICTURE_EFFECT_PASTEL = 0x01;
+    constexpr uint8_t VISCA_PICTURE_EFFECT_NEGATIVE = 0x02;
+    constexpr uint8_t VISCA_PICTURE_EFFECT_SEPIA = 0x03;
+    constexpr uint8_t VISCA_PICTURE_EFFECT_BW = 0x04;
+    constexpr uint8_t VISCA_PICTURE_EFFECT_SOLARIZE = 0x05;
+    constexpr uint8_t VISCA_PICTURE_EFFECT_MOSAIC = 0x06;
+    constexpr uint8_t VISCA_PICTURE_EFFECT_SLIM = 0x07;
+    constexpr uint8_t VISCA_PICTURE_EFFECT_STRETCH = 0x08;
+    constexpr uint8_t VISCA_DIGITAL_EFFECT = 0x64;
+    constexpr uint8_t VISCA_DIGITAL_EFFECT_OFF = 0x00;
+    constexpr uint8_t VISCA_DIGITAL_EFFECT_STILL = 0x01;
+    constexpr uint8_t VISCA_DIGITAL_EFFECT_FLASH = 0x02;
+    constexpr uint8_t VISCA_DIGITAL_EFFECT_LUMI = 0x03;
+    constexpr uint8_t VISCA_DIGITAL_EFFECT_TRAIL = 0x04;
+    constexpr uint8_t VISCA_DIGITAL_EFFECT_LEVEL = 0x65;
+    constexpr uint8_t VISCA_CAM_STABILIZER = 0x34;
+    constexpr uint8_t VISCA_MEMORY = 0x3F;
+    constexpr uint8_t VISCA_MEMORY_RESET = 0x00;
+    constexpr uint8_t VISCA_MEMORY_SET = 0x01;
+    constexpr uint8_t VISCA_MEMORY_RECALL = 0x02;
+    constexpr uint8_t VISCA_MEMORY_0 = 0x00;
+    constexpr uint8_t VISCA_MEMORY_1 = 0x01;
+    constexpr uint8_t VISCA_MEMORY_2 = 0x02;
+    constexpr uint8_t VISCA_MEMORY_3 = 0x03;
+    constexpr uint8_t VISCA_MEMORY_4 = 0x04;
+    constexpr uint8_t VISCA_MEMORY_5 = 0x05;
+    constexpr uint8_t VISCA_MEMORY_CUSTOM = 0x7F;
+    constexpr uint8_t VISCA_DISPLAY = 0x15;
+    constexpr uint8_t VISCA_DISPLAY_TOGGLE = 0x10;
+    constexpr uint8_t VISCA_DATE_TIME_SET = 0x70;
+    constexpr uint8_t VISCA_DATE_DISPLAY = 0x71;
+    constexpr uint8_t VISCA_TIME_DISPLAY = 0x72;
+    constexpr uint8_t VISCA_TITLE_DISPLAY = 0x74;
+    constexpr uint8_t VISCA_TITLE_DISPLAY_CLEAR = 0x00;
+    constexpr uint8_t VISCA_TITLE_SET = 0x73;
+    constexpr uint8_t VISCA_TITLE_SET_PARAMS = 0x00;
+    constexpr uint8_t VISCA_TITLE_SET_PART1 = 0x01;
+    constexpr uint8_t VISCA_TITLE_SET_PART2 = 0x02;
+    constexpr uint8_t VISCA_IRRECEIVE = 0x08;
+    constexpr uint8_t VISCA_IRRECEIVE_ONOFF = 0x10;
+    constexpr uint8_t VISCA_PT_DRIVE = 0x01;
+    constexpr uint8_t VISCA_PT_DRIVE_HORIZ_LEFT = 0x01;
+    constexpr uint8_t VISCA_PT_DRIVE_HORIZ_RIGHT = 0x02;
+    constexpr uint8_t VISCA_PT_DRIVE_HORIZ_STOP = 0x03;
+    constexpr uint8_t VISCA_PT_DRIVE_VERT_UP = 0x01;
+    constexpr uint8_t VISCA_PT_DRIVE_VERT_DOWN = 0x02;
+    constexpr uint8_t VISCA_PT_DRIVE_VERT_STOP = 0x03;
+    constexpr uint8_t VISCA_PT_ABSOLUTE_POSITION = 0x02;
+    constexpr uint8_t VISCA_PT_RELATIVE_POSITION = 0x03;
+    constexpr uint8_t VISCA_PT_HOME = 0x04;
+    constexpr uint8_t VISCA_PT_RESET = 0x05;
+    constexpr uint8_t VISCA_PT_LIMITSET = 0x07;
+    constexpr uint8_t VISCA_PT_LIMITSET_SET = 0x00;
+    constexpr uint8_t VISCA_PT_LIMITSET_CLEAR = 0x01;
+    constexpr uint8_t VISCA_PT_LIMITSET_SET_UR = 0x01;
+    constexpr uint8_t VISCA_PT_LIMITSET_SET_DL = 0x00;
+    constexpr uint8_t VISCA_PT_DATASCREEN = 0x06;
+    constexpr uint8_t VISCA_PT_DATASCREEN_ONOFF = 0x10;
+    constexpr uint8_t VISCA_PT_VIDEOSYSTEM_INQ = 0x23;
+    constexpr uint8_t VISCA_PT_MODE_INQ = 0x10;
+    constexpr uint8_t VISCA_PT_MAXSPEED_INQ = 0x11;
+    constexpr uint8_t VISCA_PT_POSITION_INQ = 0x12;
+    constexpr uint8_t VISCA_PT_DATASCREEN_INQ = 0x06;
+    /**************************/
+    /* DIRECT REGISTER ACCESS */
+    /**************************/
+    constexpr uint8_t VISCA_REGISTER_VALUE = 0x24;
+    constexpr uint8_t VISCA_REGISTER_VISCA_BAUD = 0x00;
+    constexpr uint8_t VISCA_REGISTER_BD9600 = 0x00;
+    constexpr uint8_t VISCA_REGISTER_BD19200 = 0x01;
+    constexpr uint8_t VISCA_REGISTER_BD38400 = 0x02;
+    /* FCB-H10: Video Standard */
+    constexpr uint8_t VISCA_REGISTER_VIDEO_SIGNAL = 0x70;
+    constexpr uint8_t VISCA_REGISTER_VIDEO_1080I_60 = 0x01;
+    constexpr uint8_t VISCA_REGISTER_VIDEO_720P_60 = 0x02;
+    constexpr uint8_t VISCA_REGISTER_VIDEO_D1_CROP_60 = 0x03;
+    constexpr uint8_t VISCA_REGISTER_VIDEO_D1_SQ_60 = 0x04;
+    constexpr uint8_t VISCA_REGISTER_VIDEO_1080I_50 = 0x11;
+    constexpr uint8_t VISCA_REGISTER_VIDEO_720P_50 = 0x12;
+    constexpr uint8_t VISCA_REGISTER_VIDEO_D1_CROP_50 = 0x13;
+    constexpr uint8_t VISCA_REGISTER_VIDEO_D1_SQ_50 = 0x14;
+    /*****************/
+    /* D30/D31 CODES */
+    /*****************/
+    constexpr uint8_t VISCA_WIDE_CON_LENS = 0x26;
+    constexpr uint8_t VISCA_WIDE_CON_LENS_SET = 0x00;
+    constexpr uint8_t VISCA_AT_MODE = 0x01;
+    constexpr uint8_t VISCA_AT_ONOFF = 0x10;
+    constexpr uint8_t VISCA_AT_AE = 0x02;
+    constexpr uint8_t VISCA_AT_AUTOZOOM = 0x03;
+    constexpr uint8_t VISCA_ATMD_FRAMEDISPLAY = 0x04;
+    constexpr uint8_t VISCA_AT_FRAMEOFFSET = 0x05;
+    constexpr uint8_t VISCA_ATMD_STARTSTOP = 0x06;
+    constexpr uint8_t VISCA_AT_CHASE = 0x07;
+    constexpr uint8_t VISCA_AT_CHASE_NEXT = 0x10;
+    constexpr uint8_t VISCA_MD_MODE = 0x08;
+    constexpr uint8_t VISCA_MD_ONOFF = 0x10;
+    constexpr uint8_t VISCA_MD_FRAME = 0x09;
+    constexpr uint8_t VISCA_MD_DETECT = 0x0A;
+    constexpr uint8_t VISCA_MD_ADJUST = 0x00;
+    constexpr uint8_t VISCA_MD_ADJUST_YLEVEL = 0x0B;
+    constexpr uint8_t VISCA_MD_ADJUST_HUELEVEL = 0x0C;
+    constexpr uint8_t VISCA_MD_ADJUST_SIZE = 0x0D;
+    constexpr uint8_t VISCA_MD_ADJUST_DISPTIME = 0x0F;
+    constexpr uint8_t VISCA_MD_ADJUST_REFTIME = 0x0B;
+    constexpr uint8_t VISCA_MD_ADJUST_REFMODE = 0x10;
+    constexpr uint8_t VISCA_AT_ENTRY = 0x15;
+    constexpr uint8_t VISCA_AT_LOSTINFO = 0x20;
+    constexpr uint8_t VISCA_MD_LOSTINFO = 0x21;
+    constexpr uint8_t VISCA_ATMD_LOSTINFO1 = 0x20;
+    constexpr uint8_t VISCA_ATMD_LOSTINFO2 = 0x07;
+    constexpr uint8_t VISCA_MD_MEASURE_MODE_1 = 0x27;
+    constexpr uint8_t VISCA_MD_MEASURE_MODE_2 = 0x28;
+    constexpr uint8_t VISCA_ATMD_MODE = 0x22;
+    constexpr uint8_t VISCA_AT_MODE_QUERY = 0x23; // CAM_MemSave
+    constexpr uint8_t VISCA_MD_MODE_QUERY = 0x24;
+    constexpr uint8_t VISCA_MD_REFTIME_QUERY = 0x11;
+    constexpr uint8_t VISCA_AT_POSITION = 0x20;
+    constexpr uint8_t VISCA_MD_POSITION = 0x21;
+    /* Generic definitions */
+    constexpr uint8_t VISCA_ON = 0x02;
+    constexpr uint8_t VISCA_OFF = 0x03;
+    constexpr uint8_t VISCA_RESET = 0x00;
+    constexpr uint8_t VISCA_UP = 0x02;
+    constexpr uint8_t VISCA_DOWN = 0x03;
 
-    std::span<uint8_t> Visca::serialize(ViscaPayload* payload) {
-        return {payload->data.data(), payload->size};
-    }
+    constexpr uint32_t VISCA_SERIAL_WAIT = 100000;
 
-    Visca::ViscaPayload Visca::deserialize(std::span<const uint8_t> buffer) {
-        ViscaPayload payload{};
-        payload.size = buffer.size();
-        std::ranges::copy(buffer, payload.data.begin());
-        return payload;
-    }
+    enum class ResponseType : uint32_t {
+        Clear = 0x40,
+        Address = 0x30,
+        Ack = 0x40,
+        Completed = 0x50,
+        Error = 0x60
+    };
 
-    std::vector<uint8_t> Visca::encode(std::span<const uint8_t> payload) const {
-        std::vector<uint8_t> frame(payload.size() + 2);
-        frame.at(0) = VISCA_START_BYTE;
-        frame.at(0) |= (address_ << 4);
-        if (broadcast_ > 0) {
-            frame.at(0) |= (broadcast_ << 3);
-            frame.at(0) &= 0xF8;
-        } else {
-            frame.at(0) |= cam_address_;
+    enum class ResultCode : uint8_t {
+        Success = 0x00,
+        Failure = 0xFF,
+        ErrorMessageLength = 0x01,
+        ErrorSyntax = 0x02,
+        ErrorCmdBufferFull = 0x03,
+        ErrorCmdCancelled = 0x04,
+        ErrorNoSocket = 0x05,
+        ErrorCmdNotExecutable = 0x41
+    };
+
+    enum class CameraVendors : uint16_t {
+        Sony = 0x0020
+    };
+
+    enum class CameraModels : uint16_t {
+        EW9500H = 0x070F
+    };
+
+    struct Visca::ViscaPayload {
+        std::array<uint8_t, VISCA_PAYLOAD_SIZE> data{};
+        size_t size = 0;
+    };
+
+    std::string getViscaErrorMessage(const ResultCode error_code) {
+        switch (error_code) {
+            case ResultCode::ErrorMessageLength:
+                return "Invalid message length";
+            case ResultCode::ErrorSyntax:
+                return "Syntax error";
+            case ResultCode::ErrorCmdBufferFull:
+                return "Command buffer full";
+            case ResultCode::ErrorCmdCancelled:
+                return "Command cancelled";
+            case ResultCode::ErrorNoSocket:
+                return "No socket available";
+            case ResultCode::ErrorCmdNotExecutable:
+                return "Command not executable";
+            default:
+                return "Unknown error: " + std::to_string(static_cast<uint32_t>(error_code));
         }
-
-        std::ranges::copy(payload, frame.begin() + 1);
-
-        frame.at(frame.size() - 1) = VISCA_TERMINATOR;
-        return frame;
     }
 
-    std::vector<uint8_t> Visca::decode(const std::span<const uint8_t> buffer) const {
+    std::string_view getCameraVendor(const uint16_t vendor) {
+        switch (static_cast<CameraVendors>(vendor)) {
+            case CameraVendors::Sony:
+                return "Sony";
+            default:
+                return "Unknown";
+        }
+    }
+
+    std::string_view getCameraModel(const uint16_t model) {
+        switch (static_cast<CameraModels>(model)) {
+            case CameraModels::EW9500H:
+                return "EW9500H";
+            default:
+                return "Unknown";
+        }
+    }
+
+    std::vector<uint8_t> decode(const std::span<const uint8_t> buffer) {
         if (buffer.size() < 2) {
             return {};
         }
 
-        if (buffer.front() != VISCA_RESPONSE_START_BYTE && buffer.front() != 0x88) { //TODO: magic number
+        if (buffer.front() != VISCA_RESPONSE_START_BYTE && buffer.front() != 0x88) {
+            //TODO: magic number
             return {};
         }
 
-        const auto terminator_it = std::ranges::find(rx_buffer_, static_cast<uint8_t>(VISCA_TERMINATOR));
-        if (terminator_it == rx_buffer_.end()) {
+        const auto terminator_it = std::ranges::find(buffer, static_cast<uint8_t>(VISCA_TERMINATOR));
+        if (terminator_it == buffer.end()) {
             return {};
         }
 
-        buffer_size_ = std::distance(rx_buffer_.begin(), terminator_it) + 1;
+        const auto buffer_size = std::distance(buffer.begin(), terminator_it) + 1;
 
-        std::vector<uint8_t> payload(buffer_size_ - 3);
-        std::ranges::copy(rx_buffer_.begin() + 2, rx_buffer_.begin() + buffer_size_ - 1, payload.begin());
+        std::vector<uint8_t> payload(buffer_size - 3);
+        std::ranges::copy(buffer.begin() + 2, buffer.begin() + buffer_size - 1, payload.begin());
 
         return payload;
     }
 
-    Result<void> Visca::send(ViscaPayload* payload) const {
-        const auto serialized_payload = serialize(payload);
-        const auto frame = encode(serialized_payload);
-
-        return transport_->write(frame);
-    }
-
-    Result<void> Visca::open() const {
-        return transport_->open();
-    }
-
-    Result<void> Visca::close() const {
-        return transport_->close();
-    }
-
-    void Visca::appendByte(ViscaPayload* payload, const uint8_t byte) {
+    void appendByte(Visca::ViscaPayload* payload, const uint8_t byte) {
         payload->data.at(payload->size++) = byte;
     }
 
-    void Visca::appendAsNibbles(ViscaPayload* payload, const uint16_t value) {
+    void appendAsNibbles(Visca::ViscaPayload* payload, const uint16_t value) {
         appendByte(payload, (value & 0xF000) >> 12);
         appendByte(payload, (value & 0x0F00) >> 8);
         appendByte(payload, (value & 0x00F0) >> 4);
         appendByte(payload, (value & 0x000F));
     }
 
-    Result<ResponseType> Visca::getReply() const {
-        if (const auto result = transport_->read(rx_buffer_); result.isError()) {
-            return Result<ResponseType>::error(result.error());
-        }
-        auto type = static_cast<ResponseType>(rx_buffer_.at(1) & 0xF0);
-
-        while (type == ResponseType::Ack) {
-            if (const auto result = transport_->read(rx_buffer_); result.isError()) {
-                return Result<ResponseType>::error(result.error());
-            }
-            type = static_cast<ResponseType>(rx_buffer_.at(1) & 0xF0); //TODO: payload
-        }
-
-        switch (type) {
-            case ResponseType::Clear:
-            case ResponseType::Address:
-            case ResponseType::Completed:
-            case ResponseType::Error:
-                return Result<ResponseType>::success(type);
-                break;
-            default:
-                return Result<ResponseType>::error("Unknown response type from camera");
-        }
+    uint16_t get16BitFromNibbles(const Visca::ViscaPayload& payload, const size_t index) {
+        const auto b0 = static_cast<uint16_t>(payload.data.at(index)) << 12;
+        const auto b1 = static_cast<uint16_t>(payload.data.at(index + 1)) << 8;
+        const auto b2 = static_cast<uint16_t>(payload.data.at(index + 2)) << 4;
+        const auto b3 = static_cast<uint16_t>(payload.data.at(index + 3));
+        return static_cast<uint16_t>(b0 | b1 | b2 | b3);
     }
 
-    Result<Visca::ViscaPayload> Visca::sendAndReceiveReply(ViscaPayload* payload) const {
-        if (const auto result = send(payload); result.isError()) {
-            return Result<ViscaPayload>::error(result.error());
-        }
-
-        if (const auto result = getReply(); result.isError()) {
-            return Result<ViscaPayload>::error(result.error());
-        } else if (result.value() == ResponseType::Error) {
-            return Result<ViscaPayload>::error(getViscaErrorMessage(static_cast<ResultCode>(rx_buffer_.at(2))));
-            //TODO: payload
-        }
-
-        const auto response_payload = deserialize(decode(rx_buffer_));
-
-        return Result<ViscaPayload>::success(response_payload);
+    uint8_t get8Bit(const Visca::ViscaPayload& payload, const size_t index) {
+        return static_cast<uint8_t>(payload.data.at(index));
     }
+
+    uint8_t get8BitFromNibbles(const Visca::ViscaPayload& payload, const size_t index) {
+        const auto high = static_cast<uint16_t>(payload.data.at(index)) << 4;
+        const auto low = static_cast<uint16_t>(payload.data.at(index + 1));
+        return static_cast<uint8_t>(high | low);
+    }
+
+    uint16_t get16Bit(const Visca::ViscaPayload& payload, const size_t index) {
+        const auto high = static_cast<uint16_t>(payload.data.at(index)) << 8;
+        const auto low = static_cast<uint16_t>(payload.data.at(index + 1));
+        return static_cast<uint16_t>(high | low);
+    }
+
+    std::span<uint8_t> serialize(Visca::ViscaPayload* payload) {
+        return {payload->data.data(), payload->size};
+    }
+
+    Visca::ViscaPayload deserialize(std::span<const uint8_t> buffer) {
+        Visca::ViscaPayload payload{};
+        payload.size = buffer.size();
+        std::ranges::copy(buffer, payload.data.begin());
+        return payload;
+    }
+
+    Visca::Visca(std::unique_ptr<ITransport> transport)
+        : transport_(std::move(transport)) {}
 
     Result<void> Visca::setAddress() {
         ViscaPayload tx_payload{};
@@ -150,31 +404,53 @@ namespace camera_service::infrastructure {
         appendByte(&tx_payload, 0x00);
         appendByte(&tx_payload, 0x01);
 
-        if (const auto result = send(&tx_payload); result.isError()) {
-            return Result<void>::error(result.error());
-        }
-        if (const auto result = getReply(); result.isError()) {
-            return Result<void>::error(result.error());
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
         }
         return Result<void>::success();
     }
 
-    std::string_view Visca::getCameraVendor(const uint16_t vendor) {
-        switch (static_cast<CameraVendors>(vendor)) {
-            case CameraVendors::Sony:
-                return "Sony";
-            default:
-                return "Unknown";
+    Result<std::string_view> Visca::getCameraInfo() const {
+        ViscaPayload tx_payload{};
+
+        appendByte(&tx_payload, VISCA_INQUIRY);
+        appendByte(&tx_payload, VISCA_CATEGORY_INTERFACE);
+        appendByte(&tx_payload, VISCA_DEVICE_INFO);
+
+        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        if (rx_payload.isError()) {
+            return Result<std::string_view>::error(rx_payload.error());
         }
+
+        const auto vendor = get16Bit(rx_payload.value(), 0);
+        const auto vendor_str = getCameraVendor(vendor);
+        const auto model = get16Bit(rx_payload.value(), 2);
+        const auto model_str = getCameraModel(model);
+
+        if (vendor_str == "Unknown" || model_str == "Unknown") {
+            return Result<std::string_view>::error("Unknown camera");
+        }
+
+        const auto rom_version = get16Bit(rx_payload.value(), 4);
+        const auto socket_num = get8Bit(rx_payload.value(), 6);
+
+        thread_local std::array<char, 256> buffer{};
+        const auto [out, size] = std::format_to_n(buffer.begin(), buffer.size() - 1,
+                                                  "{} {}, ROM Version: 0x{:04X}, Socket: 0x{:02X}, Address: 0x{:02X}",
+                                                  vendor_str, model_str, rom_version, socket_num, cam_address_);
+        *out = '\0';
+
+        return Result<std::string_view>::success(std::string_view{
+            buffer.data(), static_cast<std::size_t>(out - buffer.begin())
+        });
     }
 
-    std::string_view Visca::getCameraModel(const uint16_t model) {
-        switch (static_cast<CameraModels>(model)) {
-            case CameraModels::EW9500H:
-                return "EW9500H";
-            default:
-                return "Unknown";
-        }
+    Result<void> Visca::open() const {
+        return transport_->open();
+    }
+
+    Result<void> Visca::close() const {
+        return transport_->close();
     }
 
     Result<void> Visca::setPower(const uint8_t power) const {
@@ -1476,89 +1752,6 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setSpotAeOn() const {
-        ViscaPayload tx_payload{};
-
-        appendByte(&tx_payload, VISCA_COMMAND);
-        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        appendByte(&tx_payload, VISCA_SPOT_AE);
-        appendByte(&tx_payload, VISCA_ON);
-
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
-            return Result<void>::error(rx_payload.error());
-        }
-
-        return Result<void>::success();
-    }
-
-    Result<void> Visca::setSpotAeOff() const {
-        ViscaPayload tx_payload{};
-
-        appendByte(&tx_payload, VISCA_COMMAND);
-        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        appendByte(&tx_payload, VISCA_SPOT_AE);
-        appendByte(&tx_payload, VISCA_OFF);
-
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
-            return Result<void>::error(rx_payload.error());
-        }
-
-        return Result<void>::success();
-    }
-
-    Result<void> Visca::setSpotAePosition(const uint8_t x_position, const uint8_t y_position) const {
-        ViscaPayload tx_payload{};
-
-        appendByte(&tx_payload, VISCA_COMMAND);
-        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        appendByte(&tx_payload, VISCA_SPOT_AE_POSITION);
-        appendByte(&tx_payload, (x_position & 0xF0) >> 4);
-        appendByte(&tx_payload, (x_position & 0x0F));
-        appendByte(&tx_payload, (y_position & 0xF0) >> 4);
-        appendByte(&tx_payload, (y_position & 0x0F));
-
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
-            return Result<void>::error(rx_payload.error());
-        }
-
-        return Result<void>::success();
-    }
-
-    Result<std::string_view> Visca::getCameraInfo() {
-        ViscaPayload tx_payload{};
-
-        appendByte(&tx_payload, VISCA_INQUIRY);
-        appendByte(&tx_payload, VISCA_CATEGORY_INTERFACE);
-        appendByte(&tx_payload, VISCA_DEVICE_INFO);
-
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
-        if (rx_payload.isError()) {
-            return Result<std::string_view>::error(rx_payload.error());
-        }
-
-        const auto vendor = get16Bit(rx_payload.value(), 0);
-        const auto vendor_str = getCameraVendor(vendor);
-        const auto model = get16Bit(rx_payload.value(), 2);
-        const auto model_str = getCameraModel(model);
-
-        if (vendor_str == "Unknown" || model_str == "Unknown") {
-            return Result<std::string_view>::error("Unknown camera");
-        }
-
-        const auto rom_version = get16Bit(rx_payload.value(), 4);
-        const auto socket_num = get8Bit(rx_payload.value(), 6);
-
-        thread_local std::array<char, 256> buffer{};
-        const auto [out, size] = std::format_to_n(buffer.begin(), buffer.size() - 1,
-                                                  "{} {}, ROM Version: 0x{:04X}, Socket: 0x{:02X}, Address: 0x{:02X}",
-                                                  vendor_str, model_str, rom_version, socket_num, cam_address_);
-        *out = '\0';
-
-        return Result<std::string_view>::success(std::string_view{
-            buffer.data(), static_cast<std::size_t>(out - buffer.begin())
-        });
-    }
-
     Result<void> Visca::setIrreceiveOn() const {
         ViscaPayload tx_payload{};
 
@@ -1605,6 +1798,13 @@ namespace camera_service::infrastructure {
     }
 
     Result<void> Visca::setPanTiltUp(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+        if (pan_speed < 1 || pan_speed > 18) {
+            return Result<void>::error("Pan speed should be in the range 01 - 18");
+        }
+        if (tilt_speed < 1 || tilt_speed > 14) {
+            return Result<void>::error("Tilt speed should be in the range 01 - 18");
+        }
+
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1758,7 +1958,20 @@ namespace camera_service::infrastructure {
     }
 
     Result<void> Visca::setPanTiltAbsolutePosition(const uint8_t pan_speed, const uint8_t tilt_speed,
-                                                   const uint16_t pan_pos, const uint16_t tilt_pos) const {
+                                                   const uint16_t pan_position, const uint16_t tilt_position) const {
+        if (pan_speed < 1 || pan_speed > 18) {
+            return Result<void>::error("Pan speed should be in the range 01 - 18");
+        }
+        if (tilt_speed < 1 || tilt_speed > 14) {
+            return Result<void>::error("Tilt speed should be in the range 01 - 14");
+        }
+        if (pan_position < 0xFC90 || pan_position > 0x0370) {
+            return Result<void>::error("Pan position should be in the range -880 - 880");
+        }
+        if (tilt_position < 0xFED4 || tilt_position > 0x012C) {
+            return Result<void>::error("Tilt position should be in the range -300 - 300");
+        }
+
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1766,8 +1979,8 @@ namespace camera_service::infrastructure {
         appendByte(&tx_payload, VISCA_PT_ABSOLUTE_POSITION);
         appendByte(&tx_payload, pan_speed);
         appendByte(&tx_payload, tilt_speed);
-        appendAsNibbles(&tx_payload, pan_pos);
-        appendAsNibbles(&tx_payload, tilt_pos);
+        appendAsNibbles(&tx_payload, pan_position);
+        appendAsNibbles(&tx_payload, tilt_position);
 
         if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
@@ -1830,6 +2043,13 @@ namespace camera_service::infrastructure {
     }
 
     Result<void> Visca::setPanTiltLimitUpright(const uint16_t pan_limit, const uint16_t tilt_limit) const {
+        if (pan_limit < 0xFC90 || pan_limit > 0x370) {
+            return Result<void>::error("Pan limit should be in the range -880 - 880");
+        }
+        if (tilt_limit < 0xFED4 || tilt_limit > 0x12C) {
+            return Result<void>::error("Tilt limit should be in the range -300 - 300");
+        }
+
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1944,6 +2164,54 @@ namespace camera_service::infrastructure {
         appendByte(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
         appendByte(&tx_payload, VISCA_PT_DATASCREEN);
         appendByte(&tx_payload, VISCA_PT_DATASCREEN_ONOFF);
+
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
+    }
+
+    Result<void> Visca::setSpotAeOn() const {
+        ViscaPayload tx_payload{};
+
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_SPOT_AE);
+        appendByte(&tx_payload, VISCA_ON);
+
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
+    }
+
+    Result<void> Visca::setSpotAeOff() const {
+        ViscaPayload tx_payload{};
+
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_SPOT_AE);
+        appendByte(&tx_payload, VISCA_OFF);
+
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
+    }
+
+    Result<void> Visca::setSpotAePosition(const uint8_t x_position, const uint8_t y_position) const {
+        ViscaPayload tx_payload{};
+
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_SPOT_AE_POSITION);
+        appendByte(&tx_payload, (x_position & 0xF0) >> 4);
+        appendByte(&tx_payload, (x_position & 0x0F));
+        appendByte(&tx_payload, (y_position & 0xF0) >> 4);
+        appendByte(&tx_payload, (y_position & 0x0F));
 
         if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
@@ -2406,46 +2674,6 @@ namespace camera_service::infrastructure {
         return Result<uint16_t>::success(get16BitFromNibbles(rx_payload.value(), 0));
     }
 
-    Result<void> Visca::setRegister(const uint8_t reg_num, const uint8_t reg_val) const {
-        ViscaPayload tx_payload{};
-
-        appendByte(&tx_payload, VISCA_COMMAND);
-        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        appendByte(&tx_payload, VISCA_REGISTER_VALUE);
-        appendByte(&tx_payload, reg_num);
-        appendByte(&tx_payload, (reg_val & 0xF0) >> 4);
-        appendByte(&tx_payload, (reg_val & 0x0F));
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
-            return Result<void>::error(rx_payload.error());
-        }
-
-        return Result<void>::success();
-    }
-
-    uint8_t Visca::get8Bit(const ViscaPayload& payload, const size_t index) {
-        return static_cast<uint8_t>(payload.data.at(index));
-    }
-
-    uint8_t Visca::get8BitFromNibbles(const ViscaPayload& payload, const size_t index) {
-        const auto high = static_cast<uint16_t>(payload.data.at(index)) << 4;
-        const auto low = static_cast<uint16_t>(payload.data.at(index + 1));
-        return static_cast<uint8_t>(high | low);
-    }
-
-    uint16_t Visca::get16Bit(const ViscaPayload& payload, const size_t index) {
-        const auto high = static_cast<uint16_t>(payload.data.at(index)) << 8;
-        const auto low = static_cast<uint16_t>(payload.data.at(index + 1));
-        return static_cast<uint16_t>(high | low);
-    }
-
-    uint16_t Visca::get16BitFromNibbles(const ViscaPayload& payload, const size_t index) {
-        const auto b0 = static_cast<uint16_t>(payload.data.at(index)) << 12;
-        const auto b1 = static_cast<uint16_t>(payload.data.at(index + 1)) << 8;
-        const auto b2 = static_cast<uint16_t>(payload.data.at(index + 2)) << 4;
-        const auto b3 = static_cast<uint16_t>(payload.data.at(index + 3));
-        return static_cast<uint16_t>(b0 | b1 | b2 | b3);
-    }
-
     Result<uint8_t> Visca::getVideoSystem() const {
         ViscaPayload tx_payload{};
 
@@ -2522,6 +2750,22 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
+    Result<void> Visca::setRegister(const uint8_t reg_num, const uint8_t reg_val) const {
+        ViscaPayload tx_payload{};
+
+        appendByte(&tx_payload, VISCA_COMMAND);
+        appendByte(&tx_payload, VISCA_CATEGORY_CAMERA1);
+        appendByte(&tx_payload, VISCA_REGISTER_VALUE);
+        appendByte(&tx_payload, reg_num);
+        appendByte(&tx_payload, (reg_val & 0xF0) >> 4);
+        appendByte(&tx_payload, (reg_val & 0x0F));
+        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+            return Result<void>::error(rx_payload.error());
+        }
+
+        return Result<void>::success();
+    }
+
     Result<uint8_t> Visca::getRegister(const uint8_t reg_num) const {
         ViscaPayload tx_payload{};
 
@@ -2536,6 +2780,58 @@ namespace camera_service::infrastructure {
         }
         const uint8_t reg_val = get8Bit(rx_payload.value(), 0);
         return Result<uint8_t>::success(reg_val);
+    }
+
+    Result<Visca::ViscaPayload> Visca::sendAndReceiveReply(ViscaPayload* payload) const {
+        const auto serialized_payload = serialize(payload);
+        const auto frame = encode(serialized_payload);
+
+        if (const auto result = transport_->write(frame); result.isError()) {
+            return Result<ViscaPayload>::error(result.error());
+        }
+
+        std::array<uint8_t, VISCA_INPUT_BUFFER_SIZE> rx_buffer{};
+
+        if (const auto result = transport_->read(rx_buffer); result.isError()) {
+            return Result<ViscaPayload>::error(result.error());
+        }
+        auto type = static_cast<ResponseType>(rx_buffer.at(1) & 0xF0);
+
+        while (type == ResponseType::Ack) {
+            if (const auto result = transport_->read(rx_buffer); result.isError()) {
+                return Result<ViscaPayload>::error(result.error());
+            }
+            type = static_cast<ResponseType>(rx_buffer.at(1) & 0xF0); //TODO: payload
+        }
+
+        if (type == ResponseType::Error) {
+            return Result<ViscaPayload>::error(getViscaErrorMessage(static_cast<ResultCode>(rx_buffer.at(2))));
+        }
+
+        if (type != ResponseType::Completed && type != ResponseType::Address && type != ResponseType::Clear) {
+            return Result<ViscaPayload>::error("Unexpected response type from camera");
+        }
+
+        const auto response_payload = deserialize(decode(rx_buffer));
+
+        return Result<ViscaPayload>::success(response_payload);
+    }
+
+    std::vector<uint8_t> Visca::encode(std::span<const uint8_t> payload) const {
+        std::vector<uint8_t> frame(payload.size() + 2);
+        frame.at(0) = VISCA_START_BYTE;
+        frame.at(0) |= (VISCA_SOCKET_NUM << 4); // Should it always be 0?
+        if (broadcast_ > 0) {
+            frame.at(0) |= (broadcast_ << 3);
+            frame.at(0) &= 0xF8;
+        } else {
+            frame.at(0) |= cam_address_;
+        }
+
+        std::ranges::copy(payload, frame.begin() + 1);
+
+        frame.at(frame.size() - 1) = VISCA_TERMINATOR;
+        return frame;
     }
 
     /********************************/
@@ -3183,24 +3479,5 @@ namespace camera_service::infrastructure {
         }
         const uint8_t power = get8BitFromNibbles(rx_payload.value(), 0);
         return Result<uint8_t>::success(power);
-    }
-
-    std::string Visca::getViscaErrorMessage(const ResultCode error_code) {
-        switch (error_code) {
-            case ResultCode::ErrorMessageLength:
-                return "Invalid message length";
-            case ResultCode::ErrorSyntax:
-                return "Syntax error";
-            case ResultCode::ErrorCmdBufferFull:
-                return "Command buffer full";
-            case ResultCode::ErrorCmdCancelled:
-                return "Command cancelled";
-            case ResultCode::ErrorNoSocket:
-                return "No socket available";
-            case ResultCode::ErrorCmdNotExecutable:
-                return "Command not executable";
-            default:
-                return "Unknown error: " + std::to_string(static_cast<uint32_t>(error_code));
-        }
     }
 }
