@@ -12,7 +12,7 @@ namespace camera_service::infrastructure {
             throw std::invalid_argument("Device path cannot be empty");
         }
 
-        const auto colon_pos = device_path.find(":");
+        const auto colon_pos = device_path.find(':');
         if (colon_pos == std::string::npos || colon_pos == 0 || colon_pos == device_path.size() - 1) {
             throw std::invalid_argument("Device path must be in format <ip>:<port>");
         }
@@ -97,9 +97,9 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> TcpClient::read(std::span<std::byte> rx_data) {
+    Result<size_t> TcpClient::read(std::span<std::byte> rx_data) {
         if (!isOpen()) {
-            return Result<void>::error("Not connected");
+            return Result<size_t>::error("Not connected");
         }
 
         while (true) {
@@ -116,15 +116,15 @@ namespace camera_service::infrastructure {
                     // interrupted by signal, retry
                     continue;
                 }
-                return Result<void>::error(std::string("Select failed: ") + std::strerror(errno));
+                return Result<size_t>::error(std::string("Select failed: ") + std::strerror(errno));
             }
             if (select_result == 0) {
-                return Result<void>::error("Read timeout");
+                return Result<size_t>::error("Read timeout");
             }
 
             if (!FD_ISSET(socket_fd_, &read_fds)) {
                 // unexpected: select reported activity but socket not set
-                return Result<void>::error("Select returned without socket readiness");
+                return Result<size_t>::error("Select returned without socket readiness");
             }
 
             const ssize_t bytes_read = ::recv(socket_fd_, rx_data.data(), rx_data.size(), 0);
@@ -133,15 +133,15 @@ namespace camera_service::infrastructure {
                     // try again (non-blocking case)
                     continue;
                 }
-                return Result<void>::error(
+                return Result<size_t>::error(
                     std::string("Failed to receive from TCP: ") + std::strerror(errno));
             }
             if (bytes_read == 0) {
                 // peer performed orderly shutdown
-                return Result<void>::error("Connection closed by peer");
+                return Result<size_t>::error("Connection closed by peer");
             }
 
-            return Result<void>::success();
+            return Result<void>::success(static_cast<size_t>(bytes_read));
         }
     }
 }

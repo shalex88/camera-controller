@@ -39,14 +39,14 @@ namespace camera_service::infrastructure::uart {
         return Result<void>::success();
     }
 
-    Result<void> FakeUart::configure(const int baud_rate, const int data_bits, const int stop_bits, const char parity) const {
+    Result<void> FakeUart::configure(const int baud_rate, const int data_bits, const int stop_bits,
+                                     const char parity) const {
         std::shared_lock lock(data_mutex_);
         if (!is_open_) {
             return Result<void>::error("Fake UART device is not open");
         }
 
-        LOG_DEBUG("Fake UART configured: {}bps, {}{}{}",
-                  baud_rate, data_bits, parity, stop_bits);
+        LOG_DEBUG("Fake UART configured: {}bps, {}{}{}", baud_rate, data_bits, parity, stop_bits);
         return Result<void>::success();
     }
 
@@ -60,13 +60,13 @@ namespace camera_service::infrastructure::uart {
         return Result<void>::success();
     }
 
-    Result<void> FakeUart::read(const std::span<std::byte> rx_data) {
+    Result<size_t> FakeUart::read(const std::span<std::byte> rx_data) {
         std::shared_lock lock(data_mutex_);
         if (!is_open_) {
-            return Result<void>::error("Fake UART device is not open");
+            return Result<size_t>::error("Fake UART device is not open");
         }
 
-        return Result<void>::success();
+        return Result<void>::success(rx_data.size());
     }
 
     bool FakeUart::isOpen() const {

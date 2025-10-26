@@ -2794,12 +2794,16 @@ namespace camera_service::infrastructure {
 
         if (const auto result = transport_->read(rx_buffer); result.isError()) {
             return Result<ViscaPayload>::error(result.error());
+        } else if (result.value() < 3) {
+            return Result<ViscaPayload>::error("Received response is too short");
         }
         auto type = static_cast<ResponseType>(rx_buffer.at(1) & 0xF0);
 
         while (type == ResponseType::Ack) {
             if (const auto result = transport_->read(rx_buffer); result.isError()) {
                 return Result<ViscaPayload>::error(result.error());
+            } else if (result.value() < 3) {
+                return Result<ViscaPayload>::error("Received response is too short");
             }
             type = static_cast<ResponseType>(rx_buffer.at(1) & 0xF0); //TODO: payload
         }

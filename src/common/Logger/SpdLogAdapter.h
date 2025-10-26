@@ -12,7 +12,7 @@ public:
     SpdLogAdapter() : SpdLogAdapter(APP_NAME) {}
 
     explicit SpdLogAdapter(const std::string& logger_name) {
-        auto stdout_sink = std::make_shared<spdlog::sinks::ostream_sink_mt>(std::cout, true);
+        auto stdout_sink = std::make_shared<spdlog::sinks::ostream_sink_mt>(std::cout, false);
         logger_ = std::make_shared<spdlog::logger>(logger_name, stdout_sink);
         set_default_logger(logger_);
         logger_->set_level(spdlog::level::info);
@@ -27,19 +27,19 @@ public:
     }
 
     void setLogLevel(const std::string& level) override {
-        if (level == "trace")
+        if (level == "trace") {
             setLogLevel(LogLevel::Trace);
-        else if (level == "debug")
+        } else if (level == "debug") {
             setLogLevel(LogLevel::Debug);
-        else if (level == "info")
+        } else if (level == "info") {
             setLogLevel(LogLevel::Info);
-        else if (level == "warn")
+        } else if (level == "warn") {
             setLogLevel(LogLevel::Warn);
-        else if (level == "error")
+        } else if (level == "error") {
             setLogLevel(LogLevel::Error);
-        else if (level == "critical")
+        } else if (level == "critical") {
             setLogLevel(LogLevel::Critical);
-        else {
+        } else {
             throw std::invalid_argument("Invalid log severity: " + level);
         }
     }

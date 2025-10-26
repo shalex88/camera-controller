@@ -248,9 +248,9 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Uart::read(std::span<std::byte> rx_data) {
+    Result<size_t> Uart::read(std::span<std::byte> rx_data) {
         if (!isOpen()) {
-            return Result<void>::error("UART device is not open");
+            return Result<size_t>::error("UART device is not open");
         }
 
         while (true) {
@@ -266,14 +266,14 @@ namespace camera_service::infrastructure {
                 if (errno == EINTR) {
                     continue; // interrupted by signal, retry
                 }
-                return Result<void>::error(std::string("Select failed: ") + std::strerror(errno));
+                return Result<size_t>::error(std::string("Select failed: ") + std::strerror(errno));
             }
             if (select_result == 0) {
-                return Result<void>::error("Read timeout");
+                return Result<size_t>::error("Read timeout");
             }
 
             if (!FD_ISSET(port_fd_, &read_fds)) {
-                return Result<void>::error("Select returned without UART readiness");
+                return Result<size_t>::error("Select returned without UART readiness");
             }
 
             const ssize_t bytes_read = ::read(port_fd_, rx_data.data(), rx_data.size());
@@ -285,16 +285,14 @@ namespace camera_service::infrastructure {
                     // no data available now, loop to wait again
                     continue;
                 }
-                return Result<void>::error(
-                    std::string("Failed to read from UART: ") + std::strerror(errno));
+                return Result<size_t>::error(std::string("Failed to read from UART: ") + std::strerror(errno));
             }
 
             if (bytes_read == 0) {
-                // EOF / device closed
-                return Result<void>::error("UART device closed");
+                return Result<size_t>::error("UART device closed");
             }
 
-            return Result<void>::success();
+            return Result<size_t>::success(static_cast<size_t>(bytes_read));
         }
     }
 

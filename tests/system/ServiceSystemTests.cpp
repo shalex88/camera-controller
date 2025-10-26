@@ -57,12 +57,12 @@ protected:
 };
 
 TEST_F(ServiceSystemTests, CameraRequestResponse) {
-    std::cout << "Connecting to server at " << server_address_config << std::endl;
+    std::cout << "Connecting to server at " << server_address_config << "\n";
     const auto channel = CreateChannel(server_address_config, grpc::InsecureChannelCredentials());
     const GrpcClient client(channel);
 
     constexpr types::zoom test_zoom = 1u;
-    std::cout << "Test SetZoom " << test_zoom <<" and GetZoom" << std::endl;
+    std::cout << "Test SetZoom " << test_zoom <<" and GetZoom" << "\n";
     ASSERT_TRUE(client.setZoom(test_zoom).isSuccess());
 
     const auto zoom_result = client.getZoom();
@@ -70,7 +70,7 @@ TEST_F(ServiceSystemTests, CameraRequestResponse) {
     EXPECT_EQ(test_zoom, zoom_result.value());
 
     constexpr types::focus test_focus = 1u;
-    std::cout << "Test SetFocus " << test_focus <<" and GetFocus" << std::endl;
+    std::cout << "Test SetFocus " << test_focus <<" and GetFocus" << "\n";
     ASSERT_TRUE(client.setFocus(test_focus).isSuccess());
 
     const auto focus_result = client.getFocus();

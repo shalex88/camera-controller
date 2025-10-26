@@ -15,7 +15,7 @@ namespace camera_service::infrastructure {
         Result<void> close() override;
         bool isOpen() const override;
         Result<void> write(std::span<const std::byte> tx_data) override;
-        Result<void> read(std::span<std::byte> rx_data) override;
+        Result<size_t> read(std::span<std::byte> rx_data) override;
 
     private:
         std::string ip_;

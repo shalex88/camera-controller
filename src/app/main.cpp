@@ -32,7 +32,7 @@ std::string parseInputArgs(const int argc, char* argv[]) {
     if (show_version) {
         std::cout << APP_NAME << " v" << APP_VERSION_MAJOR << "."
                   << APP_VERSION_MINOR << "." << APP_VERSION_PATCH
-                  << APP_VERSION_DIRTY << std::endl;
+                  << APP_VERSION_DIRTY << "\n";
         std::exit(EXIT_SUCCESS);
     }
 

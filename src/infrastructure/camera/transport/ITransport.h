@@ -13,7 +13,7 @@ namespace camera_service::infrastructure {
         virtual Result<void> open() = 0; //TODO: do we need it in the interface or only use RAII?
         virtual Result<void> close() = 0; //TODO: do we need it in the interface or only use RAII?
         virtual Result<void> write(std::span<const std::byte> frame) = 0;
-        virtual Result<void> read(std::span<std::byte> buffer) = 0;
+        virtual Result<size_t> read(std::span<std::byte> buffer) = 0;
         virtual bool isOpen() const = 0;
 
         Result<void> write(std::string_view sv) {
@@ -27,7 +27,7 @@ namespace camera_service::infrastructure {
             return write(bytes);
         }
 
-        Result<void> read(std::span<uint8_t> buffer) {
+        Result<size_t> read(std::span<uint8_t> buffer) {
             const std::span bytes{reinterpret_cast<std::byte*>(buffer.data()), buffer.size()};
             return read(bytes);
         }

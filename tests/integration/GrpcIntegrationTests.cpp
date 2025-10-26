@@ -32,7 +32,7 @@ protected:
         });
 
         // Give the server a moment to start listening
-        std::cout << "Connecting to server at " << server_address << std::endl;
+        std::cout << "Connecting to server at " << server_address << "\n";
         const auto channel = CreateChannel(server_address, grpc::InsecureChannelCredentials());
         client = std::make_unique<GrpcClient>(channel);
     }
@@ -68,7 +68,7 @@ TEST_F(GrpcIntegrationTests, SetZoomAndGetZoomSuccess) {
     EXPECT_CALL(*core, getZoom())
         .WillOnce(Return(Result<types::zoom>::success(test_zoom)));
 
-    std::cout << "Test SetZoom " << test_zoom << " getZoom" << std::endl;
+    std::cout << "Test SetZoom " << test_zoom << " getZoom" << "\n";
     ASSERT_TRUE(client->setZoom(test_zoom).isSuccess());
     const auto get_zoom_result = client->getZoom();
     ASSERT_TRUE(get_zoom_result.isSuccess());
