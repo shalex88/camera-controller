@@ -54,6 +54,11 @@ namespace camera_service::api {
             const camera::EnableStabilizationRequest* request,
             camera::EnableStabilizationResponse* response) override;
 
+        grpc::ServerUnaryReactor* Terminate(
+            grpc::CallbackServerContext* context,
+            const camera::TerminateRequest* request,
+            camera::TerminateResponse* response) override;
+
     private:
         std::shared_ptr<IRequestHandler> request_handler_;
     };

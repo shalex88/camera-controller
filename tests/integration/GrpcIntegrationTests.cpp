@@ -97,3 +97,12 @@ TEST_F(GrpcIntegrationTests, RequestFailOnTimeout) {
     ASSERT_TRUE(result.isError());
     ASSERT_TRUE(result.error().find("Deadline") != std::string::npos);
 }
+
+TEST_F(GrpcIntegrationTests, TerminateSuccess) {
+    std::cout << "Test Terminate" << "\n";
+    const auto result = client->terminate();
+    if (result.isError()) {
+        std::cout << "Terminate failed with error: " << result.error() << "\n";
+    }
+    ASSERT_TRUE(result.isSuccess());
+}

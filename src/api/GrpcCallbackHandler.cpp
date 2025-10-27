@@ -159,4 +159,14 @@ namespace camera_service::api {
                 return request_handler_->stabilize(req->enable());
             });
     }
+
+    grpc::ServerUnaryReactor* GrpcCallbackHandler::Terminate(
+    grpc::CallbackServerContext* context,
+    const camera::TerminateRequest* request,
+    camera::TerminateResponse* response) {
+        return handleGrpcRequest(context, request, response,
+            [this](const camera::TerminateRequest* req, camera::TerminateResponse* resp) {
+                return Result<void>::success();
+            });
+    }
 }

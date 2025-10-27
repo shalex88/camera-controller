@@ -1,5 +1,5 @@
 app:
-  name: simulator
+  name: wfov
   log_level: debug
   api:
     api_type: grpc
@@ -7,5 +7,5 @@ app:
   core:
     camera: core
   data:
-    camera: mwir
-    device: 192.168.1.51:2017
+    camera: sony
+    device: /dev/ttyACM0 #TODO: pass parameters like boudrate

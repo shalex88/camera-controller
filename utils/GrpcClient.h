@@ -69,6 +69,19 @@ public:
         return Result<types::focus>::success(response.focus());
     }
 
+    Result<void> terminate(const std::chrono::milliseconds timeout = NFOV_CAMERA_LOCK_TIMEOUT_MS) const {
+        const camera::TerminateRequest request;
+        camera::TerminateResponse response;
+        grpc::ClientContext context;
+
+        context.set_deadline(std::chrono::system_clock::now() + timeout);
+
+        if (const grpc::Status status = stub_->Terminate(&context, request, &response); !status.ok()) {
+            return Result<void>::error(status.error_message());
+        }
+        return Result<void>::success();
+    }
+
 private:
     std::unique_ptr<camera::CameraService::Stub> stub_;
 };
