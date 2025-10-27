@@ -11,10 +11,8 @@
 class CoreFactoryTests : public Test {
 protected:
     CoreFactoryTests() {
-        logger_impl_ = std::make_shared<common::LayerLogger>(std::make_shared<SpdLogAdapter>(), "API");
         core_ = std::make_unique<MockCameraHal>();
     }
-    std::shared_ptr<common::LayerLogger> logger_impl_;
     std::unique_ptr<MockCameraHal> core_;
 };
 
@@ -22,7 +20,7 @@ TEST_F(CoreFactoryTests, CreateCameraCoreSuccess) {
     common::CoreConfig config;
     config.camera = "core";
 
-    const auto core = core::CoreFactory::createCore(std::move(core_), logger_impl_, config);
+    const auto core = core::CoreFactory::createCore(std::move(core_), config);
     ASSERT_NE(nullptr, core);
     ASSERT_TRUE(dynamic_cast<core::Core*>(core.get()) != nullptr);
 }
@@ -32,7 +30,7 @@ TEST_F(CoreFactoryTests, ThrowsOnUnknownType) {
     config.camera = "invalid_camera";  // Invalid camera type to trigger exception
 
     EXPECT_THROW(
-        core::CoreFactory::createCore(std::move(core_), logger_impl_, config),
+    core::CoreFactory::createCore(std::move(core_), config),
         std::invalid_argument
     );
 }
@@ -42,7 +40,7 @@ TEST_F(CoreFactoryTests, ThrowsOnNullCamera) {
     config.camera = "nfov";  // Valid camera type
 
     EXPECT_THROW(
-        core::CoreFactory::createCore(nullptr, logger_impl_, config),
+    core::CoreFactory::createCore(nullptr, config),
         std::invalid_argument
     );
 }

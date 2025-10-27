@@ -15,13 +15,11 @@ protected:
     CameraTests() {
         auto camera_strategy_obj = std::make_unique<NiceMock<MockCameraHw>>();
         camera_hw_ = camera_strategy_obj.get();
-        logger_impl_ = std::make_shared<common::LayerLogger>(std::make_shared<SpdLogAdapter>(), "Data");
-        camera_ = std::make_unique<infrastructure::Camera>(std::move(camera_strategy_obj), logger_impl_);
+        camera_ = std::make_unique<infrastructure::Camera>(std::move(camera_strategy_obj));
     }
 
     NiceMock<MockCameraHw>* camera_hw_ {};
     std::unique_ptr<infrastructure::ICamera> camera_;
-    std::shared_ptr<common::LayerLogger> logger_impl_;
 };
 
 TEST_F(CameraTests, CanBeConstructed) {

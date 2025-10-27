@@ -86,11 +86,6 @@ public:
         return Result(std::move(error));
     }
 
-    static Result error(const std::shared_ptr<camera_service::common::LayerLogger>& logger, E error) {
-        logger->error("{}", error);
-        return Result(std::move(error));
-    }
-
 private:
     using data_type = std::conditional_t<std::is_void_v<T>,
                                       std::variant<Empty, E>,

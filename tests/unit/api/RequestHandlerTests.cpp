@@ -8,14 +8,12 @@
 class RequestHandlerTests : public Test {
 protected:
     RequestHandlerTests() {
-        logger_impl_ = std::make_shared<common::LayerLogger>(std::make_shared<SpdLogAdapter>(), "API");
         core = new NiceMock<CoreMock>();
         auto core_obj = std::unique_ptr<core::ICore>(core);
-        request_handler = std::make_unique<api::RequestHandler>(std::move(core_obj), logger_impl_);
+        request_handler = std::make_unique<api::RequestHandler>(std::move(core_obj));
     }
     std::unique_ptr<api::RequestHandler> request_handler;
     NiceMock<CoreMock>* core {};
-    std::shared_ptr<common::LayerLogger> logger_impl_;
 };
 
 TEST_F(RequestHandlerTests, CreationSuccess) {
@@ -23,7 +21,7 @@ TEST_F(RequestHandlerTests, CreationSuccess) {
 }
 
 TEST_F(RequestHandlerTests, CreationFailNoCore) {
-    EXPECT_THROW(api::RequestHandler request_handler(nullptr, logger_impl_), std::invalid_argument);
+    EXPECT_THROW(api::RequestHandler request_handler(nullptr), std::invalid_argument);
 }
 
 TEST_F(RequestHandlerTests, StartSuccess) {

@@ -6,6 +6,7 @@
 #include "infrastructure/camera/devices/AdimecCamera.h"
 #include "infrastructure/camera/transport/mmio/RegistersMapManager.h"
 #include "infrastructure/camera/transport/mmio/RegisterImplUio.h"
+#include "common/logger/Logger.h"
 #include "common/types/Result.h"
 
 using namespace camera_service;
@@ -14,11 +15,11 @@ using namespace testing;
 class AdimecCameraTests : public Test {
 protected:
     AdimecCameraTests() : config_(std::make_unique<common::ConfigManager>("../../config/config-nfov.yaml")) {
+        CONFIGURE_GLOBAL_LOGGER(config_->getAppName(), config_->getLogLevel());
         auto register_impl = std::make_unique<infrastructure::RegisterImplUio>(config_->getDataConfig().device);
         auto registers_manager = std::make_unique<infrastructure::RegistersMapManager>(std::move(register_impl));
         auto camera_hw = std::make_unique<infrastructure::AdimecCamera>(std::move(registers_manager));
-        auto logger = std::make_shared<common::LayerLogger>(std::make_shared<SpdLogAdapter>(), "");
-        camera_ = std::make_unique<infrastructure::Camera>(std::move(camera_hw), std::move(logger));
+        camera_ = std::make_unique<infrastructure::Camera>(std::move(camera_hw));
     }
 
     std::unique_ptr<infrastructure::Camera> camera_;

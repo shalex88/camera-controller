@@ -9,18 +9,16 @@
 class ControllerTests : public Test {
 protected:
     void SetUp() override {
-        logger_impl_ = std::make_shared<common::LayerLogger>(std::make_shared<SpdLogAdapter>(), "API");
         request_handler = std::make_shared<NiceMock<RequestHandlerMock>>();
         transport = new NiceMock<TransportMock>();
         auto transport_obj = std::unique_ptr<api::ITransport>(transport);
-        controller = std::make_unique<api::ApiController>(request_handler, std::move(transport_obj), server_address, logger_impl_);
+        controller = std::make_unique<api::ApiController>(request_handler, std::move(transport_obj), server_address);
     }
 
     std::shared_ptr<NiceMock<RequestHandlerMock>> request_handler;
     NiceMock<TransportMock>* transport {};
     std::unique_ptr<api::ApiController> controller;
     std::string server_address = "50051";
-    std::shared_ptr<common::LayerLogger> logger_impl_;
 };
 
 TEST_F(ControllerTests, CreationSuccess) {
@@ -29,23 +27,23 @@ TEST_F(ControllerTests, CreationSuccess) {
 
 TEST_F(ControllerTests, CreationFailNoController) {
     EXPECT_THROW(api::ApiController controller(
-        nullptr,
-        std::make_unique<NiceMock<TransportMock>>(),
-        server_address, logger_impl_), std::invalid_argument);
+    nullptr,
+    std::make_unique<NiceMock<TransportMock>>(),
+    server_address), std::invalid_argument);
 }
 
 TEST_F(ControllerTests, CreationFailNoTransport) {
     EXPECT_THROW(api::ApiController controller(
-        request_handler,
-        nullptr,
-        server_address, logger_impl_), std::invalid_argument);
+    request_handler,
+    nullptr,
+    server_address), std::invalid_argument);
 }
 
 TEST_F(ControllerTests, CreationFailEmptyPort) {
     EXPECT_THROW(api::ApiController controller(
-        request_handler,
-        std::make_unique<NiceMock<TransportMock>>(),
-        "", logger_impl_), std::invalid_argument);
+    request_handler,
+    std::make_unique<NiceMock<TransportMock>>(),
+    ""), std::invalid_argument);
 }
 
 TEST_F(ControllerTests, StartStopSuccess) {

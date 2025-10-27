@@ -5,10 +5,6 @@
 #include "common/types/Result.h"
 #include "core/ICore.h"
 
-namespace camera_service::common {
-    class LayerLogger;
-}
-
 namespace camera_service::infrastructure {
     class ICamera;
 }
@@ -16,8 +12,7 @@ namespace camera_service::infrastructure {
 namespace camera_service::core {
     class Core final : public ICore {
     public:
-        explicit Core(std::unique_ptr<infrastructure::ICamera> camera,
-                     std::shared_ptr<common::LayerLogger> logger);
+        explicit Core(std::unique_ptr<infrastructure::ICamera> camera);
         ~Core() override;
 
         // ICore implementation
@@ -44,7 +39,6 @@ namespace camera_service::core {
     private:
         bool isInitialized() const;
         std::unique_ptr<infrastructure::ICamera> camera_;
-        std::shared_ptr<common::LayerLogger> logger_;
         bool is_initialized_;
     };
 }

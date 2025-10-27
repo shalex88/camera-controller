@@ -8,11 +8,9 @@
 
 namespace camera_service::api {
     ApiController::ApiController(std::shared_ptr<IRequestHandler> request_handler,
-                                 std::unique_ptr<ITransport> transport, std::string server_address,
-                                 std::shared_ptr<common::LayerLogger>
-                                 logger) : request_handler_(std::move(request_handler)),
-                                           transport_(std::move(transport)), server_address_(std::move(server_address)),
-                                           running_(false), logger_(std::move(logger)) {
+                                 std::unique_ptr<ITransport> transport, std::string server_address)
+        : request_handler_(std::move(request_handler)), transport_(std::move(transport)),
+          server_address_(std::move(server_address)), running_(false) {
         if (!request_handler_) {
             throw std::invalid_argument("Request Handler cannot be null");
         }
@@ -27,21 +25,21 @@ namespace camera_service::api {
     ApiController::~ApiController() {
         if (running_) {
             if (stop().isError()) {
-                logger_->error("ApiController failed to stop gracefully");
+                LOG_ERROR("ApiController failed to stop gracefully");
             }
         }
     }
 
     Result<void> ApiController::startAsync() {
-        logger_->info("Initializing...");
+        LOG_INFO("Initializing...");
 
         if (const auto request_handler_result = request_handler_->start(); request_handler_result.isError()) {
-            return Result<void>::error(logger_, "Failed to start: " + request_handler_result.error());
+            return Result<void>::error("Failed to start: " + request_handler_result.error());
         }
 
         if (const auto transport_result = transport_->start(server_address_); transport_result.isError()) {
-            if (request_handler_->stop().isError()) {
-                throw std::runtime_error("Request Handler is still running");
+            if (const auto result = request_handler_->stop(); result.isError()) {
+                return Result<void>::error(result.error());
             }
             return Result<void>::error(transport_result.error());
         }
@@ -50,14 +48,14 @@ namespace camera_service::api {
 
         service_thread_ = std::jthread([this] {
             if (transport_->runLoop().isError()) {
-                logger_->error("Transport run loop failed");
+                LOG_ERROR("Transport run loop failed");
                 running_ = false;
             } else {
-                logger_->info("Transport run loop completed successfully");
+                LOG_INFO("Transport run loop completed successfully");
             }
         });
 
-        logger_->info("Initialized successfully");
+        LOG_INFO("Initialized successfully");
 
         return Result<void>::success();
     }
@@ -67,7 +65,7 @@ namespace camera_service::api {
             return Result<void>::success();
         }
 
-        logger_->info("Stopping API ApiController...");
+        LOG_INFO("Stopping API ApiController...");
         running_ = false;
 
         if (const auto transport_result = transport_->stop(); transport_result.isError()) {

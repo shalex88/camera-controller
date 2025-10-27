@@ -4,7 +4,6 @@
 
 namespace camera_service::common {
     struct ApiConfig;
-    class LayerLogger;
 }
 
 namespace camera_service::core {
@@ -17,7 +16,6 @@ namespace camera_service::api {
     class ApiControllerFactory {
     public:
         static std::unique_ptr<ApiController> createController(
-            std::unique_ptr<core::ICore> core,
-            std::shared_ptr<common::LayerLogger> logger, const common::ApiConfig& config);
+            std::unique_ptr<core::ICore> core, const common::ApiConfig& config);
     };
 }

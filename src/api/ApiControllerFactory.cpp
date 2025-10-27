@@ -8,19 +8,15 @@
 
 namespace camera_service::api {
     std::unique_ptr<ApiController> ApiControllerFactory::createController(
-        std::unique_ptr<core::ICore> core, std::shared_ptr<common::LayerLogger> logger, const common::ApiConfig& config) {
+        std::unique_ptr<core::ICore> core, const common::ApiConfig& config) {
         if (!core) {
             throw std::invalid_argument("Core cannot be null");
         }
 
-        if (!logger) {
-            throw std::invalid_argument("Logger cannot be null");
-        }
-
         if (config.api == "grpc") {
-            auto request_handler = std::make_shared<RequestHandler>(std::move(core), logger);
-            auto transport = std::make_unique<GrpcTransport>(request_handler, logger);
-            return std::make_unique<ApiController>(request_handler, std::move(transport), config.server_address, logger);
+            auto request_handler = std::make_shared<RequestHandler>(std::move(core));
+            auto transport = std::make_unique<GrpcTransport>(request_handler);
+            return std::make_unique<ApiController>(request_handler, std::move(transport), config.server_address);
         }
 
         throw std::invalid_argument("Unknown API controller type: " + config.api);

@@ -4,36 +4,32 @@
 #include "infrastructure/camera/hal/ICamera.h"
 
 namespace camera_service::core {
-    Core::Core(std::unique_ptr<infrastructure::ICamera> camera,
-               std::shared_ptr<common::LayerLogger> logger)
-        : camera_(std::move(camera)), logger_(std::move(logger)), is_initialized_(false) {
+    Core::Core(std::unique_ptr<infrastructure::ICamera> camera)
+        : camera_(std::move(camera)), is_initialized_(false) {
         if (!camera_) {
             throw std::invalid_argument("Cannot initialize Core with null camera");
-        }
-        if (!logger_) {
-            throw std::invalid_argument("Logger cannot be null");
         }
     }
 
     Core::~Core() {
         if (isInitialized()) {
             if (shutdown().isError()) {
-                logger_->error("Failed to shut down Core properly");
+                LOG_ERROR("Failed to shut down Core properly");
             }
         }
     }
 
     Result<void> Core::initialize() {
-        logger_->info("Initializing...");
+        LOG_INFO("Initializing...");
 
         if (!camera_->isConnected()) {
             if (const auto connect_result = camera_->connect(); connect_result.isError()) {
-                return Result<void>::error(logger_, "Init failed: " + connect_result.error());
+                return Result<void>::error("Init failed: " + connect_result.error());
             }
         }
 
         is_initialized_ = true;
-        logger_->info("Initialized successfully");
+        LOG_INFO("Initialized successfully");
         return Result<void>::success();
     }
 
@@ -44,15 +40,15 @@ namespace camera_service::core {
 
         is_initialized_ = false;
 
-        logger_->info("Shutting down Core...");
+        LOG_INFO("Shutting down Core...");
 
         if (camera_ && camera_->isConnected()) {
             if (const auto disconnect_result = camera_->disconnect(); disconnect_result.isError()) {
-                return Result<void>::error(logger_, disconnect_result.error());
+                return Result<void>::error(disconnect_result.error());
             }
         }
 
-        logger_->info("Core shut down successfully");
+        LOG_INFO("Core shut down successfully");
         return Result<void>::success();
     }
 

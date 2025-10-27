@@ -46,22 +46,13 @@ int main(const int argc, char* argv[]) {
 
         CONFIGURE_GLOBAL_LOGGER(config->getAppName(), config->getLogLevel());
 
-        auto scoped_logger_impl = std::make_shared<SpdLogAdapter>(config->getAppName());
-        const auto api_logger = std::make_shared<camera_service::common::LayerLogger>(
-            scoped_logger_impl, "API", config->getLogLevel());
-        const auto core_logger = std::make_shared<camera_service::common::LayerLogger>(
-            scoped_logger_impl, "CORE", config->getLogLevel());
-        const auto data_logger = std::make_shared<camera_service::common::LayerLogger>(
-            scoped_logger_impl, "DATA", config->getLogLevel());
-
         LOG_INFO("{} v{}.{}.{}{}", APP_NAME, APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH,
                  APP_VERSION_DIRTY);
 
-        auto camera = camera_service::infrastructure::CameraFactory::createCamera(data_logger, config->getDataConfig());
-        auto core = camera_service::core::CoreFactory::createCore(std::move(camera), core_logger,
-                                                                  config->getCoreConfig());
+        auto camera = camera_service::infrastructure::CameraFactory::createCamera(config->getDataConfig());
+        auto core = camera_service::core::CoreFactory::createCore(std::move(camera), config->getCoreConfig());
         const auto api_controller = camera_service::api::ApiControllerFactory::createController(
-            std::move(core), api_logger, config->getApiConfig());
+            std::move(core), config->getApiConfig());
 
         if (const auto app = api_controller->startAsync(); app.isError()) {
             LOG_ERROR("Shutting down due to startup error: {}", app.error());

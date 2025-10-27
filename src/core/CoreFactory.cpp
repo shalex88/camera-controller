@@ -6,17 +6,13 @@
 
 namespace camera_service::core {
     std::unique_ptr<ICore> CoreFactory::createCore(std::unique_ptr<infrastructure::ICamera> camera,
-                                                   std::shared_ptr<common::LayerLogger> logger, const common::CoreConfig& config) {
+                                                   const common::CoreConfig& config) {
         if (!camera) {
             throw std::invalid_argument("Camera cannot be null");
         }
 
-        if (!logger) {
-            throw std::invalid_argument("Logger cannot be null");
-        }
-
         if (config.camera == "core") {
-            return std::make_unique<Core>(std::move(camera), std::move(logger));
+            return std::make_unique<Core>(std::move(camera));
         }
 
         throw std::invalid_argument("Unknown core type");

@@ -8,19 +8,17 @@
 class CoreTests : public Test {
 protected:
     CoreTests() {
-        logger_impl_ = std::make_shared<common::LayerLogger>(std::make_shared<SpdLogAdapter>(), "Core");
         camera = std::make_unique<MockCameraHal>();
     }
     std::unique_ptr<MockCameraHal> camera;
-    std::shared_ptr<common::LayerLogger> logger_impl_;
 };
 
 TEST_F(CoreTests, CanBeCreated) {
-    EXPECT_NO_THROW(core::Core(std::move(camera), logger_impl_));
+    EXPECT_NO_THROW(core::Core(std::move(camera)));
 }
 
 TEST_F(CoreTests, ThrowsOnNullCamera) {
-    EXPECT_THROW(core::Core(nullptr, logger_impl_), std::invalid_argument);
+    EXPECT_THROW(core::Core(nullptr), std::invalid_argument);
 }
 
 TEST_F(CoreTests, InitializeSuccessWhenDisconnected) {
@@ -32,7 +30,7 @@ TEST_F(CoreTests, InitializeSuccessWhenDisconnected) {
     EXPECT_CALL(*camera, disconnect())
         .WillOnce(Return(Result<void>::success()));
 
-    core::Core core(std::move(camera), logger_impl_);
+    core::Core core(std::move(camera));
     const auto result = core.initialize();
     ASSERT_TRUE(result.isSuccess()) << "Failed to initialize: " << result.error();
 }
@@ -44,7 +42,7 @@ TEST_F(CoreTests, InitializeSuccessWhenAlreadyConnected) {
     EXPECT_CALL(*camera, disconnect())
         .WillOnce(Return(Result<void>::success()));
 
-    core::Core core(std::move(camera), logger_impl_);
+    core::Core core(std::move(camera));
     const auto result = core.initialize();
     ASSERT_TRUE(result.isSuccess()) << "Failed to initialize: " << result.error();
 }
@@ -55,7 +53,7 @@ TEST_F(CoreTests, InitializeFailsOnConnectError) {
     EXPECT_CALL(*camera, connect())
         .WillOnce(Return(Result<void>::error("Failed to connect")));
 
-    core::Core core(std::move(camera), logger_impl_);
+    core::Core core(std::move(camera));
     const auto result = core.initialize();
     ASSERT_TRUE(result.isError());
     EXPECT_THAT(result.error(), ::testing::HasSubstr("Failed to connect"));
@@ -77,7 +75,7 @@ TEST_F(CoreTests, ZoomOperationsSuccess) {
 
 
     // Now create the core with the moved camera
-    core::Core core(std::move(camera), logger_impl_);
+    core::Core core(std::move(camera));
     const auto init_result = core.initialize();
     ASSERT_TRUE(init_result.isSuccess()) << "Failed to initialize: " << init_result.error();
 
@@ -90,7 +88,7 @@ TEST_F(CoreTests, ZoomOperationsSuccess) {
 }
 
 TEST_F(CoreTests, ZoomOperationsFailWhenNotInitialized) {
-    const core::Core core(std::move(camera), logger_impl_);
+    const core::Core core(std::move(camera));
 
     // Operations should fail when not initialized
     const auto set_result = core.setZoom(50);
@@ -117,7 +115,7 @@ TEST_F(CoreTests, FocusOperations) {
         .WillOnce(Return(Result<void>::success()));
 
     // Now create the core with the moved camera
-    core::Core core(std::move(camera), logger_impl_);
+    core::Core core(std::move(camera));
     const auto init_result = core.initialize();
     ASSERT_TRUE(init_result.isSuccess());
 
@@ -130,7 +128,7 @@ TEST_F(CoreTests, FocusOperations) {
 }
 
 TEST_F(CoreTests, FocusOperationsFailWhenNotInitialized) {
-    const core::Core core(std::move(camera), logger_impl_);
+    const core::Core core(std::move(camera));
 
     // Operations should fail when not initialized
     const auto set_result = core.setFocus(50);
@@ -151,7 +149,7 @@ TEST_F(CoreTests, ShutdownSuccess) {
     EXPECT_CALL(*camera, disconnect())
         .WillOnce(Return(Result<void>::success()));
 
-    core::Core core(std::move(camera), logger_impl_);
+    core::Core core(std::move(camera));
     const auto init_result = core.initialize();
     ASSERT_TRUE(init_result.isSuccess()) << "Failed to initialize: " << init_result.error();
 
@@ -160,7 +158,7 @@ TEST_F(CoreTests, ShutdownSuccess) {
 }
 
 TEST_F(CoreTests, ShutdownWhenNotInitializedSuccess) {
-    core::Core core(std::move(camera), logger_impl_);
+    core::Core core(std::move(camera));
     const auto shutdown_result = core.shutdown();
     ASSERT_TRUE(shutdown_result.isSuccess());
 }
@@ -174,7 +172,7 @@ TEST_F(CoreTests, ShutdownWhenCameraDisconnectFailsFails) {
     EXPECT_CALL(*camera, disconnect())
         .WillOnce(Return(Result<void>::error("Failed to disconnect")));
 
-    core::Core core(std::move(camera), logger_impl_);
+    core::Core core(std::move(camera));
     const auto init_result = core.initialize();
     ASSERT_TRUE(init_result.isSuccess());
 

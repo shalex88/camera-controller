@@ -10,6 +10,7 @@
 #include "core/ICore.h"
 #include "infrastructure/camera/CameraFactory.h"
 #include "infrastructure/camera/hal/ICamera.h"
+#include "common/logger/Logger.h"
 #include "common/config/ConfigManager.h"
 #include "common/types/Result.h"
 #include "../../utils/GrpcClient.h"
@@ -20,10 +21,10 @@ using namespace testing;
 class ServiceSystemTests : public Test {
 protected:
     void SetUp() override {
-        logger_impl_ = std::make_shared<common::LayerLogger>(std::make_shared<SpdLogAdapter>(), "");
-
         EXPECT_NO_THROW(config = std::make_unique<common::ConfigManager>("../../config/config.yaml"));
         ASSERT_NE(nullptr, config);
+
+        CONFIGURE_GLOBAL_LOGGER(config->getAppName(), config->getLogLevel());
 
         // Get configuration objects using the new typed API
         const auto& api_config_obj = config->getApiConfig();
@@ -34,13 +35,13 @@ protected:
         server_address_config = api_config_obj.server_address;
         camera_config = core_config_obj.camera;
 
-        EXPECT_NO_THROW(camera = infrastructure::CameraFactory::createCamera(logger_impl_, data_config_obj));
+    EXPECT_NO_THROW(camera = infrastructure::CameraFactory::createCamera(data_config_obj));
         ASSERT_NE(nullptr, camera);
 
-        EXPECT_NO_THROW(core = core::CoreFactory::createCore(std::move(camera), logger_impl_, core_config_obj));
+    EXPECT_NO_THROW(core = core::CoreFactory::createCore(std::move(camera), core_config_obj));
         ASSERT_NE(nullptr, core);
 
-        EXPECT_NO_THROW(service = camera_service::api::ApiControllerFactory::createController(std::move(core), logger_impl_, api_config_obj));
+    EXPECT_NO_THROW(service = camera_service::api::ApiControllerFactory::createController(std::move(core), api_config_obj));
         ASSERT_NE(nullptr, service);
 
         ASSERT_TRUE(service->startAsync().isSuccess());
@@ -55,7 +56,6 @@ protected:
     std::string api_config;
     std::string server_address_config;
     std::string camera_config;
-    std::shared_ptr<common::LayerLogger> logger_impl_;
 };
 
 TEST_F(ServiceSystemTests, CameraRequestResponse) {

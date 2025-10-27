@@ -6,17 +6,12 @@
 #include "common/types/Result.h"
 #include "infrastructure/camera/hal/ICamera.h"
 
-namespace camera_service::common {
-    class LayerLogger;
-}
-
 namespace camera_service::infrastructure {
     class ICameraHw;
 
     class Camera final : public ICamera {
     public:
-        explicit Camera(std::unique_ptr<ICameraHw> camera_strategy,
-                          std::shared_ptr<common::LayerLogger> logger);
+        explicit Camera(std::unique_ptr<ICameraHw> camera_strategy);
         ~Camera() override;
 
         Result<void> setZoom(types::zoom normalized_zoom) const override;
@@ -36,7 +31,6 @@ namespace camera_service::infrastructure {
 
     private:
         std::unique_ptr<ICameraHw> camera_hw_;
-        std::shared_ptr<common::LayerLogger> logger_;
         bool connected_ {false};
 
         static bool isValidNormalizedZoom(types::zoom value);

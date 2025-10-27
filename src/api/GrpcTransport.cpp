@@ -8,21 +8,16 @@
 #include "common/logger/Logger.h"
 
 namespace camera_service::api {
-    GrpcTransport::GrpcTransport(std::shared_ptr<IRequestHandler> request_handler,
-                                std::shared_ptr<common::LayerLogger> logger)
-        : logger_(std::move(logger)) {
+    GrpcTransport::GrpcTransport(std::shared_ptr<IRequestHandler> request_handler) {
         if (!request_handler) {
             throw std::invalid_argument("Request Handler cannot be null");
-        }
-        if (!logger_) {
-            throw std::invalid_argument("Logger cannot be null");
         }
         callback_handler_ = std::make_unique<GrpcCallbackHandler>(std::move(request_handler));
     }
 
     GrpcTransport::~GrpcTransport() {
         if (stop().isError()) {
-            logger_->error("Failed to stop the gRPC server");
+            LOG_ERROR("Failed to stop the gRPC server");
         }
     }
 
@@ -41,7 +36,7 @@ namespace camera_service::api {
             return Result<void>::error("Failed to start the gRPC server");
         }
 
-        logger_->info("Listening on {}", server_address);
+        LOG_INFO("Listening on {}", server_address);
         return Result<void>::success();
     }
 

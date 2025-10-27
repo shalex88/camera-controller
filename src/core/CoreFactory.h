@@ -3,7 +3,6 @@
 
 namespace camera_service::common {
     struct CoreConfig;
-    class LayerLogger;
 }
 
 namespace camera_service::infrastructure {
@@ -16,7 +15,6 @@ namespace camera_service::core {
     class CoreFactory {
     public:
         static std::unique_ptr<ICore> createCore(
-            std::unique_ptr<infrastructure::ICamera> camera,
-            std::shared_ptr<common::LayerLogger> logger, const common::CoreConfig& config);
+            std::unique_ptr<infrastructure::ICamera> camera, const common::CoreConfig& config);
     };
 }

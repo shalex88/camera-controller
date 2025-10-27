@@ -17,44 +17,39 @@
 #include "infrastructure/camera/transport/mmio/RegistersMapManager.h"
 
 namespace camera_service::infrastructure {
-    std::unique_ptr<ICamera> CameraFactory::createCamera(
-        std::shared_ptr<common::LayerLogger> logger, const common::DataConfig& config) {
-        logger->info("Camera: {}", config.camera);
-        logger->debug("Device: {}", config.device);
-
-        if (!logger) {
-            throw std::invalid_argument("Logger cannot be null");
-        }
+    std::unique_ptr<ICamera> CameraFactory::createCamera(const common::DataConfig& config) {
+        LOG_INFO("Camera: {}", config.camera);
+        LOG_DEBUG("Device: {}", config.device);
 
         if (config.camera == "adimec") {
             auto transport = std::make_unique<RegisterImplUio>(config.device);
             auto protocol = std::make_unique<RegistersMapManager>(std::move(transport));
             auto camera = std::make_unique<AdimecCamera>(std::move(protocol));
-            return std::make_unique<Camera>(std::move(camera), std::move(logger));
+            return std::make_unique<Camera>(std::move(camera));
         }
 
         if (config.camera == "sony") {
             auto transport = std::make_unique<Uart>(config.device);
             auto protocol = std::make_unique<ViscaProtocol>(std::move(transport));
             auto camera = std::make_unique<SonyCamera>(std::move(protocol));
-            return std::make_unique<Camera>(std::move(camera), std::move(logger));
+            return std::make_unique<Camera>(std::move(camera));
         }
 
         if (config.camera == "mwir") {
             auto transport = std::make_unique<TcpClient>(config.device);
             auto protocol = std::make_unique<ItlProtocol>(std::move(transport));
             auto camera = std::make_unique<MwirCamera>(std::move(protocol));
-            return std::make_unique<Camera>(std::move(camera), std::move(logger));
+            return std::make_unique<Camera>(std::move(camera));
         }
 
         if (config.camera == "fake_advanced") {
             auto camera = std::make_unique<FakeAdvancedCamera>();
-            return std::make_unique<Camera>(std::move(camera), std::move(logger));
+            return std::make_unique<Camera>(std::move(camera));
         }
 
         if (config.camera == "fake_simple") {
             auto camera = std::make_unique<FakeSimpleCamera>();
-            return std::make_unique<Camera>(std::move(camera), std::move(logger));
+            return std::make_unique<Camera>(std::move(camera));
         }
 
         throw std::invalid_argument("Unknown camera type: " + config.camera);

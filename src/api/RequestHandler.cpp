@@ -4,8 +4,8 @@
 #include "core/ICore.h"
 
 namespace camera_service::api {
-    RequestHandler::RequestHandler(std::unique_ptr<core::ICore> core, std::shared_ptr<common::LayerLogger> logger)
-        : core_(std::move(core)), running_(false), logger_(std::move(logger)) {
+    RequestHandler::RequestHandler(std::unique_ptr<core::ICore> core)
+        : core_(std::move(core)), running_(false) {
         if (!core_) {
             throw std::invalid_argument("Core cannot be null");
         }
@@ -14,7 +14,7 @@ namespace camera_service::api {
     RequestHandler::~RequestHandler() {
         if (running_) {
             if (stop().isError()) {
-                logger_->error("RequestHandler failed to stop gracefully");
+                LOG_ERROR("RequestHandler failed to stop gracefully");
             }
         }
     }
@@ -33,12 +33,12 @@ namespace camera_service::api {
             return Result<void>::success();
         }
 
-        logger_->debug("Stopping Request Handler...");
+        LOG_DEBUG("Stopping Request Handler...");
         running_ = false;
 
         if (core_) {
             if (const auto shutdown_result = core_->shutdown(); shutdown_result.isError()) {
-                logger_->error("Error stopping core: {}", shutdown_result.error());
+                LOG_ERROR("Error stopping core: {}", shutdown_result.error());
                 return Result<void>::error("Failed to shut down core: " + shutdown_result.error());
             }
         }
@@ -54,14 +54,14 @@ namespace camera_service::api {
             return Result<void>::error("Request Handler is not running");
         }
 
-        logger_->info("Request: {} {}", __func__, zoom_level);
+        LOG_INFO("Request: {} {}", __func__, zoom_level);
 
         auto operation = core_->setZoom(zoom_level);
 
         if (operation.isError()) {
-            logger_->error("Response: {}", operation.error());
+            LOG_ERROR("Response: {}", operation.error());
         } else {
-            logger_->info("Response: Success");
+            LOG_INFO("Response: Success");
         }
 
         return operation;
@@ -72,14 +72,14 @@ namespace camera_service::api {
             return Result<types::zoom>::error("Request Handler is not running");
         }
 
-        logger_->info("Request: {}", __func__);
+        LOG_INFO("Request: {}", __func__);
 
         auto operation = core_->getZoom();
 
         if (operation.isError()) {
-            logger_->error("Response: {}", operation.error());
+            LOG_ERROR("Response: {}", operation.error());
         } else {
-            logger_->info("Response: {}", operation.value());
+            LOG_INFO("Response: {}", operation.value());
         }
 
         return operation;
@@ -90,14 +90,14 @@ namespace camera_service::api {
             return Result<void>::error("Request Handler is not running");
         }
 
-        logger_->info("Request: {}", __func__);
+        LOG_INFO("Request: {}", __func__);
 
         auto operation = core_->goToMinZoom();
 
         if (operation.isError()) {
-            logger_->error("Response: {}", operation.error());
+            LOG_ERROR("Response: {}", operation.error());
         } else {
-            logger_->info("Response: Success");
+            LOG_INFO("Response: Success");
         }
 
         return operation;
@@ -108,14 +108,14 @@ namespace camera_service::api {
             return Result<void>::error("Request Handler is not running");
         }
 
-        logger_->info("Request: {}", __func__);
+        LOG_INFO("Request: {}", __func__);
 
         auto operation = core_->goToMaxZoom();
 
         if (operation.isError()) {
-            logger_->error("Response: {}", operation.error());
+            LOG_ERROR("Response: {}", operation.error());
         } else {
-            logger_->info("Response: Success");
+            LOG_INFO("Response: Success");
         }
 
         return operation;
@@ -126,14 +126,14 @@ namespace camera_service::api {
             return Result<void>::error("Request Handler is not running");
         }
 
-        logger_->info("Request: {} {}", __func__, focus_value);
+        LOG_INFO("Request: {} {}", __func__, focus_value);
 
         auto operation = core_->setFocus(focus_value);
 
         if (operation.isError()) {
-            logger_->error("Response: {}", operation.error());
+            LOG_ERROR("Response: {}", operation.error());
         } else {
-            logger_->info("Response: Success");
+            LOG_INFO("Response: Success");
         }
 
         return operation;
@@ -144,14 +144,14 @@ namespace camera_service::api {
             return Result<types::focus>::error("Request Handler is not running");
         }
 
-        logger_->info("Request: {}", __func__);
+        LOG_INFO("Request: {}", __func__);
 
         auto operation = core_->getFocus();
 
         if (operation.isError()) {
-            logger_->error("Response: {}", operation.error());
+            LOG_ERROR("Response: {}", operation.error());
         } else {
-            logger_->info("Response: {}", operation.value());
+            LOG_INFO("Response: {}", operation.value());
         }
 
         return operation;
@@ -162,13 +162,13 @@ namespace camera_service::api {
             return Result<void>::error("Request Handler is not running");
         }
 
-        logger_->info("Request: {} {}", __func__, on);
+        LOG_INFO("Request: {} {}", __func__, on);
 
         auto operation = core_->enableAutoFocus(on);
         if (operation.isError()) {
-            logger_->error("Response: {}", operation.error());
+            LOG_ERROR("Response: {}", operation.error());
         } else {
-            logger_->info("Response: Success");
+            LOG_INFO("Response: Success");
         }
 
         return operation;
@@ -179,14 +179,14 @@ namespace camera_service::api {
             return Result<types::info>::error("Request Handler is not running");
         }
 
-        logger_->info("Request: {}", __func__);
+        LOG_INFO("Request: {}", __func__);
 
         auto operation = core_->getInfo();
 
         if (operation.isError()) {
-            logger_->error("Response: {}", operation.error());
+            LOG_ERROR("Response: {}", operation.error());
         } else {
-            logger_->info("Response: {}", operation.value());
+            LOG_INFO("Response: {}", operation.value());
         }
 
         return operation;
@@ -197,13 +197,13 @@ namespace camera_service::api {
             return Result<void>::error("Request Handler is not running");
         }
 
-        logger_->info("Request: {} {}", __func__, on);
+        LOG_INFO("Request: {} {}", __func__, on);
 
         auto operation = core_->stabilize(on);
         if (operation.isError()) {
-            logger_->error("Response: {}", operation.error());
+            LOG_ERROR("Response: {}", operation.error());
         } else {
-            logger_->info("Response: Success");
+            LOG_INFO("Response: Success");
         }
 
         return operation;

@@ -13,7 +13,8 @@ namespace camera_service::api {
 
     class ApiController final {
     public:
-        explicit ApiController(std::shared_ptr<IRequestHandler> request_handler, std::unique_ptr<ITransport> transport, std::string  server_address, std::shared_ptr<common::LayerLogger> logger);
+    explicit ApiController(std::shared_ptr<IRequestHandler> request_handler,
+                   std::unique_ptr<ITransport> transport, std::string server_address);
         ~ApiController();
 
         Result<void> startAsync();
@@ -26,6 +27,5 @@ namespace camera_service::api {
         std::string server_address_;
         std::atomic<bool> running_;
         std::jthread service_thread_;
-        std::shared_ptr<common::LayerLogger> logger_;
     };
 }

@@ -17,16 +17,16 @@ public:
 class LoggerTest: public Test {
 protected:
     void SetUp() override {
-        auto mock = std::make_unique<NiceMock<MockLoggerAdapter>>(); // Prevent side effects caused by the singleton
+        auto mock = std::make_shared<NiceMock<MockLoggerAdapter>>(); // Prevent side effects caused by the singleton
         mock_logger = mock.get(); // Keep a raw pointer for expectations
-        camera_service::common::GlobalLogger::getInstance().setLoggerAdapter(std::move(mock));
+        camera_service::common::LoggerRegistry::instance().setLoggerAdapter(std::move(mock), "info");
     }
 
     void TearDown() override {
-        camera_service::common::GlobalLogger::getInstance().setLoggerAdapter(std::make_unique<SpdLogAdapter>()); // Reset the logger adapter to avoid side effects
+        camera_service::common::LoggerRegistry::instance().setLoggerAdapter(std::make_shared<SpdLogAdapter>(), "info"); // Reset the logger adapter to avoid side effects
     }
 
-    NiceMock<MockLoggerAdapter>* mock_logger{};
+    NiceMock<MockLoggerAdapter>* mock_logger {};
 };
 
 TEST_F(LoggerTest, SetLogLevelToTrace) {
