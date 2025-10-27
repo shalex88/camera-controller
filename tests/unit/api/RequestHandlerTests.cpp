@@ -8,14 +8,14 @@
 class RequestHandlerTests : public Test {
 protected:
     RequestHandlerTests() {
-        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "API");
+        logger_impl_ = std::make_shared<common::LayerLogger>(std::make_shared<SpdLogAdapter>(), "API");
         core = new NiceMock<CoreMock>();
         auto core_obj = std::unique_ptr<core::ICore>(core);
         request_handler = std::make_unique<api::RequestHandler>(std::move(core_obj), logger_impl_);
     }
     std::unique_ptr<api::RequestHandler> request_handler;
     NiceMock<CoreMock>* core {};
-    std::shared_ptr<LayerLogger> logger_impl_;
+    std::shared_ptr<common::LayerLogger> logger_impl_;
 };
 
 TEST_F(RequestHandlerTests, CreationSuccess) {

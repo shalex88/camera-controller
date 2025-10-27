@@ -10,7 +10,7 @@
 class GrpcTransportTests : public Test {
 protected:
     void SetUp() override {
-        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "Data");
+        logger_impl_ = std::make_shared<common::LayerLogger>(std::make_shared<SpdLogAdapter>(), "Data");
         request_handler = std::make_shared<api::RequestHandler>(std::make_unique<CoreMock>(), logger_impl_);
         grpc_transport = std::make_unique<api::GrpcTransport>(request_handler, logger_impl_);
     }
@@ -18,7 +18,7 @@ protected:
     std::shared_ptr<api::RequestHandler> request_handler;
     std::unique_ptr<api::GrpcTransport> grpc_transport;
     std::string server_address = "0.0.0.0:50051";
-    std::shared_ptr<LayerLogger> logger_impl_;
+    std::shared_ptr<common::LayerLogger> logger_impl_;
 };
 
 TEST_F(GrpcTransportTests, CreationSuccess) {
@@ -84,7 +84,7 @@ TEST_F(GrpcTransportTests, RunLoopAfterStopShouldFail) {
 TEST_F(GrpcTransportTests, RunLoopWithRunningServerShouldSucceed) {
     EXPECT_TRUE(grpc_transport->start(server_address).isSuccess());
 
-    std::thread server_thread([&] {
+    std::jthread server_thread([&] {
         const auto result = grpc_transport->runLoop();
         ASSERT_TRUE(result.isSuccess());
     });
@@ -92,5 +92,4 @@ TEST_F(GrpcTransportTests, RunLoopWithRunningServerShouldSucceed) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     EXPECT_TRUE(grpc_transport->stop().isSuccess());
-    server_thread.join();
 }

@@ -1,9 +1,11 @@
 #include "Core.h"
-#include "../infrastructure/camera/hal/ICameraHal.h"
+
+#include "common/logger/Logger.h"
+#include "infrastructure/camera/hal/ICamera.h"
 
 namespace camera_service::core {
-    Core::Core(std::unique_ptr<infrastructure::ICameraHal> camera,
-               std::shared_ptr<LayerLogger> logger)
+    Core::Core(std::unique_ptr<infrastructure::ICamera> camera,
+               std::shared_ptr<common::LayerLogger> logger)
         : camera_(std::move(camera)), logger_(std::move(logger)), is_initialized_(false) {
         if (!camera_) {
             throw std::invalid_argument("Cannot initialize Core with null camera");

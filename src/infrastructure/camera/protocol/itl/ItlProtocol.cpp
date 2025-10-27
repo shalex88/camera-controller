@@ -3,10 +3,14 @@
 #include <cstdio>
 #include <cstring>
 
+#include "infrastructure/camera/transport/ITransport.h"
+
 namespace camera_service::infrastructure {
     ItlProtocol::ItlProtocol(std::unique_ptr<ITransport> transport)
         : transport_(std::move(transport)) {
     }
+
+    ItlProtocol::~ItlProtocol() = default;
 
     Result<void> ItlProtocol::connect() const {
         return transport_->open();
@@ -22,8 +26,7 @@ namespace camera_service::infrastructure {
             return Result<std::vector<std::byte>>::error(send_result.error());
         }
 
-        auto serialized_response = transport_->read(rx_buffer_);
-        if (serialized_response.isError()) {
+        if (const auto serialized_response = transport_->read(rx_buffer_); serialized_response.isError()) {
             return Result<std::vector<std::byte>>::error(serialized_response.error());
         }
 
@@ -113,8 +116,7 @@ namespace camera_service::infrastructure {
         std::copy_n(data.begin() + offset, 2, message.header.length.begin());
         offset += 2;
 
-        const uint16_t length = fromBytes(message.header.length);
-        if (length != data.size()) {
+        if (const uint16_t length = fromBytes(message.header.length); length != data.size()) {
             return Result<ItlMessage>::error("Length field does not match actual data size");
         }
 

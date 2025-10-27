@@ -1,9 +1,10 @@
 #include "AdimecCamera.h"
 
-#include <thread>
 #include <chrono>
+#include <thread>
 
-#include "common/Logger/Logger.h"
+#include "common/logger/Logger.h"
+#include "infrastructure/camera/transport/mmio/RegistersMapManager.h"
 
 #define NFOV_CAMERA_LOCK_TIMEOUT_MS 200 //TODO: remove when real async camera control is implemented
 
@@ -12,8 +13,7 @@ namespace camera_service::infrastructure {
     }
 
     Result<void> AdimecCamera::setZoom(const types::zoom zoom) const {
-        const auto result = fpga_->setValue(REG::ZOOM, static_cast<uint32_t>(zoom));
-        if (result.isError()) {
+        if (const auto result = fpga_->setValue(REG::ZOOM, static_cast<uint32_t>(zoom)); result.isError()) {
             return Result<void>::error("Failed to set zoom: " + result.error());
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
@@ -30,8 +30,7 @@ namespace camera_service::infrastructure {
     }
 
     Result<void> AdimecCamera::setFocus(const types::focus focus) const {
-        const auto result = fpga_->setValue(REG::FOCUS, static_cast<uint32_t>(focus));
-        if (result.isError()) {
+        if (const auto result = fpga_->setValue(REG::FOCUS, static_cast<uint32_t>(focus)); result.isError()) {
             return Result<void>::error("Failed to set focus: " + result.error());
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));

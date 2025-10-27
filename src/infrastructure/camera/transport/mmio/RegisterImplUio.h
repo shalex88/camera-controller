@@ -1,7 +1,8 @@
 #pragma once
 
-#include "IRegisterImpl.h"
 #include <string>
+
+#include "IRegisterImpl.h"
 
 namespace camera_service::infrastructure {
 

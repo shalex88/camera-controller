@@ -1,11 +1,14 @@
 #pragma once
 
+#include <array>
 #include <memory>
 
-#include "infrastructure/camera/transport/ITransport.h"
+#include "common/types/Result.h"
 
 namespace camera_service::infrastructure {
-    class Visca {
+    class ITransport;
+
+    class ViscaProtocol {
     public:
         struct ViscaPayload;
         struct ViscaTitleData {
@@ -16,8 +19,8 @@ namespace camera_service::infrastructure {
             std::array<uint8_t, 20> title{};
         };
 
-        explicit Visca(std::unique_ptr<ITransport> transport);
-        ~Visca() = default;
+        explicit ViscaProtocol(std::unique_ptr<ITransport> transport);
+        ~ViscaProtocol();
 
         Result<void> setAddress();
         Result<void> clear() const;

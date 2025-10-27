@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../hal/ICameraHw.h"
 #include "common/types/CameraCapabilities.h"
+#include "infrastructure/camera/hal/ICameraHw.h"
 
 namespace camera_service::infrastructure {
     class FakeAdvancedCamera final : public ICameraHw,

@@ -1,17 +1,23 @@
 #pragma once
 #include <memory>
 
-#include "core/ICore.h"
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
-#include "common/Logger/Logger.h"
-#include "infrastructure/camera/hal/ICameraHal.h"
+#include "core/ICore.h"
+
+namespace camera_service::common {
+    class LayerLogger;
+}
+
+namespace camera_service::infrastructure {
+    class ICamera;
+}
 
 namespace camera_service::core {
     class Core final : public ICore {
     public:
-        explicit Core(std::unique_ptr<infrastructure::ICameraHal> camera,
-                     std::shared_ptr<LayerLogger> logger);
+        explicit Core(std::unique_ptr<infrastructure::ICamera> camera,
+                     std::shared_ptr<common::LayerLogger> logger);
         ~Core() override;
 
         // ICore implementation
@@ -37,8 +43,8 @@ namespace camera_service::core {
 
     private:
         bool isInitialized() const;
-        std::unique_ptr<infrastructure::ICameraHal> camera_;
-        std::shared_ptr<LayerLogger> logger_;
+        std::unique_ptr<infrastructure::ICamera> camera_;
+        std::shared_ptr<common::LayerLogger> logger_;
         bool is_initialized_;
     };
 }

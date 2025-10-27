@@ -1,10 +1,11 @@
 #pragma once
 
+#include "api/proto/camera_service.grpc.pb.h" //TODO: can move to implementation file?
 #include "api/proto/camera_service.pb.h"
-#include "api/proto/camera_service.grpc.pb.h"
-#include "api/IRequestHandler.h"
 
 namespace camera_service::api {
+    class IRequestHandler;
+
     class GrpcCallbackHandler final : public camera::CameraService::CallbackService {
     public:
         explicit GrpcCallbackHandler(std::shared_ptr<IRequestHandler> request_handler);

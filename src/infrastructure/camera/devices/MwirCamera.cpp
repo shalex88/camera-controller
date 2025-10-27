@@ -1,5 +1,6 @@
 #include "MwirCamera.h"
 
+#include "infrastructure/camera/protocol/itl/ItlProtocol.h"
 #include "infrastructure/camera/transport/ethernet/MwirOpcodes.h"
 
 namespace camera_service::infrastructure {
@@ -8,6 +9,8 @@ namespace camera_service::infrastructure {
             throw std::invalid_argument("Protocol cannot be null");
         }
     }
+
+    MwirCamera::~MwirCamera() = default;
 
     Result<void> MwirCamera::setZoom(const types::zoom zoom) const {
         zoom_ = zoom;

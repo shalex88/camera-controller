@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 /* Add your project include files here */
-#include "common/Logger/Logger.h"
+#include "common/logger/Logger.h"
 
-#include "common/Logger/LoggerInterface.h"
+#include "common/logger/LoggerInterface.h"
 
 using namespace testing;
 
@@ -19,11 +19,11 @@ protected:
     void SetUp() override {
         auto mock = std::make_unique<NiceMock<MockLoggerAdapter>>(); // Prevent side effects caused by the singleton
         mock_logger = mock.get(); // Keep a raw pointer for expectations
-        GlobalLogger::getInstance().setLoggerAdapter(std::move(mock));
+        camera_service::common::GlobalLogger::getInstance().setLoggerAdapter(std::move(mock));
     }
 
     void TearDown() override {
-        GlobalLogger::getInstance().setLoggerAdapter(std::make_unique<SpdLogAdapter>()); // Reset the logger adapter to avoid side effects
+        camera_service::common::GlobalLogger::getInstance().setLoggerAdapter(std::make_unique<SpdLogAdapter>()); // Reset the logger adapter to avoid side effects
     }
 
     NiceMock<MockLoggerAdapter>* mock_logger{};

@@ -1,7 +1,9 @@
 #pragma once
+
 #include <string>
-#include "common/types/Result.h"
+
 #include "common/types/CameraTypes.h"
+#include "common/types/Result.h"
 
 namespace camera_service::core {
     class CoreException final : public std::runtime_error {

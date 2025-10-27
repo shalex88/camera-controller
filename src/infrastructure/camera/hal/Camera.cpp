@@ -1,8 +1,11 @@
-#include "CameraHal.h"
+#include "Camera.h"
+
+#include "common/logger/Logger.h"
+#include "infrastructure/camera/hal/ICameraHw.h"
 
 namespace camera_service::infrastructure {
-    CameraHal::CameraHal(std::unique_ptr<ICameraHw> camera_strategy,
-                        std::shared_ptr<LayerLogger> logger)
+    Camera::Camera(std::unique_ptr<ICameraHw> camera_strategy,
+                        std::shared_ptr<common::LayerLogger> logger)
         : camera_hw_(std::move(camera_strategy)), logger_(std::move(logger)) {
         if (!camera_hw_) {
             throw std::invalid_argument("Camera hardware cannot be null");
@@ -18,7 +21,7 @@ namespace camera_service::infrastructure {
         }
     }
 
-    CameraHal::~CameraHal() {
+    Camera::~Camera() {
         if (isConnected()) {
             if (disconnect().isError()) {
                 logger_->error("Failed to disconnect Camera");
@@ -26,7 +29,7 @@ namespace camera_service::infrastructure {
         }
     }
 
-    Result<void> CameraHal::setZoom(const types::zoom normalized_zoom) const {
+    Result<void> Camera::setZoom(const types::zoom normalized_zoom) const {
         if (!isConnected()) {
             return Result<void>::error(logger_,"Camera not connected");
         }
@@ -49,7 +52,7 @@ namespace camera_service::infrastructure {
         return zoom_capable_camera->setZoom(camera_zoom);
     }
 
-    Result<types::zoom> CameraHal::getZoom() const {
+    Result<types::zoom> Camera::getZoom() const {
         if (!isConnected()) {
             return Result<types::zoom>::error(logger_, "Camera not connected");
         }
@@ -78,7 +81,7 @@ namespace camera_service::infrastructure {
         return Result<types::zoom>::success(normalized_zoom);
     }
 
-    Result<void> CameraHal::setFocus(const types::focus normalized_focus) const {
+    Result<void> Camera::setFocus(const types::focus normalized_focus) const {
         if (!isConnected()) {
             return Result<void>::error(logger_, "Camera not connected");
         }
@@ -101,7 +104,7 @@ namespace camera_service::infrastructure {
         return focus_capable->setFocus(camera_focus);
     }
 
-    Result<types::focus> CameraHal::getFocus() const {
+    Result<types::focus> Camera::getFocus() const {
         if (!isConnected()) {
             return Result<types::focus>::error(logger_, "Camera not connected");
         }
@@ -130,7 +133,7 @@ namespace camera_service::infrastructure {
         return Result<types::focus>::success(normalized_focus);
     }
 
-    Result<void> CameraHal::enableAutoFocus(const bool on) const {
+    Result<void> Camera::enableAutoFocus(const bool on) const {
         if (!isConnected()) {
             return Result<void>::error(logger_, "Camera not connected");
         }
@@ -145,7 +148,7 @@ namespace camera_service::infrastructure {
         return auto_focus_capable->enableAutoFocus(on);
     }
 
-    Result<types::info> CameraHal::getInfo() const {
+    Result<types::info> Camera::getInfo() const {
         if (!isConnected()) {
             return Result<types::info>::error(logger_, "Camera not connected");
         }
@@ -164,7 +167,7 @@ namespace camera_service::infrastructure {
         return info_result;
     }
 
-    Result<void> CameraHal::stabilize(const bool on) const {
+    Result<void> Camera::stabilize(const bool on) const {
         if (!isConnected()) {
             return Result<void>::error(logger_, "Camera not connected");
         }
@@ -179,14 +182,13 @@ namespace camera_service::infrastructure {
         return stabilize_capable->stabilize(on);
     }
 
-    Result<void> CameraHal::connect() {
+    Result<void> Camera::connect() {
         if (connected_) {
             return Result<void>::error(logger_, "Camera already connected");
         }
 
         logger_->info("Connecting to camera...");
-        const auto connect_result = camera_hw_->connect();
-        if (connect_result.isError()) {
+        if (const auto connect_result = camera_hw_->connect(); connect_result.isError()) {
             return Result<void>::error(logger_, connect_result.error());
         }
 
@@ -195,14 +197,13 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> CameraHal::disconnect() {
+    Result<void> Camera::disconnect() {
         if (!connected_) {
             return Result<void>::error(logger_, "Camera not connected");
         }
 
         logger_->debug(__func__);
-        const auto disconnect_result = camera_hw_->disconnect();
-        if (disconnect_result.isError()) {
+        if (const auto disconnect_result = camera_hw_->disconnect(); disconnect_result.isError()) {
             return Result<void>::error(logger_, disconnect_result.error());
         }
 
@@ -210,11 +211,11 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    bool CameraHal::isConnected() const {
+    bool Camera::isConnected() const {
         return connected_;
     }
 
-    types::ZoomRange CameraHal::getZoomLimits() const {
+    types::ZoomRange Camera::getZoomLimits() const {
         const auto* zoom_capable_camera = getCapability<capabilities::IZoomCapable>();
         if (!zoom_capable_camera) {
             throw std::runtime_error("Camera doesn't support zoom"); //FIXME: think of a better solution
@@ -222,7 +223,7 @@ namespace camera_service::infrastructure {
         return zoom_capable_camera->getZoomLimits();
     }
 
-    types::FocusRange CameraHal::getFocusLimits() const {
+    types::FocusRange Camera::getFocusLimits() const {
         const auto* focus_capable_camera = getCapability<capabilities::IFocusCapable>();
         if (!focus_capable_camera) {
             throw std::runtime_error("Camera doesn't support focus"); //FIXME: think of a better solution
@@ -230,23 +231,23 @@ namespace camera_service::infrastructure {
         return focus_capable_camera->getFocusLimits();
     }
 
-    bool CameraHal::isValidCameraZoom(const types::zoom value) const {
+    bool Camera::isValidCameraZoom(const types::zoom value) const {
         return value >= getZoomLimits().min && value <= getZoomLimits().max;
     }
 
-    bool CameraHal::isValidCameraFocus(const types::focus value) const {
+    bool Camera::isValidCameraFocus(const types::focus value) const {
         return value >= getFocusLimits().min && value <= getFocusLimits().max;
     }
 
-    bool CameraHal::isValidNormalizedZoom(const types::zoom value) {
+    bool Camera::isValidNormalizedZoom(const types::zoom value) {
         return value >= types::MIN_NORMALIZED_ZOOM && value <= types::MAX_NORMALIZED_ZOOM;
     }
 
-    bool CameraHal::isValidNormalizedFocus(const types::focus value) {
+    bool Camera::isValidNormalizedFocus(const types::focus value) {
         return value >= types::MIN_NORMALIZED_FOCUS && value <= types::MAX_NORMALIZED_FOCUS;
     }
 
-    types::zoom CameraHal::normalizeZoom(const types::zoom camera_zoom) const {
+    types::zoom Camera::normalizeZoom(const types::zoom camera_zoom) const {
         const auto [min, max] = getZoomLimits();
         const auto range = max - min;
 
@@ -258,7 +259,7 @@ namespace camera_service::infrastructure {
         return static_cast<types::zoom>(rounded);
     }
 
-    types::focus CameraHal::normalizeFocus(const types::focus camera_focus) const {
+    types::focus Camera::normalizeFocus(const types::focus camera_focus) const {
         const auto [min, max] = getFocusLimits();
         const auto range = max - min;
 
@@ -270,7 +271,7 @@ namespace camera_service::infrastructure {
         return static_cast<types::focus>(rounded);
     }
 
-    types::zoom CameraHal::denormalizeZoom(const types::zoom normalized_zoom) const {
+    types::zoom Camera::denormalizeZoom(const types::zoom normalized_zoom) const {
         const auto [min, max] = getZoomLimits();
         const auto range = max - min;
 
@@ -282,7 +283,7 @@ namespace camera_service::infrastructure {
         return static_cast<types::zoom>(min + rounded);
     }
 
-    types::focus CameraHal::denormalizeFocus(const types::focus normalized_focus) const {
+    types::focus Camera::denormalizeFocus(const types::focus normalized_focus) const {
         const auto [min, max] = getFocusLimits();
         const auto range = max - min;
 
@@ -292,5 +293,10 @@ namespace camera_service::infrastructure {
             : -(((-numerator) + types::MAX_NORMALIZED_FOCUS / 2) / types::MAX_NORMALIZED_FOCUS);
 
         return static_cast<types::focus>(min + rounded);
+    }
+
+    template <typename Capability>
+    Capability* Camera::getCapability() const {
+        return dynamic_cast<Capability*>(camera_hw_.get());
     }
 }

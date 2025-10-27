@@ -6,7 +6,7 @@
 #include "api/ITransport.h"
 #include "api/IRequestHandler.h"
 #include "core/ICore.h"
-#include "infrastructure/camera/hal/ICameraHal.h"
+#include "infrastructure/camera/hal/ICamera.h"
 #include "infrastructure/camera/hal/ICameraHw.h"
 #include "infrastructure/camera/transport/mmio/IRegisterImpl.h"
 #include "common/types/CameraCapabilities.h"
@@ -53,7 +53,7 @@ public:
     MOCK_METHOD(Result<void>, stabilize, (bool), (const, override));
 };
 
-class MockCameraHal : public infrastructure::ICameraHal {
+class MockCameraHal : public infrastructure::ICamera {
 public:
     MOCK_METHOD(Result<void>, connect, (), (override));
     MOCK_METHOD(Result<void>, disconnect, (), (override));

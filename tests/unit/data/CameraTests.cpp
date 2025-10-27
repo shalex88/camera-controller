@@ -3,8 +3,8 @@
 /* Add your project include files here */
 #include "../../Mocks.h"
 #include "common/types/Result.h"
-#include "infrastructure/camera/hal/ICameraHal.h"
-#include "infrastructure/camera/hal/CameraHal.h"
+#include "infrastructure/camera/hal/ICamera.h"
+#include "infrastructure/camera/hal/Camera.h"
 #include "infrastructure/camera/devices/FakeAdvancedCamera.h"
 
 using namespace camera_service;
@@ -15,13 +15,13 @@ protected:
     CameraTests() {
         auto camera_strategy_obj = std::make_unique<NiceMock<MockCameraHw>>();
         camera_hw_ = camera_strategy_obj.get();
-        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "Data");
-        camera_ = std::make_unique<infrastructure::CameraHal>(std::move(camera_strategy_obj), logger_impl_);
+        logger_impl_ = std::make_shared<common::LayerLogger>(std::make_shared<SpdLogAdapter>(), "Data");
+        camera_ = std::make_unique<infrastructure::Camera>(std::move(camera_strategy_obj), logger_impl_);
     }
 
     NiceMock<MockCameraHw>* camera_hw_ {};
-    std::unique_ptr<infrastructure::ICameraHal> camera_;
-    std::shared_ptr<LayerLogger> logger_impl_;
+    std::unique_ptr<infrastructure::ICamera> camera_;
+    std::shared_ptr<common::LayerLogger> logger_impl_;
 };
 
 TEST_F(CameraTests, CanBeConstructed) {

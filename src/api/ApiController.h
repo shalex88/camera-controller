@@ -1,17 +1,19 @@
 #pragma once
+
+#include <atomic>
 #include <memory>
 #include <string>
 #include <thread>
-#include <atomic>
 
 #include "common/types/Result.h"
-#include "api/RequestHandler.h"
-#include "api/ITransport.h"
 
 namespace camera_service::api {
+    class IRequestHandler;
+    class ITransport;
+
     class ApiController final {
     public:
-        explicit ApiController(std::shared_ptr<IRequestHandler> request_handler, std::unique_ptr<ITransport> transport, std::string  server_address, std::shared_ptr<LayerLogger> logger);
+        explicit ApiController(std::shared_ptr<IRequestHandler> request_handler, std::unique_ptr<ITransport> transport, std::string  server_address, std::shared_ptr<common::LayerLogger> logger);
         ~ApiController();
 
         Result<void> startAsync();
@@ -23,7 +25,7 @@ namespace camera_service::api {
         std::unique_ptr<ITransport> transport_;
         std::string server_address_;
         std::atomic<bool> running_;
-        std::thread service_thread_;
-        std::shared_ptr<LayerLogger> logger_;
+        std::jthread service_thread_;
+        std::shared_ptr<common::LayerLogger> logger_;
     };
 }

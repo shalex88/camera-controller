@@ -1,15 +1,16 @@
 #pragma once
 
-#include <vector>
-#include <memory>
 #include <array>
-#include <span>
 #include <cstddef>
+#include <memory>
+#include <span>
+#include <vector>
 
 #include "common/types/Result.h"
-#include "infrastructure/camera/transport/ITransport.h"
 
 namespace camera_service::infrastructure {
+    class ITransport;
+
     struct __attribute__((packed)) ItlHeader {
         std::array<std::byte, 4> opcode{};
         std::array<std::byte, 4> id{std::byte{'F'}, std::byte{'R'}, std::byte{'T'}, std::byte{'R'}};
@@ -29,7 +30,7 @@ namespace camera_service::infrastructure {
     class ItlProtocol {
     public:
         explicit ItlProtocol(std::unique_ptr<ITransport> transport);
-        ~ItlProtocol() = default;
+        ~ItlProtocol();
 
         Result<void> connect() const;
         Result<void> disconnect() const;

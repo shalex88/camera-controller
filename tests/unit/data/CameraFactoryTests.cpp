@@ -2,7 +2,9 @@
 #include <gmock/gmock.h>
 /* Add your project include files here */
 #include "../../../src/infrastructure/camera/CameraFactory.h"
-#include "common/Config/ConfigManager.h"
+#include "common/config/ConfigManager.h"
+#include "common/logger/SpdLogAdapter.h"
+#include "infrastructure/camera/hal/ICamera.h"
 
 using namespace camera_service;
 using namespace testing;
@@ -10,13 +12,13 @@ using namespace testing;
 class CameraFactoryTests : public Test {
 protected:
     CameraFactoryTests() {
-        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "Data");
+        logger_impl_ = std::make_shared<common::LayerLogger>(std::make_shared<SpdLogAdapter>(), "Data");
     }
-    std::shared_ptr<LayerLogger> logger_impl_;
+    std::shared_ptr<common::LayerLogger> logger_impl_;
 };
 
 TEST_F(CameraFactoryTests, CreateSonyCameraSuccess) {
-    DataConfig config;
+    common::DataConfig config;
     config.camera = "sony";  // Valid camera type
     config.device = "fake";  // Valid device type
 
@@ -26,7 +28,7 @@ TEST_F(CameraFactoryTests, CreateSonyCameraSuccess) {
 }
 
 TEST_F(CameraFactoryTests, ThrowsOnUnknownType) {
-    DataConfig config;
+    common::DataConfig config;
     config.camera = "invalid_camera";  // Invalid camera type to trigger exception
     config.device = "fake";  // Valid device type
 
@@ -34,7 +36,7 @@ TEST_F(CameraFactoryTests, ThrowsOnUnknownType) {
 }
 
 TEST_F(CameraFactoryTests, ThrowsOnEmptyType) {
-    DataConfig config;
+    common::DataConfig config;
     config.camera = "";  // Empty camera type to trigger exception
     config.device = "fake";  // Valid device type
 

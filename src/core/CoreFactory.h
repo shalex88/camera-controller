@@ -1,16 +1,22 @@
 #pragma once
 #include <memory>
 
-#include "common/Config/ConfigManager.h"
-#include "../infrastructure/camera/hal/ICameraHal.h"
-#include "core/ICore.h"
-#include "common/Logger/Logger.h"
+namespace camera_service::common {
+    struct CoreConfig;
+    class LayerLogger;
+}
+
+namespace camera_service::infrastructure {
+    class ICamera;
+}
 
 namespace camera_service::core {
+    class ICore;
+
     class CoreFactory {
     public:
         static std::unique_ptr<ICore> createCore(
-            std::unique_ptr<infrastructure::ICameraHal> camera,
-            std::shared_ptr<LayerLogger> logger, const CoreConfig& config);
+            std::unique_ptr<infrastructure::ICamera> camera,
+            std::shared_ptr<common::LayerLogger> logger, const common::CoreConfig& config);
     };
 }

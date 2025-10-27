@@ -18,7 +18,7 @@ package camera_service {
       - transport_: std::unique_ptr<ITransport>
       - server_address_: std::string
       - running_: std::atomic<bool>
-      - service_thread_: std::thread
+      - service_thread_: std::jthread
       + ApiController(std::shared_ptr<IRequestHandler>, std::unique_ptr<ITransport>, const std::string&)
       + startAsync(): Result<void>
       + stop(): Result<void>

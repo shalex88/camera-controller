@@ -7,8 +7,10 @@
 #include "api/ApiControllerFactory.h"
 #include "api/ApiController.h"
 #include "core/CoreFactory.h"
+#include "core/ICore.h"
 #include "infrastructure/camera/CameraFactory.h"
-#include "common/Config/ConfigManager.h"
+#include "infrastructure/camera/hal/ICamera.h"
+#include "common/config/ConfigManager.h"
 #include "common/types/Result.h"
 #include "../../utils/GrpcClient.h"
 
@@ -18,9 +20,9 @@ using namespace testing;
 class ServiceSystemTests : public Test {
 protected:
     void SetUp() override {
-        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "");
+        logger_impl_ = std::make_shared<common::LayerLogger>(std::make_shared<SpdLogAdapter>(), "");
 
-        EXPECT_NO_THROW(config = std::make_unique<ConfigManager>("../../config/config.yaml"));
+        EXPECT_NO_THROW(config = std::make_unique<common::ConfigManager>("../../config/config.yaml"));
         ASSERT_NE(nullptr, config);
 
         // Get configuration objects using the new typed API
@@ -46,14 +48,14 @@ protected:
         ASSERT_TRUE(service->isRunning());
     }
 
-    std::unique_ptr<ConfigManager> config;
-    std::unique_ptr<infrastructure::ICameraHal> camera;
+    std::unique_ptr<common::ConfigManager> config;
+    std::unique_ptr<infrastructure::ICamera> camera;
     std::unique_ptr<core::ICore> core;
     std::unique_ptr<api::ApiController> service;
     std::string api_config;
     std::string server_address_config;
     std::string camera_config;
-    std::shared_ptr<LayerLogger> logger_impl_;
+    std::shared_ptr<common::LayerLogger> logger_impl_;
 };
 
 TEST_F(ServiceSystemTests, CameraRequestResponse) {

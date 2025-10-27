@@ -5,7 +5,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "common/Logger/Logger.h"
+#include "common/logger/Logger.h"
 
 // Helper type for void Results
 struct Empty {};
@@ -86,7 +86,7 @@ public:
         return Result(std::move(error));
     }
 
-    static Result error(const std::shared_ptr<LayerLogger>& logger, E error) {
+    static Result error(const std::shared_ptr<camera_service::common::LayerLogger>& logger, E error) {
         logger->error("{}", error);
         return Result(std::move(error));
     }

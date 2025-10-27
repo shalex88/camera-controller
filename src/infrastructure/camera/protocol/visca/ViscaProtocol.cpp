@@ -1,8 +1,10 @@
-#include "Visca.h"
+#include "ViscaProtocol.h"
 
 #include <algorithm>
 
-namespace camera_service::infrastructure {
+#include "infrastructure/camera/transport/ITransport.h"
+
+namespace {
     constexpr uint32_t VISCA_INPUT_BUFFER_SIZE = 16;
     constexpr uint32_t VISCA_PAYLOAD_SIZE = 14;
     constexpr uint32_t VISCA_SOCKET_NUM = 0;
@@ -235,8 +237,6 @@ namespace camera_service::infrastructure {
     constexpr uint8_t VISCA_UP = 0x02;
     constexpr uint8_t VISCA_DOWN = 0x03;
 
-    constexpr uint32_t VISCA_SERIAL_WAIT = 100000;
-
     enum class ResponseType : uint32_t {
         Clear = 0x40,
         Address = 0x30,
@@ -263,8 +263,10 @@ namespace camera_service::infrastructure {
     enum class CameraModels : uint16_t {
         EW9500H = 0x070F
     };
+}
 
-    struct Visca::ViscaPayload {
+namespace camera_service::infrastructure {
+    struct ViscaProtocol::ViscaPayload {
         std::array<uint8_t, VISCA_PAYLOAD_SIZE> data{};
         size_t size = 0;
     };
@@ -329,18 +331,18 @@ namespace camera_service::infrastructure {
         return payload;
     }
 
-    void appendByte(Visca::ViscaPayload* payload, const uint8_t byte) {
+    void appendByte(ViscaProtocol::ViscaPayload* payload, const uint8_t byte) {
         payload->data.at(payload->size++) = byte;
     }
 
-    void appendAsNibbles(Visca::ViscaPayload* payload, const uint16_t value) {
+    void appendAsNibbles(ViscaProtocol::ViscaPayload* payload, const uint16_t value) {
         appendByte(payload, (value & 0xF000) >> 12);
         appendByte(payload, (value & 0x0F00) >> 8);
         appendByte(payload, (value & 0x00F0) >> 4);
         appendByte(payload, (value & 0x000F));
     }
 
-    uint16_t get16BitFromNibbles(const Visca::ViscaPayload& payload, const size_t index) {
+    uint16_t get16BitFromNibbles(const ViscaProtocol::ViscaPayload& payload, const size_t index) {
         const auto b0 = static_cast<uint16_t>(payload.data.at(index)) << 12;
         const auto b1 = static_cast<uint16_t>(payload.data.at(index + 1)) << 8;
         const auto b2 = static_cast<uint16_t>(payload.data.at(index + 2)) << 4;
@@ -348,37 +350,42 @@ namespace camera_service::infrastructure {
         return static_cast<uint16_t>(b0 | b1 | b2 | b3);
     }
 
-    uint8_t get8Bit(const Visca::ViscaPayload& payload, const size_t index) {
+    uint8_t get8Bit(const ViscaProtocol::ViscaPayload& payload, const size_t index) {
         return static_cast<uint8_t>(payload.data.at(index));
     }
 
-    uint8_t get8BitFromNibbles(const Visca::ViscaPayload& payload, const size_t index) {
+    uint8_t get8BitFromNibbles(const ViscaProtocol::ViscaPayload& payload, const size_t index) {
         const auto high = static_cast<uint16_t>(payload.data.at(index)) << 4;
         const auto low = static_cast<uint16_t>(payload.data.at(index + 1));
         return static_cast<uint8_t>(high | low);
     }
 
-    uint16_t get16Bit(const Visca::ViscaPayload& payload, const size_t index) {
+    uint16_t get16Bit(const ViscaProtocol::ViscaPayload& payload, const size_t index) {
         const auto high = static_cast<uint16_t>(payload.data.at(index)) << 8;
         const auto low = static_cast<uint16_t>(payload.data.at(index + 1));
         return static_cast<uint16_t>(high | low);
     }
 
-    std::span<uint8_t> serialize(Visca::ViscaPayload* payload) {
+    std::span<uint8_t> serialize(ViscaProtocol::ViscaPayload* payload) {
         return {payload->data.data(), payload->size};
     }
 
-    Visca::ViscaPayload deserialize(std::span<const uint8_t> buffer) {
-        Visca::ViscaPayload payload{};
+    ViscaProtocol::ViscaPayload deserialize(std::span<const uint8_t> buffer) {
+        ViscaProtocol::ViscaPayload payload{};
         payload.size = buffer.size();
         std::ranges::copy(buffer, payload.data.begin());
         return payload;
     }
 
-    Visca::Visca(std::unique_ptr<ITransport> transport)
-        : transport_(std::move(transport)) {}
+    ViscaProtocol::ViscaProtocol(std::unique_ptr<ITransport> transport) : transport_(std::move(transport)) {
+        LOG_TRACE("Visca constructor called");
+    }
 
-    Result<void> Visca::setAddress() {
+    ViscaProtocol::~ViscaProtocol() {
+        LOG_TRACE("Visca destructor called");
+    }
+
+    Result<void> ViscaProtocol::setAddress() {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_ADDRESS);
@@ -397,7 +404,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::clear() const {
+    Result<void> ViscaProtocol::clear() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -410,7 +417,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<std::string_view> Visca::getCameraInfo() const {
+    Result<std::string_view> ViscaProtocol::getCameraInfo() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -445,15 +452,15 @@ namespace camera_service::infrastructure {
         });
     }
 
-    Result<void> Visca::open() const {
+    Result<void> ViscaProtocol::open() const {
         return transport_->open();
     }
 
-    Result<void> Visca::close() const {
+    Result<void> ViscaProtocol::close() const {
         return transport_->close();
     }
 
-    Result<void> Visca::setPower(const uint8_t power) const {
+    Result<void> ViscaProtocol::setPower(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -468,7 +475,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setKeylock(const uint8_t power) const {
+    Result<void> ViscaProtocol::setKeylock(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -483,7 +490,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setCameraId(const uint16_t id) const {
+    Result<void> ViscaProtocol::setCameraId(const uint16_t id) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -498,7 +505,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setZoomTele() const {
+    Result<void> ViscaProtocol::setZoomTele() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -513,7 +520,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setZoomWide() const {
+    Result<void> ViscaProtocol::setZoomWide() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -528,7 +535,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setZoomStop() const {
+    Result<void> ViscaProtocol::setZoomStop() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -543,7 +550,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setZoomTeleSpeed(const uint32_t speed) const {
+    Result<void> ViscaProtocol::setZoomTeleSpeed(const uint32_t speed) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -558,7 +565,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setZoomWideSpeed(const uint32_t speed) const {
+    Result<void> ViscaProtocol::setZoomWideSpeed(const uint32_t speed) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -573,7 +580,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setZoomValue(const uint16_t zoom) const {
+    Result<void> ViscaProtocol::setZoomValue(const uint16_t zoom) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -588,7 +595,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setZoomAndFocusValue(const uint16_t zoom, const uint16_t focus) const {
+    Result<void> ViscaProtocol::setZoomAndFocusValue(const uint16_t zoom, const uint16_t focus) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -604,7 +611,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setDzoomValue(const uint8_t value) const {
+    Result<void> ViscaProtocol::setDzoomValue(const uint8_t value) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -619,7 +626,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setDzoomLimit(const uint8_t limit) const {
+    Result<void> ViscaProtocol::setDzoomLimit(const uint8_t limit) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -634,7 +641,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setDzoomMode(const uint8_t power) const {
+    Result<void> ViscaProtocol::setDzoomMode(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -649,7 +656,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setFocusFar() const {
+    Result<void> ViscaProtocol::setFocusFar() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -664,7 +671,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setFocusNear() const {
+    Result<void> ViscaProtocol::setFocusNear() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -679,7 +686,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setFocusStop() const {
+    Result<void> ViscaProtocol::setFocusStop() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -694,7 +701,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setFocusFarSpeed(const uint32_t speed) const {
+    Result<void> ViscaProtocol::setFocusFarSpeed(const uint32_t speed) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -709,7 +716,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setFocusNearSpeed(const uint32_t speed) const {
+    Result<void> ViscaProtocol::setFocusNearSpeed(const uint32_t speed) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -724,7 +731,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setFocusValue(const uint16_t focus) const {
+    Result<void> ViscaProtocol::setFocusValue(const uint16_t focus) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -739,7 +746,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setFocusAuto(const bool on) const {
+    Result<void> ViscaProtocol::setFocusAuto(const bool on) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -754,7 +761,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setFocusOnePush() const {
+    Result<void> ViscaProtocol::setFocusOnePush() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -769,7 +776,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setFocusInfinity() const {
+    Result<void> ViscaProtocol::setFocusInfinity() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -784,7 +791,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setFocusAutosenseHigh() const {
+    Result<void> ViscaProtocol::setFocusAutosenseHigh() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -799,7 +806,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setFocusAutosenseLow() const {
+    Result<void> ViscaProtocol::setFocusAutosenseLow() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -814,7 +821,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setFocusNearLimit(const uint16_t limit) const {
+    Result<void> ViscaProtocol::setFocusNearLimit(const uint16_t limit) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -829,7 +836,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setWhitebalMode(const uint8_t mode) const {
+    Result<void> ViscaProtocol::setWhitebalMode(const uint8_t mode) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -844,7 +851,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setWhitebalOnePush() const {
+    Result<void> ViscaProtocol::setWhitebalOnePush() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -859,7 +866,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setRgainUp() const {
+    Result<void> ViscaProtocol::setRgainUp() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -874,7 +881,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setRgainDown() const {
+    Result<void> ViscaProtocol::setRgainDown() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -889,7 +896,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setRgainReset() const {
+    Result<void> ViscaProtocol::setRgainReset() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -904,7 +911,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setRgainValue(const uint8_t value) const {
+    Result<void> ViscaProtocol::setRgainValue(const uint8_t value) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -919,7 +926,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setBgainUp() const {
+    Result<void> ViscaProtocol::setBgainUp() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -934,7 +941,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setBgainDown() const {
+    Result<void> ViscaProtocol::setBgainDown() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -949,7 +956,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setBgainReset() const {
+    Result<void> ViscaProtocol::setBgainReset() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -964,7 +971,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setBgainValue(const uint8_t value) const {
+    Result<void> ViscaProtocol::setBgainValue(const uint8_t value) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -979,7 +986,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setShutterUp() const {
+    Result<void> ViscaProtocol::setShutterUp() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -994,7 +1001,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setShutterDown() const {
+    Result<void> ViscaProtocol::setShutterDown() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1009,7 +1016,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setShutterReset() const {
+    Result<void> ViscaProtocol::setShutterReset() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1024,7 +1031,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setShutterValue(const uint8_t value) const {
+    Result<void> ViscaProtocol::setShutterValue(const uint8_t value) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1039,7 +1046,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setIrisUp() const {
+    Result<void> ViscaProtocol::setIrisUp() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1054,7 +1061,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setIrisDown() const {
+    Result<void> ViscaProtocol::setIrisDown() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1069,7 +1076,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setIrisReset() const {
+    Result<void> ViscaProtocol::setIrisReset() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1084,7 +1091,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setIrisValue(const uint8_t value) const {
+    Result<void> ViscaProtocol::setIrisValue(const uint8_t value) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1099,7 +1106,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setGainUp() const {
+    Result<void> ViscaProtocol::setGainUp() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1114,7 +1121,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setGainDown() const {
+    Result<void> ViscaProtocol::setGainDown() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1129,7 +1136,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setGainReset() const {
+    Result<void> ViscaProtocol::setGainReset() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1144,7 +1151,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setGainValue(const uint8_t value) const {
+    Result<void> ViscaProtocol::setGainValue(const uint8_t value) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1159,7 +1166,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setBrightUp() const {
+    Result<void> ViscaProtocol::setBrightUp() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1174,7 +1181,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setBrightDown() const {
+    Result<void> ViscaProtocol::setBrightDown() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1189,7 +1196,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setBrightReset() const {
+    Result<void> ViscaProtocol::setBrightReset() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1204,7 +1211,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setBrightValue(const uint16_t value) const {
+    Result<void> ViscaProtocol::setBrightValue(const uint16_t value) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1219,7 +1226,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setApertureUp() const {
+    Result<void> ViscaProtocol::setApertureUp() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1234,7 +1241,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setApertureDown() const {
+    Result<void> ViscaProtocol::setApertureDown() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1249,7 +1256,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setApertureReset() const {
+    Result<void> ViscaProtocol::setApertureReset() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1264,7 +1271,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setApertureValue(const uint8_t value) const {
+    Result<void> ViscaProtocol::setApertureValue(const uint8_t value) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1279,7 +1286,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setExpCompUp() const {
+    Result<void> ViscaProtocol::setExpCompUp() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1294,7 +1301,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setExpCompDown() const {
+    Result<void> ViscaProtocol::setExpCompDown() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1309,7 +1316,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setExpCompReset() const {
+    Result<void> ViscaProtocol::setExpCompReset() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1324,7 +1331,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setExpCompValue(const uint8_t value) const {
+    Result<void> ViscaProtocol::setExpCompValue(const uint8_t value) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1339,7 +1346,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setExpCompPower(const uint8_t power) const {
+    Result<void> ViscaProtocol::setExpCompPower(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1354,7 +1361,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setAutoExpMode(const uint8_t mode) const {
+    Result<void> ViscaProtocol::setAutoExpMode(const uint8_t mode) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1369,7 +1376,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setSlowShutterAuto(const uint8_t power) const {
+    Result<void> ViscaProtocol::setSlowShutterAuto(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1384,7 +1391,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setBacklightComp(const bool on) const {
+    Result<void> ViscaProtocol::setBacklightComp(const bool on) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1392,7 +1399,8 @@ namespace camera_service::infrastructure {
         appendByte(&tx_payload, VISCA_BACKLIGHT_COMP);
         if (on) {
             appendByte(&tx_payload, VISCA_ON);
-        } else {
+        }
+        else {
             appendByte(&tx_payload, VISCA_OFF);
         }
 
@@ -1403,7 +1411,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setZeroLuxShot(const uint8_t power) const {
+    Result<void> ViscaProtocol::setZeroLuxShot(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1418,7 +1426,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setIrLed(const uint8_t power) const {
+    Result<void> ViscaProtocol::setIrLed(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1433,7 +1441,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setWideMode(const uint8_t mode) const {
+    Result<void> ViscaProtocol::setWideMode(const uint8_t mode) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1448,7 +1456,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setMirror(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMirror(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1463,7 +1471,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setFreeze(const uint8_t power) const {
+    Result<void> ViscaProtocol::setFreeze(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1478,7 +1486,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setPictureEffect(const uint8_t mode) const {
+    Result<void> ViscaProtocol::setPictureEffect(const uint8_t mode) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1493,7 +1501,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setDigitalEffect(const uint8_t mode) const {
+    Result<void> ViscaProtocol::setDigitalEffect(const uint8_t mode) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1508,7 +1516,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setDigitalEffectLevel(const uint8_t level) const {
+    Result<void> ViscaProtocol::setDigitalEffectLevel(const uint8_t level) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1523,7 +1531,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setCamStabilizer(const bool power) const {
+    Result<void> ViscaProtocol::setCamStabilizer(const bool power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1532,7 +1540,8 @@ namespace camera_service::infrastructure {
 
         if (power) {
             appendByte(&tx_payload, VISCA_ON);
-        } else {
+        }
+        else {
             appendByte(&tx_payload, VISCA_OFF);
         }
 
@@ -1543,7 +1552,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::memorySet(const uint8_t channel) const {
+    Result<void> ViscaProtocol::memorySet(const uint8_t channel) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1559,7 +1568,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::memoryRecall(const uint8_t channel) const {
+    Result<void> ViscaProtocol::memoryRecall(const uint8_t channel) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1575,7 +1584,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::memoryReset(const uint8_t channel) const {
+    Result<void> ViscaProtocol::memoryReset(const uint8_t channel) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1591,7 +1600,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setDisplay(const uint8_t power) const {
+    Result<void> ViscaProtocol::setDisplay(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1606,7 +1615,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setDateTime(const uint16_t year, const uint16_t month, const uint16_t day, const uint16_t hour,
+    Result<void> ViscaProtocol::setDateTime(const uint16_t year, const uint16_t month, const uint16_t day, const uint16_t hour,
                                     const uint16_t minute) const {
         if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59) {
             return Result<void>::error("Invalid input");
@@ -1635,7 +1644,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setDateDisplay(const uint8_t power) const {
+    Result<void> ViscaProtocol::setDateDisplay(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1650,7 +1659,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setTimeDisplay(const uint8_t power) const {
+    Result<void> ViscaProtocol::setTimeDisplay(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1665,7 +1674,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setTitleDisplay(const uint8_t power) const {
+    Result<void> ViscaProtocol::setTitleDisplay(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1680,7 +1689,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setTitleClear() const {
+    Result<void> ViscaProtocol::setTitleClear() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1695,7 +1704,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setTitleParams(const ViscaTitleData* title) const {
+    Result<void> ViscaProtocol::setTitleParams(const ViscaTitleData* title) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1720,7 +1729,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setTitle(const ViscaTitleData* title) const {
+    Result<void> ViscaProtocol::setTitle(const ViscaTitleData* title) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1752,7 +1761,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setIrreceiveOn() const {
+    Result<void> ViscaProtocol::setIrreceiveOn() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1767,7 +1776,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setIrreceiveOff() const {
+    Result<void> ViscaProtocol::setIrreceiveOff() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1782,7 +1791,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setIrreceiveOnoff() const {
+    Result<void> ViscaProtocol::setIrreceiveOnoff() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1797,7 +1806,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setPanTiltUp(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltUp(const uint8_t pan_speed, const uint8_t tilt_speed) const {
         if (pan_speed < 1 || pan_speed > 18) {
             return Result<void>::error("Pan speed should be in the range 01 - 18");
         }
@@ -1821,7 +1830,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setPanTiltDown(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltDown(const uint8_t pan_speed, const uint8_t tilt_speed) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1838,7 +1847,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setPanTiltLeft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltLeft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1855,7 +1864,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setPanTiltRight(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltRight(const uint8_t pan_speed, const uint8_t tilt_speed) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1872,7 +1881,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setPanTiltUpleft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltUpleft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1889,7 +1898,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setPanTiltUpright(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltUpright(const uint8_t pan_speed, const uint8_t tilt_speed) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1906,7 +1915,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setPanTiltDownleft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltDownleft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1923,7 +1932,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setPanTiltDownright(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltDownright(const uint8_t pan_speed, const uint8_t tilt_speed) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1940,7 +1949,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setPanTiltStop(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltStop(const uint8_t pan_speed, const uint8_t tilt_speed) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -1957,7 +1966,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setPanTiltAbsolutePosition(const uint8_t pan_speed, const uint8_t tilt_speed,
+    Result<void> ViscaProtocol::setPanTiltAbsolutePosition(const uint8_t pan_speed, const uint8_t tilt_speed,
                                                    const uint16_t pan_position, const uint16_t tilt_position) const {
         if (pan_speed < 1 || pan_speed > 18) {
             return Result<void>::error("Pan speed should be in the range 01 - 18");
@@ -1989,7 +1998,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setPanTiltRelativePosition(const uint8_t pan_speed, const uint8_t tilt_speed,
+    Result<void> ViscaProtocol::setPanTiltRelativePosition(const uint8_t pan_speed, const uint8_t tilt_speed,
                                                    const uint16_t pan_pos, const uint16_t tilt_pos) const {
         ViscaPayload tx_payload{};
 
@@ -2016,7 +2025,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setPanTiltHome() const {
+    Result<void> ViscaProtocol::setPanTiltHome() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2029,7 +2038,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setPanTiltReset() const {
+    Result<void> ViscaProtocol::setPanTiltReset() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2042,7 +2051,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setPanTiltLimitUpright(const uint16_t pan_limit, const uint16_t tilt_limit) const {
+    Result<void> ViscaProtocol::setPanTiltLimitUpright(const uint16_t pan_limit, const uint16_t tilt_limit) const {
         if (pan_limit < 0xFC90 || pan_limit > 0x370) {
             return Result<void>::error("Pan limit should be in the range -880 - 880");
         }
@@ -2067,7 +2076,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setPanTiltLimitDownleft(const uint16_t pan_limit, const uint16_t tilt_limit) const {
+    Result<void> ViscaProtocol::setPanTiltLimitDownleft(const uint16_t pan_limit, const uint16_t tilt_limit) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2085,7 +2094,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setPanTiltLimitDownleftClear() const {
+    Result<void> ViscaProtocol::setPanTiltLimitDownleftClear() const {
         ViscaPayload tx_payload{};
 
         constexpr uint16_t pan_lmit = 0x7fff;
@@ -2106,7 +2115,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setPanTiltLimitUprightClear() const {
+    Result<void> ViscaProtocol::setPanTiltLimitUprightClear() const {
         ViscaPayload tx_payload{};
 
         constexpr uint16_t pan_limit = 0x7fff;
@@ -2127,7 +2136,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setDatascreenOn() const {
+    Result<void> ViscaProtocol::setDatascreenOn() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2142,7 +2151,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setDatascreenOff() const {
+    Result<void> ViscaProtocol::setDatascreenOff() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2157,7 +2166,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setDatascreenOnoff() const {
+    Result<void> ViscaProtocol::setDatascreenOnoff() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2172,7 +2181,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setSpotAeOn() const {
+    Result<void> ViscaProtocol::setSpotAeOn() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2187,7 +2196,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setSpotAeOff() const {
+    Result<void> ViscaProtocol::setSpotAeOff() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2202,7 +2211,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setSpotAePosition(const uint8_t x_position, const uint8_t y_position) const {
+    Result<void> ViscaProtocol::setSpotAePosition(const uint8_t x_position, const uint8_t y_position) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2220,7 +2229,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<uint8_t> Visca::getPower() const {
+    Result<uint8_t> ViscaProtocol::getPower() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2233,7 +2242,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getDzoomValue() const {
+    Result<uint8_t> ViscaProtocol::getDzoomValue() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2247,7 +2256,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getDzoomLimit() const {
+    Result<uint8_t> ViscaProtocol::getDzoomLimit() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2260,7 +2269,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint16_t> Visca::getZoomValue() const {
+    Result<uint16_t> ViscaProtocol::getZoomValue() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2274,7 +2283,7 @@ namespace camera_service::infrastructure {
         return Result<uint16_t>::success(get16BitFromNibbles(rx_payload.value(), 0));
     }
 
-    Result<bool> Visca::getFocusAuto() const {
+    Result<bool> ViscaProtocol::getFocusAuto() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2292,7 +2301,7 @@ namespace camera_service::infrastructure {
         return Result<bool>::success(true);
     }
 
-    Result<uint16_t> Visca::getFocusValue() const {
+    Result<uint16_t> ViscaProtocol::getFocusValue() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2306,7 +2315,7 @@ namespace camera_service::infrastructure {
         return Result<uint16_t>::success(get16BitFromNibbles(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getFocusAutoSense() const {
+    Result<uint8_t> ViscaProtocol::getFocusAutoSense() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2320,7 +2329,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint16_t> Visca::getFocusNearLimit() const {
+    Result<uint16_t> ViscaProtocol::getFocusNearLimit() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2334,7 +2343,7 @@ namespace camera_service::infrastructure {
         return Result<uint16_t>::success(get16BitFromNibbles(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getWhitebalMode() const {
+    Result<uint8_t> ViscaProtocol::getWhitebalMode() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2348,7 +2357,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getRgainValue() const {
+    Result<uint8_t> ViscaProtocol::getRgainValue() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2362,7 +2371,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getBgainValue() const {
+    Result<uint8_t> ViscaProtocol::getBgainValue() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2376,7 +2385,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getAutoExpMode() const {
+    Result<uint8_t> ViscaProtocol::getAutoExpMode() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2390,7 +2399,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getSlowShutterAuto() const {
+    Result<uint8_t> ViscaProtocol::getSlowShutterAuto() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2404,7 +2413,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getShutterValue() const {
+    Result<uint8_t> ViscaProtocol::getShutterValue() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2418,7 +2427,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(static_cast<uint8_t>(get16BitFromNibbles(rx_payload.value(), 0)));
     }
 
-    Result<uint8_t> Visca::getIrisValue() const {
+    Result<uint8_t> ViscaProtocol::getIrisValue() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2432,7 +2441,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(static_cast<uint8_t>(get16BitFromNibbles(rx_payload.value(), 0)));
     }
 
-    Result<uint8_t> Visca::getGainValue() const {
+    Result<uint8_t> ViscaProtocol::getGainValue() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2446,7 +2455,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(static_cast<uint8_t>(get16BitFromNibbles(rx_payload.value(), 0)));
     }
 
-    Result<uint16_t> Visca::getBrightValue() const {
+    Result<uint16_t> ViscaProtocol::getBrightValue() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2460,7 +2469,7 @@ namespace camera_service::infrastructure {
         return Result<uint16_t>::success(get16BitFromNibbles(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getExpCompPower() const {
+    Result<uint8_t> ViscaProtocol::getExpCompPower() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2474,7 +2483,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getExpCompValue() const {
+    Result<uint8_t> ViscaProtocol::getExpCompValue() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2488,7 +2497,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(static_cast<uint8_t>(get16BitFromNibbles(rx_payload.value(), 0)));
     }
 
-    Result<bool> Visca::getBacklightComp() const {
+    Result<bool> ViscaProtocol::getBacklightComp() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2506,7 +2515,7 @@ namespace camera_service::infrastructure {
         return Result<bool>::success(true);
     }
 
-    Result<uint8_t> Visca::getApertureValue() const {
+    Result<uint8_t> ViscaProtocol::getApertureValue() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2520,7 +2529,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(static_cast<uint8_t>(get16BitFromNibbles(rx_payload.value(), 0)));
     }
 
-    Result<uint8_t> Visca::getZeroLuxShot() const {
+    Result<uint8_t> ViscaProtocol::getZeroLuxShot() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2534,7 +2543,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getIrLed() const {
+    Result<uint8_t> ViscaProtocol::getIrLed() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2548,7 +2557,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getWideMode() const {
+    Result<uint8_t> ViscaProtocol::getWideMode() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2562,7 +2571,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getMirror() const {
+    Result<uint8_t> ViscaProtocol::getMirror() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2576,7 +2585,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getFreeze() const {
+    Result<uint8_t> ViscaProtocol::getFreeze() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2590,7 +2599,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getPictureEffect() const {
+    Result<uint8_t> ViscaProtocol::getPictureEffect() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2604,7 +2613,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getDigitalEffect() const {
+    Result<uint8_t> ViscaProtocol::getDigitalEffect() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2618,7 +2627,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint16_t> Visca::getDigitalEffectLevel() const {
+    Result<uint16_t> ViscaProtocol::getDigitalEffectLevel() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2632,7 +2641,7 @@ namespace camera_service::infrastructure {
         return Result<uint16_t>::success(get16BitFromNibbles(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getMemory() const {
+    Result<uint8_t> ViscaProtocol::getMemory() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2646,7 +2655,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getDisplay() const {
+    Result<uint8_t> ViscaProtocol::getDisplay() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2660,7 +2669,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint16_t> Visca::getId() const {
+    Result<uint16_t> ViscaProtocol::getId() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2674,7 +2683,7 @@ namespace camera_service::infrastructure {
         return Result<uint16_t>::success(get16BitFromNibbles(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getVideoSystem() const {
+    Result<uint8_t> ViscaProtocol::getVideoSystem() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2688,7 +2697,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint16_t> Visca::getPanTiltMode() const {
+    Result<uint16_t> ViscaProtocol::getPanTiltMode() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2703,7 +2712,7 @@ namespace camera_service::infrastructure {
         return Result<uint16_t>::success(status);
     }
 
-    Result<std::pair<uint8_t, uint8_t>> Visca::getPanTiltMaxspeed() const {
+    Result<std::pair<uint8_t, uint8_t>> ViscaProtocol::getPanTiltMaxspeed() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2719,7 +2728,7 @@ namespace camera_service::infrastructure {
         return Result<std::pair<uint8_t, uint8_t>>::success({max_pan_speed, max_tilt_speed});
     }
 
-    Result<std::pair<uint16_t, uint16_t>> Visca::getPanTiltPosition() const {
+    Result<std::pair<uint16_t, uint16_t>> ViscaProtocol::getPanTiltPosition() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2736,7 +2745,7 @@ namespace camera_service::infrastructure {
         return Result<std::pair<uint16_t, uint16_t>>::success({pan_position, tilt_position});
     }
 
-    Result<uint8_t> Visca::getDatascreen() const {
+    Result<uint8_t> ViscaProtocol::getDatascreen() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2750,7 +2759,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<void> Visca::setRegister(const uint8_t reg_num, const uint8_t reg_val) const {
+    Result<void> ViscaProtocol::setRegister(const uint8_t reg_num, const uint8_t reg_val) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2766,7 +2775,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<uint8_t> Visca::getRegister(const uint8_t reg_num) const {
+    Result<uint8_t> ViscaProtocol::getRegister(const uint8_t reg_num) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -2782,7 +2791,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(reg_val);
     }
 
-    Result<Visca::ViscaPayload> Visca::sendAndReceiveReply(ViscaPayload* payload) const {
+    Result<ViscaProtocol::ViscaPayload> ViscaProtocol::sendAndReceiveReply(ViscaPayload* payload) const {
         const auto serialized_payload = serialize(payload);
         const auto frame = encode(serialized_payload);
 
@@ -2794,7 +2803,8 @@ namespace camera_service::infrastructure {
 
         if (const auto result = transport_->read(rx_buffer); result.isError()) {
             return Result<ViscaPayload>::error(result.error());
-        } else if (result.value() < 3) {
+        }
+        else if (result.value() < 3) {
             return Result<ViscaPayload>::error("Received response is too short");
         }
         auto type = static_cast<ResponseType>(rx_buffer.at(1) & 0xF0);
@@ -2802,7 +2812,8 @@ namespace camera_service::infrastructure {
         while (type == ResponseType::Ack) {
             if (const auto result = transport_->read(rx_buffer); result.isError()) {
                 return Result<ViscaPayload>::error(result.error());
-            } else if (result.value() < 3) {
+            }
+            else if (result.value() < 3) {
                 return Result<ViscaPayload>::error("Received response is too short");
             }
             type = static_cast<ResponseType>(rx_buffer.at(1) & 0xF0); //TODO: payload
@@ -2821,14 +2832,15 @@ namespace camera_service::infrastructure {
         return Result<ViscaPayload>::success(response_payload);
     }
 
-    std::vector<uint8_t> Visca::encode(std::span<const uint8_t> payload) const {
+    std::vector<uint8_t> ViscaProtocol::encode(std::span<const uint8_t> payload) const {
         std::vector<uint8_t> frame(payload.size() + 2);
         frame.at(0) = VISCA_START_BYTE;
         frame.at(0) |= (VISCA_SOCKET_NUM << 4); // Should it always be 0?
         if (broadcast_ > 0) {
             frame.at(0) |= (broadcast_ << 3);
             frame.at(0) &= 0xF8;
-        } else {
+        }
+        else {
             frame.at(0) |= cam_address_;
         }
 
@@ -2842,7 +2854,7 @@ namespace camera_service::infrastructure {
     /* SPECIAL FUNCTIONS FOR D30/31 */
     /********************************/
 
-    Result<void> Visca::setWideConLens(const uint8_t power) const {
+    Result<void> ViscaProtocol::setWideConLens(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2858,7 +2870,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setAtModeOnoff() const {
+    Result<void> ViscaProtocol::setAtModeOnoff() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2873,7 +2885,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setAtMode(const uint8_t power) const {
+    Result<void> ViscaProtocol::setAtMode(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2888,7 +2900,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setAtAeOnoff() const {
+    Result<void> ViscaProtocol::setAtAeOnoff() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2903,7 +2915,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setAtAe(const uint8_t power) const {
+    Result<void> ViscaProtocol::setAtAe(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2918,7 +2930,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setAtAutozoomOnoff() const {
+    Result<void> ViscaProtocol::setAtAutozoomOnoff() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2933,7 +2945,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setAtAutozoom(const uint8_t power) const {
+    Result<void> ViscaProtocol::setAtAutozoom(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2948,7 +2960,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setAtmdFramedisplayOnoff() const {
+    Result<void> ViscaProtocol::setAtmdFramedisplayOnoff() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2963,7 +2975,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setAtmdFramedisplay(const uint8_t power) const {
+    Result<void> ViscaProtocol::setAtmdFramedisplay(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2978,7 +2990,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setAtFrameoffsetOnoff() const {
+    Result<void> ViscaProtocol::setAtFrameoffsetOnoff() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -2993,7 +3005,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setAtFrameoffset(const uint8_t power) const {
+    Result<void> ViscaProtocol::setAtFrameoffset(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3008,7 +3020,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setAtmdStartstop() const {
+    Result<void> ViscaProtocol::setAtmdStartstop() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3023,7 +3035,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setAtChase(const uint8_t power) const {
+    Result<void> ViscaProtocol::setAtChase(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3038,7 +3050,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setAtChaseNext() const {
+    Result<void> ViscaProtocol::setAtChaseNext() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3053,7 +3065,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setMdModeOnoff() const {
+    Result<void> ViscaProtocol::setMdModeOnoff() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3068,7 +3080,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setMdMode(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMdMode(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3083,7 +3095,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setMdFrame() const {
+    Result<void> ViscaProtocol::setMdFrame() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3097,7 +3109,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setMdDetect() const {
+    Result<void> ViscaProtocol::setMdDetect() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3112,7 +3124,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setAtEntry(const uint8_t power) const {
+    Result<void> ViscaProtocol::setAtEntry(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3127,7 +3139,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setAtLostinfo() const {
+    Result<void> ViscaProtocol::setAtLostinfo() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3143,7 +3155,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setMdLostinfo() const {
+    Result<void> ViscaProtocol::setMdLostinfo() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3159,7 +3171,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setMdAdjustYlevel(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMdAdjustYlevel(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3175,7 +3187,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setMdAdjustHuelevel(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMdAdjustHuelevel(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3191,7 +3203,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setMdAdjustSize(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMdAdjustSize(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3207,7 +3219,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setMdAdjustDisptime(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMdAdjustDisptime(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3223,7 +3235,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setMdAdjustRefmode(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMdAdjustRefmode(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3238,7 +3250,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setMdAdjustReftime(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMdAdjustReftime(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3254,7 +3266,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setMdMeasureMode1Onoff() const {
+    Result<void> ViscaProtocol::setMdMeasureMode1Onoff() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3269,7 +3281,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setMdMeasureMode1(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMdMeasureMode1(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3284,7 +3296,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setMdMeasureMode2Onoff() const {
+    Result<void> ViscaProtocol::setMdMeasureMode2Onoff() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3299,7 +3311,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> Visca::setMdMeasureMode2(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMdMeasureMode2(const uint8_t power) const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_COMMAND);
@@ -3314,7 +3326,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<uint8_t> Visca::getKeylock() const {
+    Result<uint8_t> ViscaProtocol::getKeylock() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -3328,7 +3340,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getWideConLens() const {
+    Result<uint8_t> ViscaProtocol::getWideConLens() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -3342,7 +3354,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getAtmdMode() const {
+    Result<uint8_t> ViscaProtocol::getAtmdMode() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -3356,7 +3368,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint16_t> Visca::getAtMode() const {
+    Result<uint16_t> ViscaProtocol::getAtMode() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -3371,7 +3383,7 @@ namespace camera_service::infrastructure {
         return Result<uint16_t>::success(value);
     }
 
-    Result<uint8_t> Visca::getAtEntry() const {
+    Result<uint8_t> ViscaProtocol::getAtEntry() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -3385,7 +3397,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint16_t> Visca::getMdMode() const {
+    Result<uint16_t> ViscaProtocol::getMdMode() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -3399,7 +3411,7 @@ namespace camera_service::infrastructure {
         return Result<uint16_t>::success(value);
     }
 
-    Result<uint8_t> Visca::getMdYlevel() const {
+    Result<uint8_t> ViscaProtocol::getMdYlevel() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -3413,7 +3425,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(power);
     }
 
-    Result<uint8_t> Visca::getMdHuelevel() const {
+    Result<uint8_t> ViscaProtocol::getMdHuelevel() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -3427,7 +3439,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(power);
     }
 
-    Result<uint8_t> Visca::getMdSize() const {
+    Result<uint8_t> ViscaProtocol::getMdSize() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -3441,7 +3453,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(power);
     }
 
-    Result<uint8_t> Visca::getMdDisptime() const {
+    Result<uint8_t> ViscaProtocol::getMdDisptime() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -3456,7 +3468,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(power);
     }
 
-    Result<uint8_t> Visca::getMdRefmode() const {
+    Result<uint8_t> ViscaProtocol::getMdRefmode() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);
@@ -3470,7 +3482,7 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(get8Bit(rx_payload.value(), 0));
     }
 
-    Result<uint8_t> Visca::getMdReftime() const {
+    Result<uint8_t> ViscaProtocol::getMdReftime() const {
         ViscaPayload tx_payload{};
 
         appendByte(&tx_payload, VISCA_INQUIRY);

@@ -3,7 +3,8 @@
 #include <future>
 #include <grpcpp/grpcpp.h>
 
-#include "common/Logger/Logger.h"
+#include "api/IRequestHandler.h"
+#include "common/logger/Logger.h"
 
 namespace camera_service::api {
     GrpcCallbackHandler::GrpcCallbackHandler(std::shared_ptr<IRequestHandler> request_handler)

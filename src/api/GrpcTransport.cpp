@@ -3,12 +3,13 @@
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
 
-#include "api/RequestHandler.h"
 #include "api/GrpcCallbackHandler.h"
+#include "api/IRequestHandler.h"
+#include "common/logger/Logger.h"
 
 namespace camera_service::api {
     GrpcTransport::GrpcTransport(std::shared_ptr<IRequestHandler> request_handler,
-                                std::shared_ptr<LayerLogger> logger)
+                                std::shared_ptr<common::LayerLogger> logger)
         : logger_(std::move(logger)) {
         if (!request_handler) {
             throw std::invalid_argument("Request Handler cannot be null");

@@ -1,10 +1,10 @@
 #include "TcpClient.h"
 
-#include <stdexcept>
 #include <cstring>
-#include <sys/socket.h>
-#include <arpa/inet.h>
+#include <stdexcept>
 #include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
 
 namespace camera_service::infrastructure {
     TcpClient::TcpClient(const std::string& device_path) {

@@ -1,18 +1,18 @@
 #pragma once
 
-#include "IRegisterImpl.h"
+#include <memory>
+#include <mutex>
+
 #include "RegistersMap.h"
 #include "common/types/Result.h"
-#include <memory>
 
 namespace camera_service::infrastructure {
+    class IRegisterImpl;
+
     class RegistersMapManager {
     public:
-        explicit RegistersMapManager(std::unique_ptr<IRegisterImpl> impl) :
-            register_(std::move(impl)) {
-        }
-
-        ~RegistersMapManager() = default;
+        explicit RegistersMapManager(std::unique_ptr<IRegisterImpl> impl);
+        ~RegistersMapManager();
 
         Result<void> setValue(REG reg, uint32_t value) const;
         Result<uint32_t> getValue(REG reg) const;

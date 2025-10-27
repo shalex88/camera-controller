@@ -2,7 +2,7 @@
 #include <gmock/gmock.h>
 /* Add your project include files here */
 #include "core/CoreFactory.h"
-#include "common/Config/ConfigManager.h"
+#include "common/config/ConfigManager.h"
 
 #include "core/Core.h"
 #include "../../Mocks.h"
@@ -11,15 +11,15 @@
 class CoreFactoryTests : public Test {
 protected:
     CoreFactoryTests() {
-        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "API");
+        logger_impl_ = std::make_shared<common::LayerLogger>(std::make_shared<SpdLogAdapter>(), "API");
         core_ = std::make_unique<MockCameraHal>();
     }
-    std::shared_ptr<LayerLogger> logger_impl_;
+    std::shared_ptr<common::LayerLogger> logger_impl_;
     std::unique_ptr<MockCameraHal> core_;
 };
 
 TEST_F(CoreFactoryTests, CreateCameraCoreSuccess) {
-    CoreConfig config;
+    common::CoreConfig config;
     config.camera = "core";
 
     const auto core = core::CoreFactory::createCore(std::move(core_), logger_impl_, config);
@@ -28,7 +28,7 @@ TEST_F(CoreFactoryTests, CreateCameraCoreSuccess) {
 }
 
 TEST_F(CoreFactoryTests, ThrowsOnUnknownType) {
-    CoreConfig config;
+    common::CoreConfig config;
     config.camera = "invalid_camera";  // Invalid camera type to trigger exception
 
     EXPECT_THROW(
@@ -38,7 +38,7 @@ TEST_F(CoreFactoryTests, ThrowsOnUnknownType) {
 }
 
 TEST_F(CoreFactoryTests, ThrowsOnNullCamera) {
-    CoreConfig config;
+    common::CoreConfig config;
     config.camera = "nfov";  // Valid camera type
 
     EXPECT_THROW(

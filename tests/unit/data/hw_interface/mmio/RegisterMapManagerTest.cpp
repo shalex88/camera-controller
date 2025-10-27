@@ -170,10 +170,9 @@ TEST_F(RegisterMapManagerTest, SetRegisterValueThreadSafety) {
     std::atomic completed_operations(0);
     constexpr int opertions_per_thread = 100;
 
-    std::thread thread1([&] {
+    std::jthread thread1([&] {
         for (int i = 0; i < opertions_per_thread; ++i) {
-            const auto result = register_map->setValue(REG::ZOOM, 0xFFFF'FFFF);
-            if (result.isError()) {
+            if (const auto result = register_map->setValue(REG::ZOOM, 0xFFFF'FFFF); result.isError()) {
                 error_flag.store(true);
                 return;
             }
@@ -181,10 +180,9 @@ TEST_F(RegisterMapManagerTest, SetRegisterValueThreadSafety) {
         }
     });
 
-    std::thread thread2([&] {
+    std::jthread thread2([&] {
         for (int i = 0; i < opertions_per_thread; ++i) {
-            const auto result = register_map->setValue(REG::ZOOM, 0x0000'0000);
-            if (result.isError()) {
+            if (const auto result = register_map->setValue(REG::ZOOM, 0x0000'0000); result.isError()) {
                 error_flag.store(true);
                 return;
             }

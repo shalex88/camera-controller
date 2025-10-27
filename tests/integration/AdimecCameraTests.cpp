@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 /* Add your project include files here */
-#include "common/Config/ConfigManager.h"
-#include "infrastructure/camera/hal/CameraHal.h"
+#include "common/config/ConfigManager.h"
+#include "infrastructure/camera/hal/Camera.h"
 #include "infrastructure/camera/devices/AdimecCamera.h"
 #include "infrastructure/camera/transport/mmio/RegistersMapManager.h"
 #include "infrastructure/camera/transport/mmio/RegisterImplUio.h"
@@ -13,16 +13,16 @@ using namespace testing;
 
 class AdimecCameraTests : public Test {
 protected:
-    AdimecCameraTests() : config_(std::make_unique<ConfigManager>("../../config/config-nfov.yaml")) {
+    AdimecCameraTests() : config_(std::make_unique<common::ConfigManager>("../../config/config-nfov.yaml")) {
         auto register_impl = std::make_unique<infrastructure::RegisterImplUio>(config_->getDataConfig().device);
         auto registers_manager = std::make_unique<infrastructure::RegistersMapManager>(std::move(register_impl));
         auto camera_hw = std::make_unique<infrastructure::AdimecCamera>(std::move(registers_manager));
-        auto logger = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "");
-        camera_ = std::make_unique<infrastructure::CameraHal>(std::move(camera_hw), std::move(logger));
+        auto logger = std::make_shared<common::LayerLogger>(std::make_shared<SpdLogAdapter>(), "");
+        camera_ = std::make_unique<infrastructure::Camera>(std::move(camera_hw), std::move(logger));
     }
 
-    std::unique_ptr<infrastructure::CameraHal> camera_;
-    std::unique_ptr<ConfigManager> config_;
+    std::unique_ptr<infrastructure::Camera> camera_;
+    std::unique_ptr<common::ConfigManager> config_;
 };
 
 TEST_F(AdimecCameraTests, CanBeConstructed) {

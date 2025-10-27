@@ -2,18 +2,22 @@
 
 #include <memory>
 
-#include "infrastructure/camera/hal/ICameraHw.h"
-#include "infrastructure/camera/hal/ICameraHal.h"
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
-#include "common/Logger/Logger.h"
+#include "infrastructure/camera/hal/ICamera.h"
+
+namespace camera_service::common {
+    class LayerLogger;
+}
 
 namespace camera_service::infrastructure {
-    class CameraHal final : public ICameraHal {
+    class ICameraHw;
+
+    class Camera final : public ICamera {
     public:
-        explicit CameraHal(std::unique_ptr<ICameraHw> camera_strategy,
-                          std::shared_ptr<LayerLogger> logger);
-        ~CameraHal() override;
+        explicit Camera(std::unique_ptr<ICameraHw> camera_strategy,
+                          std::shared_ptr<common::LayerLogger> logger);
+        ~Camera() override;
 
         Result<void> setZoom(types::zoom normalized_zoom) const override;
         Result<types::zoom> getZoom() const override;
@@ -32,7 +36,7 @@ namespace camera_service::infrastructure {
 
     private:
         std::unique_ptr<ICameraHw> camera_hw_;
-        std::shared_ptr<LayerLogger> logger_;
+        std::shared_ptr<common::LayerLogger> logger_;
         bool connected_ {false};
 
         static bool isValidNormalizedZoom(types::zoom value);
@@ -48,8 +52,6 @@ namespace camera_service::infrastructure {
         types::FocusRange getFocusLimits() const override;
 
         template <typename Capability>
-        Capability* getCapability() const {
-            return dynamic_cast<Capability*>(camera_hw_.get());
-        }
+        Capability* getCapability() const;
     };
 }

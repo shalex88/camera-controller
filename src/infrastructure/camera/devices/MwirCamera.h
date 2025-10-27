@@ -1,11 +1,12 @@
 #pragma once
 
-#include "../hal/ICameraHw.h"
-#include "infrastructure/camera/transport/ethernet/ItlProtocol.h"
 #include "common/types/CameraCapabilities.h"
 #include "common/types/CameraTypes.h"
+#include "infrastructure/camera/hal/ICameraHw.h"
 
 namespace camera_service::infrastructure {
+    class ItlProtocol;
+
     class MwirCamera final : public ICameraHw,
                              public capabilities::IZoomCapable,
                              public capabilities::IFocusCapable,
@@ -13,7 +14,7 @@ namespace camera_service::infrastructure {
                              public capabilities::IInfoCapable {
     public:
         explicit MwirCamera(std::unique_ptr<ItlProtocol> protocol);
-        ~MwirCamera() override = default;
+        ~MwirCamera() override;
 
         // IZoomCapable implementation
         Result<void> setZoom(types::zoom zoom) const override;

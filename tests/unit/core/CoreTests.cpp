@@ -8,11 +8,11 @@
 class CoreTests : public Test {
 protected:
     CoreTests() {
-        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "Core");
+        logger_impl_ = std::make_shared<common::LayerLogger>(std::make_shared<SpdLogAdapter>(), "Core");
         camera = std::make_unique<MockCameraHal>();
     }
     std::unique_ptr<MockCameraHal> camera;
-    std::shared_ptr<LayerLogger> logger_impl_;
+    std::shared_ptr<common::LayerLogger> logger_impl_;
 };
 
 TEST_F(CoreTests, CanBeCreated) {

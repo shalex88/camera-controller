@@ -19,7 +19,7 @@ protected:
         EXPECT_CALL(*core, initialize())
             .WillOnce(Return(Result<void>::success()));
 
-        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "");
+        logger_impl_ = std::make_shared<common::LayerLogger>(std::make_shared<SpdLogAdapter>(), "");
         request_handler = std::make_shared<api::RequestHandler>(std::move(core_obj), logger_impl_);
         grpc_transport = std::make_unique<api::GrpcTransport>(request_handler, logger_impl_);
 
@@ -27,7 +27,7 @@ protected:
         ASSERT_TRUE(grpc_transport->start(server_address).isSuccess());
 
         // Run the server loop in a separate thread
-        server_thread = std::thread([this] {
+        server_thread = std::jthread([this] {
             server_result = grpc_transport->runLoop();
         });
 
@@ -44,10 +44,6 @@ protected:
         if (grpc_transport) {
             ASSERT_TRUE(grpc_transport->stop().isSuccess());
         }
-
-        if (server_thread.joinable()) {
-            server_thread.join();
-        }
     }
 
     CoreMock* core {}; // Raw pointer to access the mock
@@ -55,9 +51,9 @@ protected:
     std::unique_ptr<api::GrpcTransport> grpc_transport;
     std::string server_address = "0.0.0.0:50051";
     std::unique_ptr<GrpcClient> client;
-    std::thread server_thread;
+    std::jthread server_thread;
     Result<void> server_result;
-    std::shared_ptr<LayerLogger> logger_impl_;
+    std::shared_ptr<common::LayerLogger> logger_impl_;
 };
 
 TEST_F(GrpcIntegrationTests, SetZoomAndGetZoomSuccess) {

@@ -1,10 +1,10 @@
 #include "RequestHandler.h"
 
-#include "core/Core.h"
-#include "common/Logger/Logger.h"
+#include "common/logger/Logger.h"
+#include "core/ICore.h"
 
 namespace camera_service::api {
-    RequestHandler::RequestHandler(std::unique_ptr<core::ICore> core, std::shared_ptr<LayerLogger> logger)
+    RequestHandler::RequestHandler(std::unique_ptr<core::ICore> core, std::shared_ptr<common::LayerLogger> logger)
         : core_(std::move(core)), running_(false), logger_(std::move(logger)) {
         if (!core_) {
             throw std::invalid_argument("Core cannot be null");

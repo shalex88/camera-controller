@@ -1,14 +1,18 @@
 #pragma once
+
 #include <memory>
 
-#include "hal/ICameraHal.h"
-#include "common/Config/ConfigManager.h"
-#include "common/Logger/Logger.h"
+namespace camera_service::common {
+    struct DataConfig;
+    class LayerLogger;
+}
 
 namespace camera_service::infrastructure {
+    class ICamera;
+
     class CameraFactory {
     public:
-        static std::unique_ptr<ICameraHal> createCamera(
-            std::shared_ptr<LayerLogger> logger, const DataConfig& config);
+        static std::unique_ptr<ICamera> createCamera(
+            std::shared_ptr<common::LayerLogger> logger, const common::DataConfig& config);
     };
 }

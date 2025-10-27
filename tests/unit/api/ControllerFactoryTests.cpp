@@ -2,7 +2,7 @@
 #include <gmock/gmock.h>
 /* Add your project include files here */
 #include "api/ApiControllerFactory.h"
-#include "common/Config/ConfigManager.h"
+#include "common/config/ConfigManager.h"
 #include "api/ApiController.h"
 #include "core/ICore.h"
 #include "common/types/Result.h"
@@ -11,17 +11,17 @@
 class ControllerFactoryTests : public Test {
 protected:
     ControllerFactoryTests() {
-        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "");
+        logger_impl_ = std::make_shared<common::LayerLogger>(std::make_shared<SpdLogAdapter>(), "");
         core_ = std::make_unique<CoreMock>();
     }
 
     std::string server_address = "50051";
-    std::shared_ptr<LayerLogger> logger_impl_;
+    std::shared_ptr<common::LayerLogger> logger_impl_;
     std::unique_ptr<core::ICore> core_;
 };
 
 TEST_F(ControllerFactoryTests, CreateGrpcServiceSuccess) {
-    ApiConfig config;
+    common::ApiConfig config;
     config.api = "grpc";  // Valid API type
     config.server_address = "localhost:50051";  // Valid server address format
 
@@ -31,7 +31,7 @@ TEST_F(ControllerFactoryTests, CreateGrpcServiceSuccess) {
 }
 
 TEST_F(ControllerFactoryTests, ThrowsOnUnknownType) {
-    ApiConfig config;
+    common::ApiConfig config;
     config.api = "invalid_api";  // Invalid API type to trigger exception
     config.server_address = "localhost:50051";  // Valid server address format
 

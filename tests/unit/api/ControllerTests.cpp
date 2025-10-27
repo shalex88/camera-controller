@@ -9,7 +9,7 @@
 class ControllerTests : public Test {
 protected:
     void SetUp() override {
-        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "API");
+        logger_impl_ = std::make_shared<common::LayerLogger>(std::make_shared<SpdLogAdapter>(), "API");
         request_handler = std::make_shared<NiceMock<RequestHandlerMock>>();
         transport = new NiceMock<TransportMock>();
         auto transport_obj = std::unique_ptr<api::ITransport>(transport);
@@ -20,7 +20,7 @@ protected:
     NiceMock<TransportMock>* transport {};
     std::unique_ptr<api::ApiController> controller;
     std::string server_address = "50051";
-    std::shared_ptr<LayerLogger> logger_impl_;
+    std::shared_ptr<common::LayerLogger> logger_impl_;
 };
 
 TEST_F(ControllerTests, CreationSuccess) {

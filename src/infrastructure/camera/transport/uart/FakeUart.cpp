@@ -1,6 +1,6 @@
 #include "FakeUart.h"
 
-#include "common/Logger/Logger.h"
+#include "common/logger/Logger.h"
 
 namespace camera_service::infrastructure::uart {
     FakeUart::FakeUart() {

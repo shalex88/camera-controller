@@ -2,11 +2,11 @@
 
 #include <string>
 
-#include "infrastructure/camera/transport/ITransport.h"
 #include "common/types/Result.h"
+#include "infrastructure/camera/transport/ITransport.h"
 
 namespace camera_service::infrastructure {
-    class TcpClient : public ITransport {
+    class TcpClient final : public ITransport {
     public:
         explicit TcpClient(const std::string& device_path);
         ~TcpClient() override;

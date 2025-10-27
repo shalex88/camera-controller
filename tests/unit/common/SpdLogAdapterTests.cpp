@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 /* Add your project include files here */
-#include "common/Logger/SpdLogAdapter.h"
+#include "common/logger/SpdLogAdapter.h"
 
 #include <sstream>
 

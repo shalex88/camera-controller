@@ -2,9 +2,10 @@
 
 #include "common/types/CameraCapabilities.h"
 #include "infrastructure/camera/hal/ICameraHw.h"
-#include "infrastructure/camera/transport/visca/Visca.h"
 
 namespace camera_service::infrastructure {
+    class ViscaProtocol;
+
     class SonyCamera final : public ICameraHw,
                              public capabilities::IZoomCapable,
                              public capabilities::IFocusCapable,
@@ -12,7 +13,7 @@ namespace camera_service::infrastructure {
                              public capabilities::IStabilizeCapable,
                              public capabilities::IInfoCapable {
     public:
-        SonyCamera(std::unique_ptr<Visca> protocol);
+        SonyCamera(std::unique_ptr<ViscaProtocol> protocol);
         ~SonyCamera() override;
 
         // IZoomCapable implementation
@@ -50,6 +51,6 @@ namespace camera_service::infrastructure {
             .max = 0xF000
         };
 
-        std::unique_ptr<Visca> protocol_ {};
+        std::unique_ptr<ViscaProtocol> protocol_ {};
     };
 }

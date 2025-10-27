@@ -1,5 +1,5 @@
 app:
-  name: wfov
+  name: simulator
   log_level: debug
   api:
     api_type: grpc
@@ -7,5 +7,5 @@ app:
   core:
     camera: core
   data:
-    camera: sony
-    device: /dev/ttyACM0 #TODO: pass parameters like boudrate
+    camera: fake_simple
+    device: fake
