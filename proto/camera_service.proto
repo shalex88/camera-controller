@@ -12,7 +12,6 @@ service CameraService {
   rpc GoToMaxZoom (GoToMaxZoomRequest) returns (GoToMaxZoomResponse) {}
   rpc EnableAutoFocus (EnableAutoFocusRequest) returns (EnableAutoFocusResponse) {}
   rpc Stabilize (EnableStabilizationRequest) returns (EnableStabilizationResponse) {}
-  rpc Terminate (TerminateRequest) returns (TerminateResponse) {}
 }
 
 message SetZoomRequest {
@@ -74,10 +73,4 @@ message EnableStabilizationRequest {
 }
 
 message EnableStabilizationResponse {
-}
-
-message TerminateRequest {
-}
-
-message TerminateResponse {
 }

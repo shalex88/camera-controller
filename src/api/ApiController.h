@@ -25,7 +25,7 @@ namespace camera_service::api {
         std::unique_ptr<IRequestHandler> request_handler_;
         std::unique_ptr<ITransport> transport_;
         std::string server_address_;
-        std::atomic<bool> running_;
+        std::atomic<bool> is_running_;
         std::jthread service_thread_;
     };
 }

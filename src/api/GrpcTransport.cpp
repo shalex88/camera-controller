@@ -61,10 +61,12 @@ namespace camera_service::api {
         }
 
         if (server_) {
-            server_->Shutdown();
+            LOG_DEBUG("Shutting down server with 30s deadline...");
+            server_->Shutdown(std::chrono::system_clock::now() + std::chrono::seconds(30));
             server_.reset();
         }
 
+        is_running_ = false;
         LOG_DEBUG("Server stopped");
         return Result<void>::success();
     }

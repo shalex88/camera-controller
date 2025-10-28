@@ -10,7 +10,7 @@ namespace camera_service::api {
     ApiController::ApiController(std::unique_ptr<IRequestHandler> request_handler,
                                  std::unique_ptr<ITransport> transport, std::string server_address)
         : request_handler_(std::move(request_handler)), transport_(std::move(transport)),
-          server_address_(std::move(server_address)), running_(false) {
+          server_address_(std::move(server_address)), is_running_(false) {
         if (!request_handler_) {
             throw std::invalid_argument("Request Handler cannot be null");
         }
@@ -42,14 +42,12 @@ namespace camera_service::api {
             return Result<void>::error(transport_result.error());
         }
 
-        running_ = true;
+        is_running_ = true;
 
         service_thread_ = std::jthread([this] {
             if (transport_->runLoop().isError()) {
                 LOG_ERROR("Transport run loop failed");
-                running_ = false;
-            } else {
-                LOG_INFO("Transport run loop completed successfully");
+                is_running_ = false;
             }
         });
 
@@ -64,7 +62,7 @@ namespace camera_service::api {
         }
 
         LOG_DEBUG("Stopping ApiController...");
-        running_ = false;
+        is_running_ = false;
 
         if (const auto transport_result = transport_->stop(); transport_result.isError()) {
             return Result<void>::error("Error stopping transport: " + transport_result.error());
@@ -79,6 +77,6 @@ namespace camera_service::api {
     }
 
     bool ApiController::isRunning() const {
-        return running_;
+        return is_running_;
     }
 }

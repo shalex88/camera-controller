@@ -24,7 +24,7 @@ namespace camera_service::api {
         }
 
         running_ = true;
-        LOG_DEBUG("RequestHandler is running");
+        LOG_DEBUG("RequestHandler started");
         return Result<void>::success();
     }
 

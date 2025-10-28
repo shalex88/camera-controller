@@ -1,4 +1,6 @@
+#include <atomic>
 #include <chrono>
+#include <csignal>
 #include <iostream>
 #include <memory>
 #include <thread>
@@ -13,6 +15,14 @@
 #include "core/ICore.h"
 #include "infrastructure/camera/CameraFactory.h"
 #include "infrastructure/camera/hal/ICamera.h"
+
+std::atomic shutdown_requested{false};
+
+void signalHandler(const int signal) {
+    if (signal == SIGTERM || signal == SIGINT) {
+        shutdown_requested.store(true);
+    }
+}
 
 std::string parseInputArgs(const int argc, char* argv[]) {
     CLI::App app{"A camera control service", APP_NAME};
@@ -41,6 +51,10 @@ std::string parseInputArgs(const int argc, char* argv[]) {
 int main(const int argc, char* argv[]) {
     const auto config_file = parseInputArgs(argc, argv);
 
+    // Register signal handlers for graceful shutdown
+    std::signal(SIGTERM, signalHandler);
+    std::signal(SIGINT, signalHandler);
+
     try {
         const auto config = std::make_unique<camera_service::common::ConfigManager>(config_file);
 
@@ -61,9 +75,19 @@ int main(const int argc, char* argv[]) {
 
         LOG_INFO("Running...");
 
-        while (api_controller->isRunning()) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+        while (api_controller->isRunning() && !shutdown_requested.load()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
+
+        if (shutdown_requested.load()) {
+            LOG_INFO("Stopping...");
+            if (const auto stop_result = api_controller->stop(); stop_result.isError()) {
+                LOG_ERROR("Error during shutdown: {}", stop_result.error());
+                return EXIT_FAILURE;
+            }
+        }
+
+        LOG_INFO("Stopped gracefully");
     } catch (const std::exception& e) {
         LOG_ERROR("Startup error: {}", e.what());
         return EXIT_FAILURE;
