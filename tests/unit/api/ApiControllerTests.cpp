@@ -6,47 +6,48 @@
 #include "common/types/Result.h"
 #include "../../Mocks.h"
 
-class ControllerTests : public Test {
+class ApiControllerTests : public Test {
 protected:
     void SetUp() override {
-        request_handler = std::make_shared<NiceMock<RequestHandlerMock>>();
+        auto request_handler_ptr = std::make_unique<NiceMock<RequestHandlerMock>>();
+        request_handler = request_handler_ptr.get();
         transport = new NiceMock<TransportMock>();
         auto transport_obj = std::unique_ptr<api::ITransport>(transport);
-        controller = std::make_unique<api::ApiController>(request_handler, std::move(transport_obj), server_address);
+        controller = std::make_unique<api::ApiController>(std::move(request_handler_ptr), std::move(transport_obj), server_address);
     }
 
-    std::shared_ptr<NiceMock<RequestHandlerMock>> request_handler;
+    NiceMock<RequestHandlerMock>* request_handler {};
     NiceMock<TransportMock>* transport {};
     std::unique_ptr<api::ApiController> controller;
     std::string server_address = "50051";
 };
 
-TEST_F(ControllerTests, CreationSuccess) {
+TEST_F(ApiControllerTests, CreationSuccess) {
     ASSERT_NE(nullptr, controller);
 }
 
-TEST_F(ControllerTests, CreationFailNoController) {
+TEST_F(ApiControllerTests, CreationFailNoController) {
     EXPECT_THROW(api::ApiController controller(
     nullptr,
     std::make_unique<NiceMock<TransportMock>>(),
     server_address), std::invalid_argument);
 }
 
-TEST_F(ControllerTests, CreationFailNoTransport) {
+TEST_F(ApiControllerTests, CreationFailNoTransport) {
     EXPECT_THROW(api::ApiController controller(
-    request_handler,
+    std::make_unique<NiceMock<RequestHandlerMock>>(),
     nullptr,
     server_address), std::invalid_argument);
 }
 
-TEST_F(ControllerTests, CreationFailEmptyPort) {
+TEST_F(ApiControllerTests, CreationFailEmptyPort) {
     EXPECT_THROW(api::ApiController controller(
-    request_handler,
+    std::make_unique<NiceMock<RequestHandlerMock>>(),
     std::make_unique<NiceMock<TransportMock>>(),
     ""), std::invalid_argument);
 }
 
-TEST_F(ControllerTests, StartStopSuccess) {
+TEST_F(ApiControllerTests, StartStopSuccess) {
     const auto start_result = controller->startAsync();
     ASSERT_TRUE(start_result.isSuccess());
 
@@ -59,7 +60,7 @@ TEST_F(ControllerTests, StartStopSuccess) {
         .WillOnce(Return(Result<void>::success()));
 }
 
-TEST_F(ControllerTests, StartFailOnRequestHandlerStartFail) {
+TEST_F(ApiControllerTests, StartFailOnRequestHandlerStartFail) {
     EXPECT_CALL(*request_handler, start())
         .WillOnce(Return(Result<void>::error("Request Handler start failed")));
 
@@ -67,7 +68,7 @@ TEST_F(ControllerTests, StartFailOnRequestHandlerStartFail) {
     ASSERT_TRUE(result.isError());
 }
 
-TEST_F(ControllerTests, StartFailOnTransportStartFail) {
+TEST_F(ApiControllerTests, StartFailOnTransportStartFail) {
     EXPECT_CALL(*transport, start(server_address))
         .WillOnce(Return(Result<void>::error("Transport start failed")));
 
@@ -75,17 +76,17 @@ TEST_F(ControllerTests, StartFailOnTransportStartFail) {
     ASSERT_TRUE(result.isError());
 }
 
-TEST_F(ControllerTests, StopSuccessIfNotRunning) {
+TEST_F(ApiControllerTests, StopSuccessIfNotRunning) {
     const auto result = controller->stop();
     ASSERT_TRUE(result.isSuccess()) << "Stop should succeed if not running";
 }
 
-TEST_F(ControllerTests, StopSuccessIfRunning) {
+TEST_F(ApiControllerTests, StopSuccessIfRunning) {
     const auto result = controller->stop();
     ASSERT_TRUE(result.isSuccess()) << "Stop should succeed if not running";
 }
 
-TEST_F(ControllerTests, StopFailsIfTransportStopFails) {
+TEST_F(ApiControllerTests, StopFailsIfTransportStopFails) {
     const auto start_result = controller->startAsync();
     ASSERT_TRUE(start_result.isSuccess());
 
@@ -98,7 +99,7 @@ TEST_F(ControllerTests, StopFailsIfTransportStopFails) {
     ASSERT_TRUE(stop_result.isError());
 }
 
-TEST_F(ControllerTests, StopFailsIfRequestHandlerStopFails) {
+TEST_F(ApiControllerTests, StopFailsIfRequestHandlerStopFails) {
     const auto start_result = controller->startAsync();
     ASSERT_TRUE(start_result.isSuccess());
 

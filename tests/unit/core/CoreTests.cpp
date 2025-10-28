@@ -31,7 +31,7 @@ TEST_F(CoreTests, InitializeSuccessWhenDisconnected) {
         .WillOnce(Return(Result<void>::success()));
 
     core::Core core(std::move(camera));
-    const auto result = core.initialize();
+    const auto result = core.start();
     ASSERT_TRUE(result.isSuccess()) << "Failed to initialize: " << result.error();
 }
 
@@ -43,7 +43,7 @@ TEST_F(CoreTests, InitializeSuccessWhenAlreadyConnected) {
         .WillOnce(Return(Result<void>::success()));
 
     core::Core core(std::move(camera));
-    const auto result = core.initialize();
+    const auto result = core.start();
     ASSERT_TRUE(result.isSuccess()) << "Failed to initialize: " << result.error();
 }
 
@@ -54,7 +54,7 @@ TEST_F(CoreTests, InitializeFailsOnConnectError) {
         .WillOnce(Return(Result<void>::error("Failed to connect")));
 
     core::Core core(std::move(camera));
-    const auto result = core.initialize();
+    const auto result = core.start();
     ASSERT_TRUE(result.isError());
     EXPECT_THAT(result.error(), ::testing::HasSubstr("Failed to connect"));
 }
@@ -76,7 +76,7 @@ TEST_F(CoreTests, ZoomOperationsSuccess) {
 
     // Now create the core with the moved camera
     core::Core core(std::move(camera));
-    const auto init_result = core.initialize();
+    const auto init_result = core.start();
     ASSERT_TRUE(init_result.isSuccess()) << "Failed to initialize: " << init_result.error();
 
     const auto set_result = core.setZoom(2);
@@ -116,7 +116,7 @@ TEST_F(CoreTests, FocusOperations) {
 
     // Now create the core with the moved camera
     core::Core core(std::move(camera));
-    const auto init_result = core.initialize();
+    const auto init_result = core.start();
     ASSERT_TRUE(init_result.isSuccess());
 
     const auto set_result = core.setFocus(1);
@@ -150,16 +150,16 @@ TEST_F(CoreTests, ShutdownSuccess) {
         .WillOnce(Return(Result<void>::success()));
 
     core::Core core(std::move(camera));
-    const auto init_result = core.initialize();
+    const auto init_result = core.start();
     ASSERT_TRUE(init_result.isSuccess()) << "Failed to initialize: " << init_result.error();
 
-    const auto shutdown_result = core.shutdown();
+    const auto shutdown_result = core.stop();
     ASSERT_TRUE(shutdown_result.isSuccess()) << "Failed to shut down: " << shutdown_result.error();
 }
 
 TEST_F(CoreTests, ShutdownWhenNotInitializedSuccess) {
     core::Core core(std::move(camera));
-    const auto shutdown_result = core.shutdown();
+    const auto shutdown_result = core.stop();
     ASSERT_TRUE(shutdown_result.isSuccess());
 }
 
@@ -173,10 +173,10 @@ TEST_F(CoreTests, ShutdownWhenCameraDisconnectFailsFails) {
         .WillOnce(Return(Result<void>::error("Failed to disconnect")));
 
     core::Core core(std::move(camera));
-    const auto init_result = core.initialize();
+    const auto init_result = core.start();
     ASSERT_TRUE(init_result.isSuccess());
 
-    const auto shutdown_result = core.shutdown();
+    const auto shutdown_result = core.stop();
     ASSERT_TRUE(shutdown_result.isError());
     EXPECT_EQ(shutdown_result.error(), "Failed to disconnect");
 }

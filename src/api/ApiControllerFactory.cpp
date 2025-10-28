@@ -14,9 +14,9 @@ namespace camera_service::api {
         }
 
         if (config.api == "grpc") {
-            auto request_handler = std::make_shared<RequestHandler>(std::move(core));
-            auto transport = std::make_unique<GrpcTransport>(request_handler);
-            return std::make_unique<ApiController>(request_handler, std::move(transport), config.server_address);
+            auto request_handler = std::make_unique<RequestHandler>(std::move(core));
+            auto transport = std::make_unique<GrpcTransport>(*request_handler);
+            return std::make_unique<ApiController>(std::move(request_handler), std::move(transport), config.server_address);
         }
 
         throw std::invalid_argument("Unknown API controller type: " + config.api);

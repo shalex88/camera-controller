@@ -17,8 +17,8 @@ namespace camera_service::core {
         virtual ~ICore() = default;
 
         // Service lifecycle
-        virtual Result<void> initialize() = 0;
-        virtual Result<void> shutdown() = 0;
+        virtual Result<void> start() = 0;
+        virtual Result<void> stop() = 0;
 
         // Business methods for zoom operations
         virtual Result<void> setZoom(types::zoom zoom_level) const = 0;

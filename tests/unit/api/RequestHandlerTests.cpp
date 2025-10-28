@@ -30,7 +30,7 @@ TEST_F(RequestHandlerTests, StartSuccess) {
 }
 
 TEST_F(RequestHandlerTests, StartFailOnInitialize) {
-    EXPECT_CALL(*core, initialize())
+    EXPECT_CALL(*core, start())
         .WillOnce(Return(Result<void>::error("Initialize failed")));
 
     const auto result = request_handler->start();
@@ -38,9 +38,9 @@ TEST_F(RequestHandlerTests, StartFailOnInitialize) {
 }
 
 TEST_F(RequestHandlerTests, StopSuccessIfRunning) {
-    EXPECT_CALL(*core, initialize())
+    EXPECT_CALL(*core, start())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*core, shutdown())
+    EXPECT_CALL(*core, stop())
         .WillOnce(Return(Result<void>::success()));
 
     const auto start_result = request_handler->start();
@@ -56,9 +56,9 @@ TEST_F(RequestHandlerTests, StopSuccessIfNotRunning) {
 }
 
 TEST_F(RequestHandlerTests, StopFailsIfCoreShutdownFails) {
-    EXPECT_CALL(*core, initialize())
+    EXPECT_CALL(*core, start())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*core, shutdown())
+    EXPECT_CALL(*core, stop())
         .WillOnce(Return(Result<void>::error("Shutdown failed")));
 
     const auto start_result = request_handler->start();
@@ -70,7 +70,7 @@ TEST_F(RequestHandlerTests, StopFailsIfCoreShutdownFails) {
 
 TEST_F(RequestHandlerTests, ZoomOperations) {
     Sequence s;
-    EXPECT_CALL(*core, initialize())
+    EXPECT_CALL(*core, start())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
 
@@ -80,7 +80,7 @@ TEST_F(RequestHandlerTests, ZoomOperations) {
     EXPECT_CALL(*core, getZoom())
         .InSequence(s)
         .WillOnce(Return(Result<types::zoom>::success(2u)));
-    EXPECT_CALL(*core, shutdown())
+    EXPECT_CALL(*core, stop())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
 
@@ -108,7 +108,7 @@ TEST_F(RequestHandlerTests, ZoomOperationsFailIfNotRunning) {
 
 TEST_F(RequestHandlerTests, FocusOperations) {
     Sequence s;
-    EXPECT_CALL(*core, initialize())
+    EXPECT_CALL(*core, start())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
 
@@ -118,7 +118,7 @@ TEST_F(RequestHandlerTests, FocusOperations) {
     EXPECT_CALL(*core, getFocus())
         .InSequence(s)
         .WillOnce(Return(Result<types::focus>::success(1u)));
-    EXPECT_CALL(*core, shutdown())
+    EXPECT_CALL(*core, stop())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
 

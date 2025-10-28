@@ -12,19 +12,19 @@ namespace camera_service::api {
     }
 
     RequestHandler::~RequestHandler() {
-        if (running_) {
-            if (stop().isError()) {
-                LOG_ERROR("RequestHandler failed to stop gracefully");
-            }
+        if (stop().isError()) {
+            LOG_ERROR("RequestHandler failed to stop gracefully");
         }
     }
 
     Result<void> RequestHandler::start() {
-        if (const auto init_result = core_->initialize(); init_result.isError()) {
+        LOG_DEBUG("Starting RequestHandler...");
+        if (const auto init_result = core_->start(); init_result.isError()) {
             return Result<void>::error(init_result.error());
         }
 
         running_ = true;
+        LOG_DEBUG("RequestHandler is running");
         return Result<void>::success();
     }
 
@@ -33,15 +33,16 @@ namespace camera_service::api {
             return Result<void>::success();
         }
 
-        LOG_DEBUG("Stopping Request Handler...");
+        LOG_DEBUG("Stopping RequestHandler...");
         running_ = false;
 
         if (core_) {
-            if (const auto shutdown_result = core_->shutdown(); shutdown_result.isError()) {
+            if (const auto shutdown_result = core_->stop(); shutdown_result.isError()) {
                 LOG_ERROR("Error stopping core: {}", shutdown_result.error());
                 return Result<void>::error("Failed to shut down core: " + shutdown_result.error());
             }
         }
+        LOG_DEBUG("RequestHandler stopped");
         return Result<void>::success();
     }
 
@@ -51,7 +52,7 @@ namespace camera_service::api {
 
     Result<void> RequestHandler::setZoom(const types::zoom zoom_level) const {
         if (!isRunning()) {
-            return Result<void>::error("Request Handler is not running");
+            return Result<void>::error("RequestHandler is not running");
         }
 
         LOG_INFO("Request: {} {}", __func__, zoom_level);

@@ -8,7 +8,7 @@ namespace camera_service::api {
 
     class GrpcCallbackHandler final : public camera::CameraService::CallbackService {
     public:
-        explicit GrpcCallbackHandler(std::shared_ptr<IRequestHandler> request_handler);
+        explicit GrpcCallbackHandler(IRequestHandler& request_handler);
 
         grpc::ServerUnaryReactor* SetZoom(
             grpc::CallbackServerContext* context,
@@ -61,6 +61,6 @@ namespace camera_service::api {
             camera::TerminateResponse* response) override;
 
     private:
-        std::shared_ptr<IRequestHandler> request_handler_;
+        IRequestHandler& request_handler_;
     };
 }

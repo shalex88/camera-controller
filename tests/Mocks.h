@@ -39,8 +39,8 @@ public:
 
 class CoreMock: public core::ICore {
 public:
-    MOCK_METHOD(Result<void>, initialize, (), (override));
-    MOCK_METHOD(Result<void>, shutdown, (), (override));
+    MOCK_METHOD(Result<void>, start, (), (override));
+    MOCK_METHOD(Result<void>, stop, (), (override));
 
     MOCK_METHOD(Result<void>, setZoom, (types::zoom), (const, override));
     MOCK_METHOD(Result<types::zoom>, getZoom, (), (const, override));

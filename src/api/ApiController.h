@@ -13,7 +13,7 @@ namespace camera_service::api {
 
     class ApiController final {
     public:
-    explicit ApiController(std::shared_ptr<IRequestHandler> request_handler,
+    explicit ApiController(std::unique_ptr<IRequestHandler> request_handler,
                    std::unique_ptr<ITransport> transport, std::string server_address);
         ~ApiController();
 
@@ -22,7 +22,7 @@ namespace camera_service::api {
         bool isRunning() const;
 
     private:
-        std::shared_ptr<IRequestHandler> request_handler_;
+        std::unique_ptr<IRequestHandler> request_handler_;
         std::unique_ptr<ITransport> transport_;
         std::string server_address_;
         std::atomic<bool> running_;

@@ -16,8 +16,8 @@ namespace camera_service::core {
         ~Core() override;
 
         // ICore implementation
-        Result<void> initialize() override;
-        Result<void> shutdown() override;
+        Result<void> start() override;
+        Result<void> stop() override;
 
         // Business methods for zoom operations
         Result<void> setZoom(types::zoom zoom_level) const override;
@@ -37,8 +37,8 @@ namespace camera_service::core {
         Result<void> stabilize(bool on) const override;
 
     private:
-        bool isInitialized() const;
+        bool isRunning() const;
         std::unique_ptr<infrastructure::ICamera> camera_;
-        bool is_initialized_;
+        bool is_running_;
     };
 }

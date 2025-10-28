@@ -8,9 +8,9 @@
 #include "common/types/Result.h"
 #include "../../Mocks.h"
 
-class ControllerFactoryTests : public Test {
+class ApiControllerFactoryTests : public Test {
 protected:
-    ControllerFactoryTests() {
+    ApiControllerFactoryTests() {
         core_ = std::make_unique<CoreMock>();
     }
 
@@ -18,7 +18,7 @@ protected:
     std::unique_ptr<core::ICore> core_;
 };
 
-TEST_F(ControllerFactoryTests, CreateGrpcServiceSuccess) {
+TEST_F(ApiControllerFactoryTests, CreateGrpcServiceSuccess) {
     common::ApiConfig config;
     config.api = "grpc";  // Valid API type
     config.server_address = "localhost:50051";  // Valid server address format
@@ -28,7 +28,7 @@ TEST_F(ControllerFactoryTests, CreateGrpcServiceSuccess) {
     ASSERT_TRUE(service.get() != nullptr);
 }
 
-TEST_F(ControllerFactoryTests, ThrowsOnUnknownType) {
+TEST_F(ApiControllerFactoryTests, ThrowsOnUnknownType) {
     common::ApiConfig config;
     config.api = "invalid_api";  // Invalid API type to trigger exception
     config.server_address = "localhost:50051";  // Valid server address format

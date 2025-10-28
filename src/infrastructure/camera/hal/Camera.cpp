@@ -18,10 +18,8 @@ namespace camera_service::infrastructure {
     }
 
     Camera::~Camera() {
-        if (isConnected()) {
-            if (disconnect().isError()) {
-                LOG_ERROR("Failed to disconnect Camera");
-            }
+        if (disconnect().isError()) {
+            LOG_ERROR("Failed to disconnect Camera");
         }
     }
 
@@ -183,27 +181,29 @@ namespace camera_service::infrastructure {
             return Result<void>::error("Camera already connected");
         }
 
-        LOG_INFO("Connecting to camera...");
+        LOG_DEBUG("Connecting camera...");
         if (const auto connect_result = camera_hw_->connect(); connect_result.isError()) {
             return Result<void>::error(connect_result.error());
         }
 
         connected_ = true;
-        LOG_INFO("Camera connected successfully");
+        LOG_DEBUG("Camera connected");
         return Result<void>::success();
     }
 
     Result<void> Camera::disconnect() {
         if (!connected_) {
-            return Result<void>::error("Camera not connected");
+            return Result<void>::success();
         }
 
-        LOG_DEBUG(__func__);
+        LOG_DEBUG("Disconnecting camera...");
+        connected_ = false;
+
         if (const auto disconnect_result = camera_hw_->disconnect(); disconnect_result.isError()) {
             return Result<void>::error(disconnect_result.error());
         }
 
-        connected_ = false;
+        LOG_DEBUG("Camera disconnected");
         return Result<void>::success();
     }
 

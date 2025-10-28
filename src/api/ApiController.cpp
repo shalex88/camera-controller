@@ -7,7 +7,7 @@
 #include "common/logger/Logger.h"
 
 namespace camera_service::api {
-    ApiController::ApiController(std::shared_ptr<IRequestHandler> request_handler,
+    ApiController::ApiController(std::unique_ptr<IRequestHandler> request_handler,
                                  std::unique_ptr<ITransport> transport, std::string server_address)
         : request_handler_(std::move(request_handler)), transport_(std::move(transport)),
           server_address_(std::move(server_address)), running_(false) {
@@ -23,15 +23,13 @@ namespace camera_service::api {
     }
 
     ApiController::~ApiController() {
-        if (running_) {
-            if (stop().isError()) {
-                LOG_ERROR("ApiController failed to stop gracefully");
-            }
+        if (stop().isError()) {
+            LOG_ERROR("ApiController failed to stop gracefully");
         }
     }
 
     Result<void> ApiController::startAsync() {
-        LOG_INFO("Initializing...");
+        LOG_DEBUG("Starting ApiController...");
 
         if (const auto request_handler_result = request_handler_->start(); request_handler_result.isError()) {
             return Result<void>::error("Failed to start: " + request_handler_result.error());
@@ -55,7 +53,7 @@ namespace camera_service::api {
             }
         });
 
-        LOG_INFO("Initialized successfully");
+        LOG_DEBUG("ApiController started");
 
         return Result<void>::success();
     }
@@ -65,7 +63,7 @@ namespace camera_service::api {
             return Result<void>::success();
         }
 
-        LOG_INFO("Stopping API ApiController...");
+        LOG_DEBUG("Stopping ApiController...");
         running_ = false;
 
         if (const auto transport_result = transport_->stop(); transport_result.isError()) {
@@ -76,6 +74,7 @@ namespace camera_service::api {
             return Result<void>::error("Failed to stop request handler: " + stop_result.error());
         }
 
+        LOG_DEBUG("ApiController stopped");
         return Result<void>::success();
     }
 

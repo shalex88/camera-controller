@@ -10,21 +10,17 @@
 class GrpcTransportTests : public Test {
 protected:
     void SetUp() override {
-        request_handler = std::make_shared<api::RequestHandler>(std::make_unique<CoreMock>());
-        grpc_transport = std::make_unique<api::GrpcTransport>(request_handler);
+        request_handler = std::make_unique<api::RequestHandler>(std::make_unique<CoreMock>());
+        grpc_transport = std::make_unique<api::GrpcTransport>(*request_handler);
     }
 
-    std::shared_ptr<api::RequestHandler> request_handler;
+    std::unique_ptr<api::RequestHandler> request_handler;
     std::unique_ptr<api::GrpcTransport> grpc_transport;
     std::string server_address = "0.0.0.0:50051";
 };
 
 TEST_F(GrpcTransportTests, CreationSuccess) {
     ASSERT_NE(nullptr, grpc_transport);
-}
-
-TEST_F(GrpcTransportTests, CreationFailIfNoRequestHandler) {
-    EXPECT_THROW(api::GrpcTransport transport(nullptr), std::invalid_argument);
 }
 
 TEST_F(GrpcTransportTests, StartServerSuccess) {

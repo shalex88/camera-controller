@@ -18,8 +18,7 @@
 
 namespace camera_service::infrastructure {
     std::unique_ptr<ICamera> CameraFactory::createCamera(const common::DataConfig& config) {
-        LOG_INFO("Camera: {}", config.camera);
-        LOG_DEBUG("Device: {}", config.device);
+        LOG_DEBUG("Device: {} {}", config.camera, config.device);
 
         if (config.camera == "adimec") {
             auto transport = std::make_unique<RegisterImplUio>(config.device);

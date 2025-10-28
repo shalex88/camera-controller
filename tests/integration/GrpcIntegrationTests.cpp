@@ -18,11 +18,11 @@ protected:
         auto core_obj = std::make_unique<CoreMock>();
         core = core_obj.get();
 
-        EXPECT_CALL(*core, initialize())
+        EXPECT_CALL(*core, start())
             .WillOnce(Return(Result<void>::success()));
 
-        request_handler = std::make_shared<api::RequestHandler>(std::move(core_obj));
-        grpc_transport = std::make_unique<api::GrpcTransport>(request_handler);
+        request_handler = std::make_unique<api::RequestHandler>(std::move(core_obj));
+        grpc_transport = std::make_unique<api::GrpcTransport>(*request_handler);
 
         ASSERT_TRUE(request_handler->start().isSuccess());
         ASSERT_TRUE(grpc_transport->start(server_address).isSuccess());
@@ -39,7 +39,7 @@ protected:
     }
 
     void TearDown() override {
-        EXPECT_CALL(*core, shutdown())
+        EXPECT_CALL(*core, stop())
             .WillOnce(Return(Result<void>::success()));
 
         if (grpc_transport) {
@@ -48,7 +48,7 @@ protected:
     }
 
     CoreMock* core {}; // Raw pointer to access the mock
-    std::shared_ptr<api::IRequestHandler> request_handler;
+    std::unique_ptr<api::RequestHandler> request_handler;
     std::unique_ptr<api::GrpcTransport> grpc_transport;
     std::string server_address = "0.0.0.0:50051";
     std::unique_ptr<GrpcClient> client;

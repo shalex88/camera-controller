@@ -5,22 +5,20 @@
 
 namespace camera_service::core {
     Core::Core(std::unique_ptr<infrastructure::ICamera> camera)
-        : camera_(std::move(camera)), is_initialized_(false) {
+        : camera_(std::move(camera)), is_running_(false) {
         if (!camera_) {
             throw std::invalid_argument("Cannot initialize Core with null camera");
         }
     }
 
     Core::~Core() {
-        if (isInitialized()) {
-            if (shutdown().isError()) {
-                LOG_ERROR("Failed to shut down Core properly");
-            }
+        if (stop().isError()) {
+            LOG_ERROR("Failed to shut down Core properly");
         }
     }
 
-    Result<void> Core::initialize() {
-        LOG_INFO("Initializing...");
+    Result<void> Core::start() {
+        LOG_DEBUG("Starting...");
 
         if (!camera_->isConnected()) {
             if (const auto connect_result = camera_->connect(); connect_result.isError()) {
@@ -28,19 +26,19 @@ namespace camera_service::core {
             }
         }
 
-        is_initialized_ = true;
-        LOG_INFO("Initialized successfully");
+        is_running_ = true;
+        LOG_DEBUG("Running");
         return Result<void>::success();
     }
 
-    Result<void> Core::shutdown() {
-        if (!isInitialized()) {
+    Result<void> Core::stop() {
+        if (!isRunning()) {
             return Result<void>::success();
         }
 
-        is_initialized_ = false;
+        is_running_ = false;
 
-        LOG_INFO("Shutting down Core...");
+        LOG_DEBUG("Stopping...");
 
         if (camera_ && camera_->isConnected()) {
             if (const auto disconnect_result = camera_->disconnect(); disconnect_result.isError()) {
@@ -48,16 +46,16 @@ namespace camera_service::core {
             }
         }
 
-        LOG_INFO("Core shut down successfully");
+        LOG_DEBUG("Stopped");
         return Result<void>::success();
     }
 
-    bool Core::isInitialized() const {
-        return is_initialized_;
+    bool Core::isRunning() const {
+        return is_running_;
     }
 
     Result<void> Core::setZoom(const types::zoom zoom_level) const {
-        if (!isInitialized()) {
+        if (!isRunning()) {
             return Result<void>::error("Core is not initialized");
         }
 
@@ -65,7 +63,7 @@ namespace camera_service::core {
     }
 
     Result<types::zoom> Core::getZoom() const {
-        if (!isInitialized()) {
+        if (!isRunning()) {
             return Result<types::zoom>::error("Core is not initialized");
         }
 
@@ -81,7 +79,7 @@ namespace camera_service::core {
     }
 
     Result<void> Core::setFocus(const types::focus focus_value) const {
-        if (!isInitialized()) {
+        if (!isRunning()) {
             return Result<void>::error("Core is not initialized");
         }
 
@@ -89,7 +87,7 @@ namespace camera_service::core {
     }
 
     Result<types::focus> Core::getFocus() const {
-        if (!isInitialized()) {
+        if (!isRunning()) {
             return Result<types::focus>::error("Core is not initialized");
         }
 
@@ -97,7 +95,7 @@ namespace camera_service::core {
     }
 
     Result<void> Core::enableAutoFocus(const bool on) const {
-        if (!isInitialized()) {
+        if (!isRunning()) {
             return Result<void>::error("Core is not initialized");
         }
 
@@ -105,7 +103,7 @@ namespace camera_service::core {
     }
 
     Result<types::info> Core::getInfo() const {
-        if (!isInitialized()) {
+        if (!isRunning()) {
             return Result<types::info>::error("Core is not initialized");
         }
 
@@ -113,7 +111,7 @@ namespace camera_service::core {
     }
 
     Result<void> Core::stabilize(const bool on) const {
-        if (!isInitialized()) {
+        if (!isRunning()) {
             return Result<void>::error("Core is not initialized");
         }
 

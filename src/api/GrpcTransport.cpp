@@ -11,11 +11,8 @@
 #include "common/logger/Logger.h"
 
 namespace camera_service::api {
-    GrpcTransport::GrpcTransport(std::shared_ptr<IRequestHandler> request_handler) {
-        if (!request_handler) {
-            throw std::invalid_argument("Request Handler cannot be null");
-        }
-        callback_handler_ = std::make_unique<GrpcCallbackHandler>(std::move(request_handler));
+    GrpcTransport::GrpcTransport(IRequestHandler& request_handler) {
+        callback_handler_ = std::make_unique<GrpcCallbackHandler>(request_handler);
     }
 
     GrpcTransport::~GrpcTransport() {
@@ -25,7 +22,7 @@ namespace camera_service::api {
     }
 
     Result<void> GrpcTransport::start(const std::string& server_address) {
-        LOG_DEBUG("Starting server...", server_address);
+        LOG_DEBUG("Starting server...");
         //TODO: learn how to use health check
         grpc::EnableDefaultHealthCheckService(false);
         //TODO: disable in production
@@ -53,15 +50,21 @@ namespace camera_service::api {
             return Result<void>::error("Failed to start server on: " + server_address);
         }
 
+        is_running_ = true;
         LOG_INFO("Server is listening on {}", server_address);
         return Result<void>::success();
     }
 
     Result<void> GrpcTransport::stop() {
+        if (!is_running_) {
+            return Result<void>::success();
+        }
+
         if (server_) {
             server_->Shutdown();
             server_.reset();
         }
+
         LOG_DEBUG("Server stopped");
         return Result<void>::success();
     }

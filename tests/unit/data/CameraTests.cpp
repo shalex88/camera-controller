@@ -59,25 +59,17 @@ TEST_F(CameraTests, ReconnectWhenAlreadyConnectedFails) {
     ASSERT_TRUE(second_connect_result.error().find("connected") != std::string::npos);
 }
 
-TEST_F(CameraTests, DisconnectWhenNotConnectedFails) {
-    const auto result = camera_->disconnect();
-    ASSERT_TRUE(result.isError());
-    EXPECT_FALSE(camera_->isConnected());
+TEST_F(CameraTests, DisconnectWhenNotConnectedSucceeds) {
+    EXPECT_TRUE(camera_->disconnect().isSuccess());
+    ASSERT_FALSE(camera_->isConnected());
 }
 
-
-TEST_F(CameraTests, DisonnectWhenCameraCantDisconnectFails) {
+TEST_F(CameraTests, DisonnectWhenConnectedSucceeds) {
     EXPECT_CALL(*camera_hw_, connect())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera_hw_, disconnect())
-        .Times(AtLeast(1))
-        .WillRepeatedly(Return(Result<void>::error("error")));
 
     EXPECT_TRUE(camera_->connect().isSuccess());
-
-    const auto connect_result = camera_->disconnect();
-    ASSERT_TRUE(connect_result.isError());
-    ASSERT_TRUE(camera_->isConnected());
+    ASSERT_TRUE(camera_->disconnect().isSuccess());
 }
 
 TEST_F(CameraTests, SetZoomWhenNotConnectedFail) {
