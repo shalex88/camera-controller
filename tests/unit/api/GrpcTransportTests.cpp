@@ -87,3 +87,41 @@ TEST_F(GrpcTransportTests, RunLoopWithRunningServerShouldSucceed) {
 
     EXPECT_TRUE(grpc_transport->stop().isSuccess());
 }
+
+TEST_F(GrpcTransportTests, StartServerTwiceWithoutStopFails) {
+    EXPECT_TRUE(grpc_transport->start(server_address).isSuccess());
+
+    // Second start without stopping should fail
+    const auto second_start = grpc_transport->start(server_address);
+    ASSERT_TRUE(second_start.isError());
+
+    // Cleanup
+    EXPECT_TRUE(grpc_transport->stop().isSuccess());
+}
+
+TEST_F(GrpcTransportTests, StartWithDifferentPortsSucceeds) {
+    // Start on first port
+    const std::string first_port = "0.0.0.0:50052";
+    EXPECT_TRUE(grpc_transport->start(first_port).isSuccess());
+    EXPECT_TRUE(grpc_transport->stop().isSuccess());
+
+    // Start on second port
+    const std::string second_port = "0.0.0.0:50053";
+    EXPECT_TRUE(grpc_transport->start(second_port).isSuccess());
+    EXPECT_TRUE(grpc_transport->stop().isSuccess());
+}
+
+TEST_F(GrpcTransportTests, StartWithEmptyAddressFails) {
+    const auto result = grpc_transport->start("");
+    ASSERT_TRUE(result.isError());
+}
+
+TEST_F(GrpcTransportTests, StartWithInvalidFormatFails) {
+    const auto result = grpc_transport->start("not_a_valid_address");
+    ASSERT_TRUE(result.isError());
+}
+
+TEST_F(GrpcTransportTests, RunLoopBeforeStartFails) {
+    const auto result = grpc_transport->runLoop();
+    ASSERT_TRUE(result.isError());
+}

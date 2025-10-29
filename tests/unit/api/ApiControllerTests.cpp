@@ -105,9 +105,21 @@ TEST_F(ApiControllerTests, StopFailsIfRequestHandlerStopFails) {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
+    EXPECT_CALL(*transport, stop())
+        .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*request_handler, stop())
-        .WillOnce(Return(Result<void>::error("Request Handler stop failed")));
+        .WillOnce(Return(Result<void>::error("RequestHandler stop failed")));
 
     const auto stop_result = controller->stop();
     ASSERT_TRUE(stop_result.isError());
+}
+
+TEST_F(ApiControllerTests, StartFailsWithEmptyServerAddress) {
+    auto req_handler = std::make_unique<NiceMock<RequestHandlerMock>>();
+    auto trans = std::make_unique<NiceMock<TransportMock>>();
+
+    EXPECT_THROW(
+        api::ApiController ctrl(std::move(req_handler), std::move(trans), ""),
+        std::invalid_argument
+    );
 }

@@ -143,3 +143,122 @@ TEST_F(RequestHandlerTests, FocusOperationsFailIfNotRunning) {
     const auto get_result = request_handler->getFocus();
     ASSERT_TRUE(get_result.isError());
 }
+
+TEST_F(RequestHandlerTests, GetInfoSuccess) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, getInfo())
+        .WillOnce(Return(Result<types::info>::success(std::string("Camera Info"))));
+    EXPECT_CALL(*core, stop())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+
+    const auto info_result = request_handler->getInfo();
+    ASSERT_TRUE(info_result.isSuccess());
+    EXPECT_EQ(info_result.value(), "Camera Info");
+
+    ASSERT_TRUE(request_handler->stop().isSuccess());
+}
+
+TEST_F(RequestHandlerTests, GetInfoFailsIfNotRunning) {
+    const auto result = request_handler->getInfo();
+    ASSERT_TRUE(result.isError());
+}
+
+TEST_F(RequestHandlerTests, EnableAutoFocusSuccess) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, enableAutoFocus(true))
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, stop())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+    ASSERT_TRUE(request_handler->enableAutoFocus(true).isSuccess());
+    ASSERT_TRUE(request_handler->stop().isSuccess());
+}
+
+TEST_F(RequestHandlerTests, EnableAutoFocusFailsIfNotRunning) {
+    const auto result = request_handler->enableAutoFocus(true);
+    ASSERT_TRUE(result.isError());
+}
+
+TEST_F(RequestHandlerTests, GoToMinZoomSuccess) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, goToMinZoom())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, stop())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+    ASSERT_TRUE(request_handler->goToMinZoom().isSuccess());
+    ASSERT_TRUE(request_handler->stop().isSuccess());
+}
+
+TEST_F(RequestHandlerTests, GoToMinZoomFailsIfNotRunning) {
+    const auto result = request_handler->goToMinZoom();
+    ASSERT_TRUE(result.isError());
+}
+
+TEST_F(RequestHandlerTests, GoToMaxZoomSuccess) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, goToMaxZoom())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, stop())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+    ASSERT_TRUE(request_handler->goToMaxZoom().isSuccess());
+    ASSERT_TRUE(request_handler->stop().isSuccess());
+}
+
+TEST_F(RequestHandlerTests, GoToMaxZoomFailsIfNotRunning) {
+    const auto result = request_handler->goToMaxZoom();
+    ASSERT_TRUE(result.isError());
+}
+
+TEST_F(RequestHandlerTests, StabilizeSuccess) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, stabilize(true))
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, stop())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+    ASSERT_TRUE(request_handler->stabilize(true).isSuccess());
+    ASSERT_TRUE(request_handler->stop().isSuccess());
+}
+
+TEST_F(RequestHandlerTests, StabilizeFailsIfNotRunning) {
+    const auto result = request_handler->stabilize(true);
+    ASSERT_TRUE(result.isError());
+}
+
+TEST_F(RequestHandlerTests, IsRunningInitiallyFalse) {
+    EXPECT_FALSE(request_handler->isRunning());
+}
+
+TEST_F(RequestHandlerTests, IsRunningTrueAfterStart) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+    EXPECT_TRUE(request_handler->isRunning());
+}
+
+TEST_F(RequestHandlerTests, IsRunningFalseAfterStop) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, stop())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+    EXPECT_TRUE(request_handler->isRunning());
+
+    ASSERT_TRUE(request_handler->stop().isSuccess());
+    EXPECT_FALSE(request_handler->isRunning());
+}

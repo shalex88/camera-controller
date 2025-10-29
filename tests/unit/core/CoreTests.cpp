@@ -180,3 +180,82 @@ TEST_F(CoreTests, ShutdownWhenCameraDisconnectFailsFails) {
     ASSERT_TRUE(shutdown_result.isError());
     EXPECT_EQ(shutdown_result.error(), "Failed to disconnect");
 }
+
+TEST_F(CoreTests, GetInfoSuccess) {
+    EXPECT_CALL(*camera, isConnected())
+        .WillOnce(Return(false))
+        .WillOnce(Return(true));
+    EXPECT_CALL(*camera, connect())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*camera, getInfo())
+        .WillOnce(Return(Result<types::info>::success(std::string("Test Camera Info"))));
+    EXPECT_CALL(*camera, disconnect())
+        .WillOnce(Return(Result<void>::success()));
+
+    core::Core core(std::move(camera));
+    ASSERT_TRUE(core.start().isSuccess());
+
+    const auto info_result = core.getInfo();
+    ASSERT_TRUE(info_result.isSuccess());
+    EXPECT_EQ(info_result.value(), "Test Camera Info");
+}
+
+TEST_F(CoreTests, GetInfoFailsWhenNotInitialized) {
+    const core::Core core(std::move(camera));
+
+    const auto info_result = core.getInfo();
+    ASSERT_TRUE(info_result.isError());
+    EXPECT_THAT(info_result.error(), ::testing::HasSubstr("not initialized"));
+}
+
+TEST_F(CoreTests, EnableAutoFocusSuccess) {
+    EXPECT_CALL(*camera, isConnected())
+        .WillOnce(Return(false))
+        .WillOnce(Return(true));
+    EXPECT_CALL(*camera, connect())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*camera, enableAutoFocus(true))
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*camera, disconnect())
+        .WillOnce(Return(Result<void>::success()));
+
+    core::Core core(std::move(camera));
+    ASSERT_TRUE(core.start().isSuccess());
+
+    const auto af_result = core.enableAutoFocus(true);
+    ASSERT_TRUE(af_result.isSuccess());
+}
+
+TEST_F(CoreTests, EnableAutoFocusFailsWhenNotInitialized) {
+    const core::Core core(std::move(camera));
+
+    const auto af_result = core.enableAutoFocus(true);
+    ASSERT_TRUE(af_result.isError());
+    EXPECT_THAT(af_result.error(), ::testing::HasSubstr("not initialized"));
+}
+
+TEST_F(CoreTests, StabilizeSuccess) {
+    EXPECT_CALL(*camera, isConnected())
+        .WillOnce(Return(false))
+        .WillOnce(Return(true));
+    EXPECT_CALL(*camera, connect())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*camera, stabilize(true))
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*camera, disconnect())
+        .WillOnce(Return(Result<void>::success()));
+
+    core::Core core(std::move(camera));
+    ASSERT_TRUE(core.start().isSuccess());
+
+    const auto result = core.stabilize(true);
+    ASSERT_TRUE(result.isSuccess());
+}
+
+TEST_F(CoreTests, StabilizeFailsWhenNotInitialized) {
+    const core::Core core(std::move(camera));
+
+    const auto result = core.stabilize(true);
+    ASSERT_TRUE(result.isError());
+    EXPECT_THAT(result.error(), ::testing::HasSubstr("not initialized"));
+}

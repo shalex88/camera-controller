@@ -3,6 +3,8 @@ applyTo: "**/*.cpp, **/*.h, **/CMakeLists.txt, **/*.cmake"
 description: C++ guidelines
 ---
 
+Don't write comments in the code, the code should be self-explanatory!
+
 Use C++20
 
 Support only GCC compiler
@@ -42,5 +44,3 @@ Functions should be marked as const if they don't modify the state of the object
 Don't place static functions in header files, place them in anonymous namespaces in cpp files instead
 
 Class members initialization should be defined by default member initializers
-
-Don't write comments in the code, the code should be self-explanatory

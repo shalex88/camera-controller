@@ -1,13 +1,13 @@
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 /* Add your project include files here */
 #include "common/config/ConfigManager.h"
-#include "infrastructure/camera/hal/Camera.h"
-#include "infrastructure/camera/devices/AdimecCamera.h"
-#include "infrastructure/camera/transport/mmio/RegistersMapManager.h"
-#include "infrastructure/camera/transport/mmio/RegisterImplUio.h"
 #include "common/logger/Logger.h"
 #include "common/types/Result.h"
+#include "infrastructure/camera/devices/AdimecCamera.h"
+#include "infrastructure/camera/hal/Camera.h"
+#include "infrastructure/camera/transport/mmio/RegisterImplUio.h"
+#include "infrastructure/camera/transport/mmio/RegistersMapManager.h"
 
 using namespace camera_service;
 using namespace testing;
