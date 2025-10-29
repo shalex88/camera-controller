@@ -22,7 +22,7 @@ namespace camera_service::core {
 
         if (!camera_->isConnected()) {
             if (const auto connect_result = camera_->connect(); connect_result.isError()) {
-                return Result<void>::error("Init failed: " + connect_result.error());
+                return Result<void>::error(connect_result.error());
             }
         }
 

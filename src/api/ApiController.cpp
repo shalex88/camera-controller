@@ -32,7 +32,7 @@ namespace camera_service::api {
         LOG_DEBUG("Starting ApiController...");
 
         if (const auto request_handler_result = request_handler_->start(); request_handler_result.isError()) {
-            return Result<void>::error("Failed to start: " + request_handler_result.error());
+            return Result<void>::error(request_handler_result.error());
         }
 
         if (const auto transport_result = transport_->start(server_address_); transport_result.isError()) {

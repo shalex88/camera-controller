@@ -65,7 +65,7 @@ namespace camera_service::app {
         try {
             config_ = std::make_unique<common::ConfigManager>(config_file_);
 
-            CONFIGURE_GLOBAL_LOGGER(config_->getAppName(), config_->getLogLevel());
+            CONFIGURE_LOGGER(config_->getAppName(), config_->getLogLevel());
 
             LOG_INFO("{} v{}.{}.{}{}", APP_NAME, APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH,
                      APP_VERSION_DIRTY);
@@ -76,7 +76,7 @@ namespace camera_service::app {
 
             return Result<void>::success();
         } catch (const std::exception& e) {
-            return Result<void>::error(std::string("Initialization failed: ") + e.what());
+            return Result<void>::error(e.what());
         }
     }
 
@@ -86,7 +86,7 @@ namespace camera_service::app {
         }
 
         if (const auto result = api_controller_->startAsync(); result.isError()) {
-            return Result<void>::error(std::string("Failed to start API controller: ") + result.error());
+            return Result<void>::error(result.error());
         }
 
         LOG_INFO("Running...");
@@ -109,7 +109,7 @@ namespace camera_service::app {
         }
 
         if (const auto result = api_controller_->stop(); result.isError()) {
-            return Result<void>::error(std::string("Error during shutdown: ") + result.error());
+            return Result<void>::error(result.error());
         }
 
         return Result<void>::success();

@@ -14,7 +14,7 @@
 class GrpcIntegrationTests : public Test {
 protected:
     void SetUp() override {
-        CONFIGURE_GLOBAL_LOGGER("grpc-integration-tests", "debug");
+        CONFIGURE_LOGGER("grpc-integration-tests", "debug");
         auto core_obj = std::make_unique<CoreMock>();
         core = core_obj.get();
 

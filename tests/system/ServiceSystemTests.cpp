@@ -24,7 +24,7 @@ protected:
         EXPECT_NO_THROW(config = std::make_unique<common::ConfigManager>("../../config/config.yaml"));
         ASSERT_NE(nullptr, config);
 
-        CONFIGURE_GLOBAL_LOGGER(config->getAppName(), config->getLogLevel());
+        CONFIGURE_LOGGER(config->getAppName(), config->getLogLevel());
 
         // Get configuration objects using the new typed API
         const auto& api_config_obj = config->getApiConfig();

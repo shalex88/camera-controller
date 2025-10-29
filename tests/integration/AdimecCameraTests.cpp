@@ -15,7 +15,7 @@ using namespace testing;
 class AdimecCameraTests : public Test {
 protected:
     AdimecCameraTests() : config_(std::make_unique<common::ConfigManager>("../../config/config-nfov.yaml")) {
-        CONFIGURE_GLOBAL_LOGGER(config_->getAppName(), config_->getLogLevel());
+        CONFIGURE_LOGGER(config_->getAppName(), config_->getLogLevel());
         auto register_impl = std::make_unique<infrastructure::RegisterImplUio>(config_->getDataConfig().device);
         auto registers_manager = std::make_unique<infrastructure::RegistersMapManager>(std::move(register_impl));
         auto camera_hw = std::make_unique<infrastructure::AdimecCamera>(std::move(registers_manager));

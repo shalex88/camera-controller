@@ -14,7 +14,7 @@ namespace camera_service::common {
 #define CAMERA_SERVICE_LOGGER_SCOPE_COUNT 4
 
     enum class LogScope : std::uint8_t {
-        Global = 0,
+        App = 0,
         Api,
         Core,
         Infrastructure
@@ -138,7 +138,7 @@ namespace camera_service::common {
             adapter->setLogLevel(log_level);
             logger_impl_ = std::move(adapter);
 
-            scoped_loggers_[static_cast<std::size_t>(LogScope::Global)].reset(logger_impl_, "GLOBAL");
+            scoped_loggers_[static_cast<std::size_t>(LogScope::App)].reset(logger_impl_, "APP");
             scoped_loggers_[static_cast<std::size_t>(LogScope::Api)].reset(logger_impl_, "API");
             scoped_loggers_[static_cast<std::size_t>(LogScope::Core)].reset(logger_impl_, "CORE");
             scoped_loggers_[static_cast<std::size_t>(LogScope::Infrastructure)].reset(logger_impl_, "INFRASTRUCTURE");
@@ -149,26 +149,26 @@ namespace camera_service::common {
     };
 
     namespace detail {
-        constexpr bool contains(std::string_view text, std::string_view pattern) {
+        constexpr bool contains(const std::string_view text, const std::string_view pattern) {
             return text.find(pattern) != std::string_view::npos;
         }
 
         constexpr LogScope scopeFromFile(const char* file) {
             const std::string_view path(file);
 
-            if (contains(path, "/src/api/") || contains(path, "\\src\\api\\")) {
+            if (contains(path, "/src/api/") || contains(path, R"(\src\api\)")) {
                 return LogScope::Api;
             }
 
-            if (contains(path, "/src/core/") || contains(path, "\\src\\core\\")) {
+            if (contains(path, "/src/core/") || contains(path, R"(\src\core\)")) {
                 return LogScope::Core;
             }
 
-            if (contains(path, "/src/infrastructure/") || contains(path, "\\src\\infrastructure\\")) {
+            if (contains(path, "/src/infrastructure/") || contains(path, R"(\src\infrastructure\)")) {
                 return LogScope::Infrastructure;
             }
 
-            return LogScope::Global;
+            return LogScope::App;
         }
 
         inline ScopedLogger& loggerFor(const char* file) {
@@ -177,7 +177,7 @@ namespace camera_service::common {
     }
 }
 
-#define CONFIGURE_GLOBAL_LOGGER(name, level) do { \
+#define CONFIGURE_LOGGER(name, level) do { \
     camera_service::common::LoggerRegistry::instance().initialize((name), (level)); \
 } while(false)
 

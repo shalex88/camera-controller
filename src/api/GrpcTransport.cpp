@@ -47,11 +47,11 @@ namespace camera_service::api {
         close(stderr_backup);
 
         if (!server_ || selected_port == 0) {
-            return Result<void>::error("Failed to start server on: " + server_address);
+            return Result<void>::error("Failed to open server on: " + server_address);
         }
 
         is_running_ = true;
-        LOG_INFO("Server is listening on {}", server_address);
+        LOG_INFO("Server is listening on: {}", server_address);
         return Result<void>::success();
     }
 
