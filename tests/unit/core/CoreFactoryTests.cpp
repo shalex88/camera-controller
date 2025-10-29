@@ -27,20 +27,20 @@ TEST_F(CoreFactoryTests, CreateCameraCoreSuccess) {
 
 TEST_F(CoreFactoryTests, ThrowsOnUnknownType) {
     common::CoreConfig config;
-    config.camera = "invalid_camera";  // Invalid camera type to trigger exception
+    config.camera = "invalid_camera";
 
     EXPECT_THROW(
-    core::CoreFactory::createCore(std::move(core_), config),
+        core::CoreFactory::createCore(std::move(core_), config),
         std::invalid_argument
     );
 }
 
 TEST_F(CoreFactoryTests, ThrowsOnNullCamera) {
     common::CoreConfig config;
-    config.camera = "nfov";  // Valid camera type
+    config.camera = "nfov";
 
     EXPECT_THROW(
-    core::CoreFactory::createCore(nullptr, config),
+        core::CoreFactory::createCore(nullptr, config),
         std::invalid_argument
     );
 }

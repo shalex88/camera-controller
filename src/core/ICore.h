@@ -6,17 +6,10 @@
 #include "common/types/Result.h"
 
 namespace camera_service::core {
-    class CoreException final : public std::runtime_error {
-    public:
-        explicit CoreException(const std::string& message) : std::runtime_error(message) {
-        }
-    };
-
     class ICore {
     public:
         virtual ~ICore() = default;
 
-        // Service lifecycle
         virtual Result<void> start() = 0;
         virtual Result<void> stop() = 0;
 

@@ -70,9 +70,9 @@ namespace camera_service::app {
             LOG_INFO("{} v{}.{}.{}{}", APP_NAME, APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH,
                      APP_VERSION_DIRTY);
 
-            camera_ = infrastructure::CameraFactory::createCamera(config_->getDataConfig());
-            core_ = core::CoreFactory::createCore(std::move(camera_), config_->getCoreConfig());
-            api_controller_ = api::ApiControllerFactory::createController(std::move(core_), config_->getApiConfig());
+            auto camera = infrastructure::CameraFactory::createCamera(config_->getDataConfig());
+            auto core = core::CoreFactory::createCore(std::move(camera), config_->getCoreConfig());
+            api_controller_ = api::ApiControllerFactory::createController(std::move(core), config_->getApiConfig());
 
             return Result<void>::success();
         } catch (const std::exception& e) {

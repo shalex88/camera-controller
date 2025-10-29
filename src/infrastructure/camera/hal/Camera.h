@@ -29,6 +29,9 @@ namespace camera_service::infrastructure {
         Result<void> disconnect() override;
         bool isConnected() const override;
 
+        bool hasZoomCapability() const;
+        bool hasFocusCapability() const;
+
     private:
         std::unique_ptr<ICameraHw> camera_hw_;
         bool connected_ {false};

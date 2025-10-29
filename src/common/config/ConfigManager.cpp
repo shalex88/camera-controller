@@ -8,16 +8,16 @@ namespace camera_service::common {
         static const std::set<std::string> valid_apis{"grpc"};
 
         if (api.empty()) {
-            throw ConfigException("API type cannot be empty");
+            throw std::runtime_error("API type cannot be empty");
         }
         if (!valid_apis.contains(api)) {
-            throw ConfigException("Invalid API type: " + api);
+            throw std::runtime_error("Invalid API type: " + api);
         }
         if (server_address.empty()) {
-            throw ConfigException("Server address cannot be empty");
+            throw std::runtime_error("Server address cannot be empty");
         }
         if (server_address.find(':') == std::string::npos) {
-            throw ConfigException("Server address must include port (format: host:port)");
+            throw std::runtime_error("Server address must include port (format: host:port)");
         }
     }
 
@@ -25,7 +25,7 @@ namespace camera_service::common {
         static const std::set<std::string> valid_cameras{"core"};
 
         if (camera.empty()) {
-            throw ConfigException("Camera type cannot be empty");
+            throw std::runtime_error("Camera type cannot be empty");
         }
     }
 
@@ -33,13 +33,13 @@ namespace camera_service::common {
         static const std::set<std::string> valid_cameras{"sony", "adimec", "mwir", "fake_advanced", "fake_simple",};
 
         if (camera.empty()) {
-            throw ConfigException("Data camera type cannot be empty");
+            throw std::runtime_error("Data camera type cannot be empty");
         }
         if (!valid_cameras.contains(camera)) {
-            throw ConfigException("Invalid data camera type: " + camera);
+            throw std::runtime_error("Invalid data camera type: " + camera);
         }
         if (device.empty()) {
-            throw ConfigException("Device type cannot be empty");
+            throw std::runtime_error("Device type cannot be empty");
         }
     }
 
@@ -51,24 +51,23 @@ namespace camera_service::common {
         data_config.validate();
 
         if (log_level.empty()) {
-            throw ConfigException("Log level cannot be empty");
+            throw std::runtime_error("Log level cannot be empty");
         }
         if (!valid_log_levels.contains(log_level)) {
-            throw ConfigException("Invalid log level: " + log_level);
+            throw std::runtime_error("Invalid log level: " + log_level);
         }
         if (name.empty()) {
-            throw ConfigException("App name cannot be empty");
+            throw std::runtime_error("App name cannot be empty");
         }
 
-        // Cross-validation: ensure camera types are consistent
         if (api_config.server_address == core_config.camera) {
-            throw ConfigException("API server address cannot be the same as camera type");
+            throw std::runtime_error("API server address cannot be the same as camera type");
         }
     }
 
     ConfigManager::ConfigManager(const std::string& filename) : app_config_(std::make_unique<AppConfig>()) {
         if (!std::filesystem::exists(filename)) {
-            throw ConfigException("Configuration file does not exist: " + filename);
+            throw std::runtime_error("Configuration file does not exist: " + filename);
         }
         loadFromFile(filename);
         validateConfiguration();
@@ -85,7 +84,7 @@ namespace camera_service::common {
             }
         }
         catch (const YAML::Exception& e) {
-            throw ConfigException("YAML parsing error: " + std::string(e.what()));
+            throw std::runtime_error("YAML parsing error: " + std::string(e.what()));
         }
     }
 
@@ -153,7 +152,7 @@ namespace camera_service::common {
 
     void ConfigManager::validateConfiguration() const {
         if (!app_config_) {
-            throw ConfigException("Configuration not initialized");
+            throw std::runtime_error("Configuration not initialized");
         }
         app_config_->validate();
     }

@@ -9,11 +9,17 @@ namespace camera_service::infrastructure {
         if (!camera_hw_) {
             throw std::invalid_argument("Camera hardware cannot be null");
         }
-        if (getZoomLimits().min >= getZoomLimits().max) {
-            throw std::runtime_error("Invalid zoom limits from camera");
+        if (hasZoomCapability()) {
+            const auto limits = getZoomLimits();
+            if (limits.min >= limits.max) {
+                throw std::runtime_error("Invalid zoom limits from camera");
+            }
         }
-        if (getFocusLimits().min >= getFocusLimits().max) {
-            throw std::runtime_error("Invalid focus limits from camera");
+        if (hasFocusCapability()) {
+            const auto limits = getFocusLimits();
+            if (limits.min >= limits.max) {
+                throw std::runtime_error("Invalid focus limits from camera");
+            }
         }
     }
 
@@ -211,10 +217,18 @@ namespace camera_service::infrastructure {
         return connected_;
     }
 
+    bool Camera::hasZoomCapability() const {
+        return getCapability<capabilities::IZoomCapable>() != nullptr;
+    }
+
+    bool Camera::hasFocusCapability() const {
+        return getCapability<capabilities::IFocusCapable>() != nullptr;
+    }
+
     types::ZoomRange Camera::getZoomLimits() const {
         const auto* zoom_capable_camera = getCapability<capabilities::IZoomCapable>();
         if (!zoom_capable_camera) {
-            throw std::runtime_error("Camera doesn't support zoom"); //FIXME: think of a better solution
+            return {0, 0};
         }
         return zoom_capable_camera->getZoomLimits();
     }
@@ -222,7 +236,7 @@ namespace camera_service::infrastructure {
     types::FocusRange Camera::getFocusLimits() const {
         const auto* focus_capable_camera = getCapability<capabilities::IFocusCapable>();
         if (!focus_capable_camera) {
-            throw std::runtime_error("Camera doesn't support focus"); //FIXME: think of a better solution
+            return {0, 0};
         }
         return focus_capable_camera->getFocusLimits();
     }

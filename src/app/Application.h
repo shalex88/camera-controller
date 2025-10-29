@@ -49,8 +49,6 @@ namespace camera_service::app {
         std::string config_file_{"../config/config.yaml"};
 
         std::unique_ptr<common::ConfigManager> config_{};
-        std::unique_ptr<infrastructure::ICamera> camera_{};
-        std::unique_ptr<core::ICore> core_{};
         std::unique_ptr<api::ApiController> api_controller_{};
     };
 

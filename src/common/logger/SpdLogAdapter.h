@@ -40,7 +40,8 @@ public:
         } else if (level == "critical") {
             setLogLevel(LogLevel::Critical);
         } else {
-            throw std::invalid_argument("Invalid log severity: " + level);
+            logger_->error("Invalid log severity: {}, defaulting to info", level);
+            setLogLevel(LogLevel::Info);
         }
     }
 
@@ -66,7 +67,7 @@ private:
             case LogLevel::Critical:
                 return spdlog::level::critical;
             default:
-                throw std::invalid_argument("Invalid log severity");
+                return spdlog::level::info;
         }
     }
 };

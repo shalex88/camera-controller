@@ -7,12 +7,6 @@
 #include <yaml-cpp/yaml.h>
 
 namespace camera_service::common {
-    class ConfigException final : public std::runtime_error {
-    public:
-        explicit ConfigException(const std::string& message) : std::runtime_error(message) {
-        }
-    };
-
     struct ApiConfig {
         std::string api;
         std::string server_address;

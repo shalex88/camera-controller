@@ -19,3 +19,4 @@ namespace camera_service::api {
             std::unique_ptr<core::ICore> core, const common::ApiConfig& config);
     };
 }
+

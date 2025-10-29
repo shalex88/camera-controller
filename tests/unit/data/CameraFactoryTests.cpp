@@ -10,8 +10,8 @@ using namespace testing;
 
 TEST(CameraFactoryTests, CreateSonyCameraSuccess) {
     common::DataConfig config;
-    config.camera = "sony";  // Valid camera type
-    config.device = "fake";  // Valid device type
+    config.camera = "sony";
+    config.device = "fake";
 
     const auto camera = infrastructure::CameraFactory::createCamera(config);
     ASSERT_NE(nullptr, camera);
@@ -20,16 +20,16 @@ TEST(CameraFactoryTests, CreateSonyCameraSuccess) {
 
 TEST(CameraFactoryTests, ThrowsOnUnknownType) {
     common::DataConfig config;
-    config.camera = "invalid_camera";  // Invalid camera type to trigger exception
-    config.device = "fake";  // Valid device type
+    config.camera = "invalid_camera";
+    config.device = "fake";
 
     EXPECT_THROW(infrastructure::CameraFactory::createCamera(config), std::invalid_argument);
 }
 
 TEST(CameraFactoryTests, ThrowsOnEmptyType) {
     common::DataConfig config;
-    config.camera = "";  // Empty camera type to trigger exception
-    config.device = "fake";  // Valid device type
+    config.camera = "";
+    config.device = "fake";
 
     EXPECT_THROW(infrastructure::CameraFactory::createCamera(config), std::invalid_argument);
 }
