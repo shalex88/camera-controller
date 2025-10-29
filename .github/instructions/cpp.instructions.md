@@ -33,7 +33,9 @@ Use Result<T, E> for error handling
 
 Variables should always be initialized
 
-Variables should be declared/defined as const if possible
+Variables should be declared/defined as const wherever possible
+
+Use constexpr wherever possible
 
 Functions should be marked as const if they don't modify the state of the object
 

@@ -3,6 +3,7 @@
 
 #include "api/proto/camera_service.grpc.pb.h"
 #include "api/proto/camera_service.pb.h"
+#include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
 
 using namespace camera_service;

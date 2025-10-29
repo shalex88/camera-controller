@@ -1,18 +1,11 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
-/* Add your project include files here */
 #include <chrono>
 #include <memory>
+#include <thread>
 
-#include "api/ApiControllerFactory.h"
-#include "api/ApiController.h"
-#include "core/CoreFactory.h"
-#include "core/ICore.h"
-#include "infrastructure/camera/CameraFactory.h"
-#include "infrastructure/camera/hal/ICamera.h"
-#include "common/logger/Logger.h"
+#include "app/Application.h"
 #include "common/config/ConfigManager.h"
-#include "common/types/Result.h"
 #include "../../utils/GrpcClient.h"
 
 using namespace camera_service;
@@ -21,46 +14,41 @@ using namespace testing;
 class ServiceSystemTests : public Test {
 protected:
     void SetUp() override {
-        EXPECT_NO_THROW(config = std::make_unique<common::ConfigManager>("../../config/config.yaml"));
-        ASSERT_NE(nullptr, config);
+        const char* config_path = "../../config/config-simulator.yaml";
+        char* argv[] = {const_cast<char*>("camera-service"), const_cast<char*>("-c"), const_cast<char*>(config_path)};
+        const int argc = 3;
 
-        CONFIGURE_LOGGER(config->getAppName(), config->getLogLevel());
+        app = std::make_unique<app::Application>(argc, argv);
+        ASSERT_NE(nullptr, app);
 
-        // Get configuration objects using the new typed API
+        const auto init_result = app->initialize();
+        ASSERT_TRUE(init_result.isSuccess()) << "Initialization failed: " << init_result.error();
+
+        const auto start_result = app->start();
+        ASSERT_TRUE(start_result.isSuccess()) << "Failed to start: " << start_result.error();
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+
+        config = std::make_unique<common::ConfigManager>(config_path);
         const auto& api_config_obj = config->getApiConfig();
-        const auto& data_config_obj = config->getDataConfig();
-        const auto& core_config_obj = config->getCoreConfig();
-
-        api_config = api_config_obj.api;
-        server_address_config = api_config_obj.server_address;
-        camera_config = core_config_obj.camera;
-
-    EXPECT_NO_THROW(camera = infrastructure::CameraFactory::createCamera(data_config_obj));
-        ASSERT_NE(nullptr, camera);
-
-    EXPECT_NO_THROW(core = core::CoreFactory::createCore(std::move(camera), core_config_obj));
-        ASSERT_NE(nullptr, core);
-
-    EXPECT_NO_THROW(service = camera_service::api::ApiControllerFactory::createController(std::move(core), api_config_obj));
-        ASSERT_NE(nullptr, service);
-
-        ASSERT_TRUE(service->startAsync().isSuccess());
-        std::this_thread::sleep_for(1s);
-        ASSERT_TRUE(service->isRunning());
+        server_address = api_config_obj.server_address;
     }
 
+    void TearDown() override {
+        if (app) {
+            const auto stop_result = app->stop();
+            EXPECT_TRUE(stop_result.isSuccess()) << "Shutdown error: " << stop_result.error();
+        }
+    }
+
+    std::unique_ptr<app::Application> app;
     std::unique_ptr<common::ConfigManager> config;
-    std::unique_ptr<infrastructure::ICamera> camera;
-    std::unique_ptr<core::ICore> core;
-    std::unique_ptr<api::ApiController> service;
-    std::string api_config;
-    std::string server_address_config;
-    std::string camera_config;
+    std::string server_address;
 };
 
 TEST_F(ServiceSystemTests, CameraRequestResponse) {
-    std::cout << "Connecting to server at " << server_address_config << "\n";
-    const auto channel = CreateChannel(server_address_config, grpc::InsecureChannelCredentials());
+    std::cout << "Connecting to server at " << server_address << "\n";
+    const auto channel = CreateChannel(server_address, grpc::InsecureChannelCredentials());
     const GrpcClient client(channel);
 
     constexpr types::zoom test_zoom = 1u;
