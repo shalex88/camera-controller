@@ -10,6 +10,7 @@ namespace {
     constexpr uint32_t VISCA_SOCKET_NUM = 0;
     constexpr uint8_t VISCA_START_BYTE = 0x80;
     constexpr uint8_t VISCA_RESPONSE_START_BYTE = 0x90;
+    constexpr uint8_t VISCA_BROADCAST_RESPONSE_BYTE = 0x88;
     constexpr uint8_t VISCA_COMMAND = 0x01;
     constexpr uint8_t VISCA_INQUIRY = 0x09;
     constexpr uint8_t VISCA_TERMINATOR = 0xFF;
@@ -271,7 +272,7 @@ namespace camera_service::infrastructure {
         size_t size = 0;
     };
 
-    std::string getViscaErrorMessage(const ResultCode error_code) {
+    std::string_view getViscaErrorMessage(const ResultCode error_code) {
         switch (error_code) {
             case ResultCode::ErrorMessageLength:
                 return "Invalid message length";
@@ -285,8 +286,14 @@ namespace camera_service::infrastructure {
                 return "No socket available";
             case ResultCode::ErrorCmdNotExecutable:
                 return "Command not executable";
-            default:
-                return "Unknown error: " + std::to_string(static_cast<uint32_t>(error_code));
+            default: {
+                thread_local std::array<char, 64> buffer{};
+                const auto [out, size] = std::format_to_n(buffer.begin(), buffer.size() - 1,
+                                                          "Unknown error: 0x{:02X}",
+                                                          static_cast<uint32_t>(error_code));
+                *out = '\0';
+                return std::string_view{buffer.data(), static_cast<std::size_t>(out - buffer.begin())};
+            }
         }
     }
 
@@ -313,8 +320,7 @@ namespace camera_service::infrastructure {
             return {};
         }
 
-        if (buffer.front() != VISCA_RESPONSE_START_BYTE && buffer.front() != 0x88) {
-            //TODO: magic number
+        if (buffer.front() != VISCA_RESPONSE_START_BYTE && buffer.front() != VISCA_BROADCAST_RESPONSE_BYTE) {
             return {};
         }
 
@@ -324,15 +330,21 @@ namespace camera_service::infrastructure {
         }
 
         const auto buffer_size = std::distance(buffer.begin(), terminator_it) + 1;
+        const auto payload_size = buffer_size - 3;
 
-        std::vector<uint8_t> payload(buffer_size - 3);
-        std::ranges::copy(buffer.begin() + 2, buffer.begin() + buffer_size - 1, payload.begin());
+        if (payload_size <= 0) {
+            return {};
+        }
+
+        std::vector<uint8_t> payload;
+        payload.reserve(payload_size);
+        payload.assign(buffer.begin() + 2, buffer.begin() + buffer_size - 1);
 
         return payload;
     }
 
     void appendByte(ViscaProtocol::ViscaPayload* payload, const uint8_t byte) {
-        payload->data.at(payload->size++) = byte;
+        payload->data[payload->size++] = byte;
     }
 
     void appendAsNibbles(ViscaProtocol::ViscaPayload* payload, const uint16_t value) {
@@ -343,26 +355,26 @@ namespace camera_service::infrastructure {
     }
 
     uint16_t get16BitFromNibbles(const ViscaProtocol::ViscaPayload& payload, const size_t index) {
-        const auto b0 = static_cast<uint16_t>(payload.data.at(index)) << 12;
-        const auto b1 = static_cast<uint16_t>(payload.data.at(index + 1)) << 8;
-        const auto b2 = static_cast<uint16_t>(payload.data.at(index + 2)) << 4;
-        const auto b3 = static_cast<uint16_t>(payload.data.at(index + 3));
+        const auto b0 = static_cast<uint16_t>(payload.data[index]) << 12;
+        const auto b1 = static_cast<uint16_t>(payload.data[index + 1]) << 8;
+        const auto b2 = static_cast<uint16_t>(payload.data[index + 2]) << 4;
+        const auto b3 = static_cast<uint16_t>(payload.data[index + 3]);
         return static_cast<uint16_t>(b0 | b1 | b2 | b3);
     }
 
     uint8_t get8Bit(const ViscaProtocol::ViscaPayload& payload, const size_t index) {
-        return static_cast<uint8_t>(payload.data.at(index));
+        return payload.data[index];
     }
 
     uint8_t get8BitFromNibbles(const ViscaProtocol::ViscaPayload& payload, const size_t index) {
-        const auto high = static_cast<uint16_t>(payload.data.at(index)) << 4;
-        const auto low = static_cast<uint16_t>(payload.data.at(index + 1));
+        const auto high = static_cast<uint16_t>(payload.data[index]) << 4;
+        const auto low = static_cast<uint16_t>(payload.data[index + 1]);
         return static_cast<uint8_t>(high | low);
     }
 
     uint16_t get16Bit(const ViscaProtocol::ViscaPayload& payload, const size_t index) {
-        const auto high = static_cast<uint16_t>(payload.data.at(index)) << 8;
-        const auto low = static_cast<uint16_t>(payload.data.at(index + 1));
+        const auto high = static_cast<uint16_t>(payload.data[index]) << 8;
+        const auto low = static_cast<uint16_t>(payload.data[index + 1]);
         return static_cast<uint16_t>(high | low);
     }
 
@@ -2820,7 +2832,8 @@ namespace camera_service::infrastructure {
         }
 
         if (type == ResponseType::Error) {
-            return Result<ViscaPayload>::error(getViscaErrorMessage(static_cast<ResultCode>(rx_buffer.at(2))));
+            const auto error_msg = getViscaErrorMessage(static_cast<ResultCode>(rx_buffer.at(2)));
+            return Result<ViscaPayload>::error(std::string(error_msg));
         }
 
         if (type != ResponseType::Completed && type != ResponseType::Address && type != ResponseType::Clear) {
@@ -2833,21 +2846,39 @@ namespace camera_service::infrastructure {
     }
 
     std::vector<uint8_t> ViscaProtocol::encode(std::span<const uint8_t> payload) const {
-        std::vector<uint8_t> frame(payload.size() + 2);
-        frame.at(0) = VISCA_START_BYTE;
-        frame.at(0) |= (VISCA_SOCKET_NUM << 4); // Should it always be 0?
+        const size_t frame_size = payload.size() + 2;
+
+        // Use thread_local buffer to avoid allocations for common case
+        thread_local std::array<uint8_t, VISCA_PAYLOAD_SIZE + 2> buffer{};
+
+        uint8_t* frame_data;
+        std::vector<uint8_t> frame_vec;
+
+        if (frame_size <= buffer.size()) {
+            frame_data = buffer.data();
+        } else {
+            frame_vec.resize(frame_size);
+            frame_data = frame_vec.data();
+        }
+
+        frame_data[0] = VISCA_START_BYTE;
+        frame_data[0] |= (VISCA_SOCKET_NUM << 4); // Should it always be 0?
         if (broadcast_ > 0) {
-            frame.at(0) |= (broadcast_ << 3);
-            frame.at(0) &= 0xF8;
+            frame_data[0] |= (broadcast_ << 3);
+            frame_data[0] &= 0xF8;
         }
         else {
-            frame.at(0) |= cam_address_;
+            frame_data[0] |= cam_address_;
         }
 
-        std::ranges::copy(payload, frame.begin() + 1);
+        std::ranges::copy(payload, frame_data + 1);
 
-        frame.at(frame.size() - 1) = VISCA_TERMINATOR;
-        return frame;
+        frame_data[frame_size - 1] = VISCA_TERMINATOR;
+
+        if (frame_size <= buffer.size()) {
+            return std::vector<uint8_t>(frame_data, frame_data + frame_size);
+        }
+        return frame_vec;
     }
 
     /********************************/
