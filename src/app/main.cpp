@@ -1,97 +1,26 @@
-#include <atomic>
-#include <chrono>
-#include <csignal>
-#include <iostream>
-#include <memory>
-#include <thread>
-
-#include <CLI/CLI.hpp>
-
-#include "api/ApiController.h"
-#include "api/ApiControllerFactory.h"
-#include "common/config/ConfigManager.h"
+#include "app/Application.h"
 #include "common/logger/Logger.h"
-#include "core/CoreFactory.h"
-#include "core/ICore.h"
-#include "infrastructure/camera/CameraFactory.h"
-#include "infrastructure/camera/hal/ICamera.h"
-
-std::atomic shutdown_requested{false};
-
-void signalHandler(const int signal) {
-    if (signal == SIGTERM || signal == SIGINT) {
-        shutdown_requested.store(true);
-    }
-}
-
-std::string parseInputArgs(const int argc, char* argv[]) {
-    CLI::App app{"A camera control service", APP_NAME};
-
-    std::string config_file = "../config/config.yaml";
-    bool show_version = false;
-
-    app.add_flag("-v,--version", show_version, "Show version information");
-    app.add_option("-c,--config", config_file, "Configuration file path")->check(CLI::ExistingFile);
-
-    try {
-        app.parse(argc, argv);
-    } catch (const CLI::ParseError& e) {
-        std::exit(app.exit(e));
-    }
-
-    if (show_version) {
-        std::cout << APP_NAME << " v" << APP_VERSION_MAJOR << "." << APP_VERSION_MINOR << "." << APP_VERSION_PATCH <<
-            APP_VERSION_DIRTY << "\n";
-        std::exit(EXIT_SUCCESS);
-    }
-
-    return config_file;
-}
 
 int main(const int argc, char* argv[]) {
-    const auto config_file = parseInputArgs(argc, argv);
+    camera_service::app::Application app(argc, argv);
 
-    // Register signal handlers for graceful shutdown
-    std::signal(SIGTERM, signalHandler);
-    std::signal(SIGINT, signalHandler);
-
-    try {
-        const auto config = std::make_unique<camera_service::common::ConfigManager>(config_file);
-
-        CONFIGURE_GLOBAL_LOGGER(config->getAppName(), config->getLogLevel());
-
-        LOG_INFO("{} v{}.{}.{}{}", APP_NAME, APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH,
-                 APP_VERSION_DIRTY);
-
-        auto camera = camera_service::infrastructure::CameraFactory::createCamera(config->getDataConfig());
-        auto core = camera_service::core::CoreFactory::createCore(std::move(camera), config->getCoreConfig());
-        const auto api_controller = camera_service::api::ApiControllerFactory::createController(
-            std::move(core), config->getApiConfig());
-
-        if (const auto app = api_controller->startAsync(); app.isError()) {
-            LOG_ERROR("Shutting down due to startup error: {}", app.error());
-            return EXIT_FAILURE;
-        }
-
-        LOG_INFO("Running...");
-
-        while (api_controller->isRunning() && !shutdown_requested.load()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        }
-
-        if (shutdown_requested.load()) {
-            LOG_INFO("Stopping...");
-            if (const auto stop_result = api_controller->stop(); stop_result.isError()) {
-                LOG_ERROR("Error during shutdown: {}", stop_result.error());
-                return EXIT_FAILURE;
-            }
-        }
-
-        LOG_INFO("Stopped gracefully");
-    } catch (const std::exception& e) {
-        LOG_ERROR("Startup error: {}", e.what());
+    if (const auto result = app.initialize(); result.isError()) {
+        LOG_ERROR("Initialization failed: {}", result.error());
         return EXIT_FAILURE;
     }
 
+    if (const auto result = app.start(); result.isError()) {
+        LOG_ERROR("Failed to start: {}", result.error());
+        return EXIT_FAILURE;
+    }
+
+    app.run();
+
+    if (const auto result = app.stop(); result.isError()) {
+        LOG_ERROR("Shutdown error: {}", result.error());
+        return EXIT_FAILURE;
+    }
+
+    LOG_INFO("Stopped gracefully");
     return EXIT_SUCCESS;
 }
