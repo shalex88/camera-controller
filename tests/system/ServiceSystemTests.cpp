@@ -73,6 +73,12 @@ TEST_F(ServiceSystemTests, CameraRequestResponse) {
 
     constexpr types::focus test_focus = 1u;
     std::cout << "Test SetFocus " << test_focus <<" and GetFocus" << "\n";
+    ASSERT_TRUE(client.setFocus(test_focus).isError());
+
+    std::cout << "Disable Autofocus" << "\n";
+    ASSERT_TRUE(client.setAutoFocus(false).isSuccess());
+
+    std::cout << "Test SetFocus " << test_focus <<" and GetFocus" << "\n";
     ASSERT_TRUE(client.setFocus(test_focus).isSuccess());
 
     const auto focus_result = client.getFocus();

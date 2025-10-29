@@ -30,7 +30,7 @@ public:
     }
 
     Result<types::zoom> getZoom(const std::chrono::milliseconds timeout = NFOV_CAMERA_LOCK_TIMEOUT_MS) const {
-        const camera::GetZoomRequest request;
+        camera::GetZoomRequest request;
         camera::GetZoomResponse response;
         grpc::ClientContext context;
 
@@ -57,7 +57,7 @@ public:
     }
 
     Result<types::focus> getFocus(const std::chrono::milliseconds timeout = NFOV_CAMERA_LOCK_TIMEOUT_MS) const {
-        const camera::GetFocusRequest request;
+        camera::GetFocusRequest request;
         camera::GetFocusResponse response;
         grpc::ClientContext context;
 
@@ -69,14 +69,15 @@ public:
         return Result<types::focus>::success(response.focus());
     }
 
-    Result<void> terminate(const std::chrono::milliseconds timeout = NFOV_CAMERA_LOCK_TIMEOUT_MS) const {
-        const camera::TerminateRequest request;
-        camera::TerminateResponse response;
+    Result<void> setAutoFocus(const auto enable, const std::chrono::milliseconds timeout = NFOV_CAMERA_LOCK_TIMEOUT_MS) const {
+        camera::EnableAutoFocusRequest request;
+        camera::EnableAutoFocusResponse response;
         grpc::ClientContext context;
 
+        request.set_enable(enable);
         context.set_deadline(std::chrono::system_clock::now() + timeout);
 
-        if (const grpc::Status status = stub_->Terminate(&context, request, &response); !status.ok()) {
+        if (const grpc::Status status = stub_->EnableAutoFocus(&context, request, &response); !status.ok()) {
             return Result<void>::error(status.error_message());
         }
         return Result<void>::success();

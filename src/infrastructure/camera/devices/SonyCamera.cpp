@@ -33,7 +33,7 @@ namespace camera_service::infrastructure {
     Result<void> SonyCamera::setFocus(const types::focus focus) const {
         if (const auto auto_focus_result = isAutoFocusEnabled(); auto_focus_result.isError()) {
             return Result<void>::error("Failed to get focus mode: " + auto_focus_result.error());
-        } else if (auto_focus_result.isSuccess()) {
+        } else if (auto_focus_result.isSuccess() && auto_focus_result.value()) {
             return Result<void>::error("Cannot set focus value while autofocus is enabled");
         }
 
