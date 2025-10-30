@@ -1,0 +1,11 @@
+app:
+  name: wfov
+  log_level: debug
+  api:
+    api_type: grpc
+    server_address: 0.0.0.0:50051
+  core:
+    camera: core
+  data:
+    camera: sony
+    device: /dev/ttyACM0 #TODO: pass parameters like boudrate

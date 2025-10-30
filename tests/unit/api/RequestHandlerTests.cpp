@@ -2,33 +2,18 @@
 #include <gmock/gmock.h>
 /* Add your project include files here */
 #include "api/RequestHandler.h"
-#include "core/ICore.h"
 #include "common/types/Result.h"
-
-using namespace camera_service;
-using namespace testing;
-
-class CoreMock final: public core::ICore {
-public:
-    MOCK_METHOD(Result<void>, initialize, (), (override));
-    MOCK_METHOD(Result<void>, shutdown, (), (override));
-    MOCK_METHOD(Result<void>, setZoom, (types::zoom), (override));
-    MOCK_METHOD(Result<types::zoom>, getZoom, (), (const, override));
-    MOCK_METHOD(Result<void>, setFocus, (types::focus), (override));
-    MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
-};
+#include "../../Mocks.h"
 
 class RequestHandlerTests : public Test {
 protected:
     RequestHandlerTests() {
-        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "API");
-        core = new CoreMock();
+        core = new NiceMock<CoreMock>();
         auto core_obj = std::unique_ptr<core::ICore>(core);
-        request_handler = std::make_unique<api::RequestHandler>(std::move(core_obj), logger_impl_);
+        request_handler = std::make_unique<api::RequestHandler>(std::move(core_obj));
     }
     std::unique_ptr<api::RequestHandler> request_handler;
-    CoreMock* core {};
-    std::shared_ptr<LayerLogger> logger_impl_;
+    NiceMock<CoreMock>* core {};
 };
 
 TEST_F(RequestHandlerTests, CreationSuccess) {
@@ -36,7 +21,7 @@ TEST_F(RequestHandlerTests, CreationSuccess) {
 }
 
 TEST_F(RequestHandlerTests, CreationFailNoCore) {
-    EXPECT_THROW(api::RequestHandler request_handler(nullptr, logger_impl_), std::invalid_argument);
+    EXPECT_THROW(api::RequestHandler request_handler(nullptr), std::invalid_argument);
 }
 
 TEST_F(RequestHandlerTests, StartSuccess) {
@@ -45,7 +30,7 @@ TEST_F(RequestHandlerTests, StartSuccess) {
 }
 
 TEST_F(RequestHandlerTests, StartFailOnInitialize) {
-    EXPECT_CALL(*core, initialize())
+    EXPECT_CALL(*core, start())
         .WillOnce(Return(Result<void>::error("Initialize failed")));
 
     const auto result = request_handler->start();
@@ -53,9 +38,9 @@ TEST_F(RequestHandlerTests, StartFailOnInitialize) {
 }
 
 TEST_F(RequestHandlerTests, StopSuccessIfRunning) {
-    EXPECT_CALL(*core, initialize())
+    EXPECT_CALL(*core, start())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*core, shutdown())
+    EXPECT_CALL(*core, stop())
         .WillOnce(Return(Result<void>::success()));
 
     const auto start_result = request_handler->start();
@@ -71,9 +56,9 @@ TEST_F(RequestHandlerTests, StopSuccessIfNotRunning) {
 }
 
 TEST_F(RequestHandlerTests, StopFailsIfCoreShutdownFails) {
-    EXPECT_CALL(*core, initialize())
+    EXPECT_CALL(*core, start())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*core, shutdown())
+    EXPECT_CALL(*core, stop())
         .WillOnce(Return(Result<void>::error("Shutdown failed")));
 
     const auto start_result = request_handler->start();
@@ -85,16 +70,17 @@ TEST_F(RequestHandlerTests, StopFailsIfCoreShutdownFails) {
 
 TEST_F(RequestHandlerTests, ZoomOperations) {
     Sequence s;
-    EXPECT_CALL(*core, initialize())
+    EXPECT_CALL(*core, start())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
+
     EXPECT_CALL(*core, setZoom(2))
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*core, getZoom())
         .InSequence(s)
         .WillOnce(Return(Result<types::zoom>::success(2u)));
-    EXPECT_CALL(*core, shutdown())
+    EXPECT_CALL(*core, stop())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
 
@@ -122,16 +108,17 @@ TEST_F(RequestHandlerTests, ZoomOperationsFailIfNotRunning) {
 
 TEST_F(RequestHandlerTests, FocusOperations) {
     Sequence s;
-    EXPECT_CALL(*core, initialize())
+    EXPECT_CALL(*core, start())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
+
     EXPECT_CALL(*core, setFocus(1))
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*core, getFocus())
         .InSequence(s)
         .WillOnce(Return(Result<types::focus>::success(1u)));
-    EXPECT_CALL(*core, shutdown())
+    EXPECT_CALL(*core, stop())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
 
@@ -155,4 +142,123 @@ TEST_F(RequestHandlerTests, FocusOperationsFailIfNotRunning) {
 
     const auto get_result = request_handler->getFocus();
     ASSERT_TRUE(get_result.isError());
+}
+
+TEST_F(RequestHandlerTests, GetInfoSuccess) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, getInfo())
+        .WillOnce(Return(Result<types::info>::success(std::string("Camera Info"))));
+    EXPECT_CALL(*core, stop())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+
+    const auto info_result = request_handler->getInfo();
+    ASSERT_TRUE(info_result.isSuccess());
+    EXPECT_EQ(info_result.value(), "Camera Info");
+
+    ASSERT_TRUE(request_handler->stop().isSuccess());
+}
+
+TEST_F(RequestHandlerTests, GetInfoFailsIfNotRunning) {
+    const auto result = request_handler->getInfo();
+    ASSERT_TRUE(result.isError());
+}
+
+TEST_F(RequestHandlerTests, EnableAutoFocusSuccess) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, enableAutoFocus(true))
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, stop())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+    ASSERT_TRUE(request_handler->enableAutoFocus(true).isSuccess());
+    ASSERT_TRUE(request_handler->stop().isSuccess());
+}
+
+TEST_F(RequestHandlerTests, EnableAutoFocusFailsIfNotRunning) {
+    const auto result = request_handler->enableAutoFocus(true);
+    ASSERT_TRUE(result.isError());
+}
+
+TEST_F(RequestHandlerTests, GoToMinZoomSuccess) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, goToMinZoom())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, stop())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+    ASSERT_TRUE(request_handler->goToMinZoom().isSuccess());
+    ASSERT_TRUE(request_handler->stop().isSuccess());
+}
+
+TEST_F(RequestHandlerTests, GoToMinZoomFailsIfNotRunning) {
+    const auto result = request_handler->goToMinZoom();
+    ASSERT_TRUE(result.isError());
+}
+
+TEST_F(RequestHandlerTests, GoToMaxZoomSuccess) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, goToMaxZoom())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, stop())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+    ASSERT_TRUE(request_handler->goToMaxZoom().isSuccess());
+    ASSERT_TRUE(request_handler->stop().isSuccess());
+}
+
+TEST_F(RequestHandlerTests, GoToMaxZoomFailsIfNotRunning) {
+    const auto result = request_handler->goToMaxZoom();
+    ASSERT_TRUE(result.isError());
+}
+
+TEST_F(RequestHandlerTests, StabilizeSuccess) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, stabilize(true))
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, stop())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+    ASSERT_TRUE(request_handler->stabilize(true).isSuccess());
+    ASSERT_TRUE(request_handler->stop().isSuccess());
+}
+
+TEST_F(RequestHandlerTests, StabilizeFailsIfNotRunning) {
+    const auto result = request_handler->stabilize(true);
+    ASSERT_TRUE(result.isError());
+}
+
+TEST_F(RequestHandlerTests, IsRunningInitiallyFalse) {
+    EXPECT_FALSE(request_handler->isRunning());
+}
+
+TEST_F(RequestHandlerTests, IsRunningTrueAfterStart) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+    EXPECT_TRUE(request_handler->isRunning());
+}
+
+TEST_F(RequestHandlerTests, IsRunningFalseAfterStop) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, stop())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+    EXPECT_TRUE(request_handler->isRunning());
+
+    ASSERT_TRUE(request_handler->stop().isSuccess());
+    EXPECT_FALSE(request_handler->isRunning());
 }

@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 /* Add your project include files here */
-#include "common/Logger/SpdLogAdapter.h"
+#include "common/logger/SpdLogAdapter.h"
 
 #include <sstream>
 
@@ -96,6 +96,7 @@ TEST_F(SpdLogAdapterTests, LogsHigherSeverityWhenLowerDisabled) {
     EXPECT_THAT(output.str(), HasSubstr("Critical message"));
 }
 
-TEST_F(SpdLogAdapterTests, ThrowsOnInvalidLogLevel) {
-    EXPECT_THROW(logger.logImpl(static_cast<LoggerInterface::LogLevel>(999), "Invalid"), std::invalid_argument);
+TEST_F(SpdLogAdapterTests, DefaultsToInfoOnInvalidLogLevel) {
+    logger.logImpl(static_cast<LoggerInterface::LogLevel>(999), "Invalid");
+    EXPECT_THAT(output.str(), HasSubstr("Invalid"));
 }

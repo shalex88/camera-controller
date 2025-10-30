@@ -1,42 +1,35 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 /* Add your project include files here */
-#include "data/CameraFactory.h"
-#include "common/Config/ConfigManager.h"
+#include "../../../src/infrastructure/camera/CameraFactory.h"
+#include "common/config/ConfigManager.h"
+#include "infrastructure/camera/hal/ICamera.h"
 
 using namespace camera_service;
 using namespace testing;
 
-class CameraFactoryTests : public Test {
-protected:
-    CameraFactoryTests() {
-        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "Data");
-    }
-    std::shared_ptr<LayerLogger> logger_impl_;
-};
+TEST(CameraFactoryTests, CreateSonyCameraSuccess) {
+    common::DataConfig config;
+    config.camera = "sony";
+    config.device = "fake";
 
-TEST_F(CameraFactoryTests, CreateNfovCameraSuccess) {
-    DataConfig config;
-    config.camera = "nfov";  // Valid camera type
-    config.device = "fake";  // Valid device type
-
-    const auto camera = data::CameraFactory::createCamera(logger_impl_, config);
+    const auto camera = infrastructure::CameraFactory::createCamera(config);
     ASSERT_NE(nullptr, camera);
     ASSERT_TRUE(camera.get() != nullptr);
 }
 
-TEST_F(CameraFactoryTests, ThrowsOnUnknownType) {
-    DataConfig config;
-    config.camera = "invalid_camera";  // Invalid camera type to trigger exception
-    config.device = "fake";  // Valid device type
+TEST(CameraFactoryTests, ThrowsOnUnknownType) {
+    common::DataConfig config;
+    config.camera = "invalid_camera";
+    config.device = "fake";
 
-    EXPECT_THROW(data::CameraFactory::createCamera(logger_impl_, config), std::invalid_argument);
+    EXPECT_THROW(infrastructure::CameraFactory::createCamera(config), std::invalid_argument);
 }
 
-TEST_F(CameraFactoryTests, ThrowsOnEmptyType) {
-    DataConfig config;
-    config.camera = "";  // Empty camera type to trigger exception
-    config.device = "fake";  // Valid device type
+TEST(CameraFactoryTests, ThrowsOnEmptyType) {
+    common::DataConfig config;
+    config.camera = "";
+    config.device = "fake";
 
-    EXPECT_THROW(data::CameraFactory::createCamera(logger_impl_, config), std::invalid_argument);
+    EXPECT_THROW(infrastructure::CameraFactory::createCamera(config), std::invalid_argument);
 }

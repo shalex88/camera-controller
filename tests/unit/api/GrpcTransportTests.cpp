@@ -3,43 +3,24 @@
 /* Add your project include files here */
 #include "api/RequestHandler.h"
 #include "api/GrpcTransport.h"
-#include "core/ICore.h"
 #include "common/types/Result.h"
 #include "../../utils/GrpcClient.h"
-
-using namespace camera_service;
-using namespace testing;
-
-class CoreMock final: public core::ICore {
-public:
-    MOCK_METHOD(Result<void>, initialize, (), (override));
-    MOCK_METHOD(Result<void>, shutdown, (), (override));
-    MOCK_METHOD(Result<void>, setZoom, (types::zoom), (override));
-    MOCK_METHOD(Result<types::zoom>, getZoom, (), (const, override));
-    MOCK_METHOD(Result<void>, setFocus, (types::focus), (override));
-    MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
-};
+#include "../../Mocks.h"
 
 class GrpcTransportTests : public Test {
 protected:
     void SetUp() override {
-        logger_impl_ = std::make_shared<LayerLogger>(std::make_shared<SpdLogAdapter>(), "Data");
-        request_handler = std::make_shared<api::RequestHandler>(std::make_unique<CoreMock>(), logger_impl_);
-        grpc_transport = std::make_unique<api::GrpcTransport>(request_handler, logger_impl_);
+        request_handler = std::make_unique<api::RequestHandler>(std::make_unique<CoreMock>());
+        grpc_transport = std::make_unique<api::GrpcTransport>(*request_handler);
     }
 
-    std::shared_ptr<api::RequestHandler> request_handler;
+    std::unique_ptr<api::RequestHandler> request_handler;
     std::unique_ptr<api::GrpcTransport> grpc_transport;
     std::string server_address = "0.0.0.0:50051";
-    std::shared_ptr<LayerLogger> logger_impl_;
 };
 
 TEST_F(GrpcTransportTests, CreationSuccess) {
     ASSERT_NE(nullptr, grpc_transport);
-}
-
-TEST_F(GrpcTransportTests, CreationFailIfNoRequestHandler) {
-    EXPECT_THROW(api::GrpcTransport transport(nullptr, logger_impl_), std::invalid_argument);
 }
 
 TEST_F(GrpcTransportTests, StartServerSuccess) {
@@ -97,7 +78,7 @@ TEST_F(GrpcTransportTests, RunLoopAfterStopShouldFail) {
 TEST_F(GrpcTransportTests, RunLoopWithRunningServerShouldSucceed) {
     EXPECT_TRUE(grpc_transport->start(server_address).isSuccess());
 
-    std::thread server_thread([&] {
+    std::jthread server_thread([&] {
         const auto result = grpc_transport->runLoop();
         ASSERT_TRUE(result.isSuccess());
     });
@@ -105,5 +86,42 @@ TEST_F(GrpcTransportTests, RunLoopWithRunningServerShouldSucceed) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     EXPECT_TRUE(grpc_transport->stop().isSuccess());
-    server_thread.join();
+}
+
+TEST_F(GrpcTransportTests, StartServerTwiceWithoutStopFails) {
+    EXPECT_TRUE(grpc_transport->start(server_address).isSuccess());
+
+    // Second start without stopping should fail
+    const auto second_start = grpc_transport->start(server_address);
+    ASSERT_TRUE(second_start.isError());
+
+    // Cleanup
+    EXPECT_TRUE(grpc_transport->stop().isSuccess());
+}
+
+TEST_F(GrpcTransportTests, StartWithDifferentPortsSucceeds) {
+    // Start on first port
+    const std::string first_port = "0.0.0.0:50052";
+    EXPECT_TRUE(grpc_transport->start(first_port).isSuccess());
+    EXPECT_TRUE(grpc_transport->stop().isSuccess());
+
+    // Start on second port
+    const std::string second_port = "0.0.0.0:50053";
+    EXPECT_TRUE(grpc_transport->start(second_port).isSuccess());
+    EXPECT_TRUE(grpc_transport->stop().isSuccess());
+}
+
+TEST_F(GrpcTransportTests, StartWithEmptyAddressFails) {
+    const auto result = grpc_transport->start("");
+    ASSERT_TRUE(result.isError());
+}
+
+TEST_F(GrpcTransportTests, StartWithInvalidFormatFails) {
+    const auto result = grpc_transport->start("not_a_valid_address");
+    ASSERT_TRUE(result.isError());
+}
+
+TEST_F(GrpcTransportTests, RunLoopBeforeStartFails) {
+    const auto result = grpc_transport->runLoop();
+    ASSERT_TRUE(result.isError());
 }

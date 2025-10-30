@@ -17,7 +17,7 @@ endif()
 cmake_minimum_required(VERSION 3.21)
 project(${PROJECT_NAME} LANGUAGES CXX VERSION ${VERSION})
 
-option(WARNINGS_AS_ERRORS "Treat warnings as errors" ON)
+option(WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
 if(WARNINGS_AS_ERRORS)
     add_compile_options(
             $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:GNU>>:-Werror>
@@ -34,12 +34,12 @@ set(INCLUDE_DIR "include")
 
 add_subdirectory(proto)
 
-include_directories(${INCLUDE_DIR} ${SOURCE_DIR} ${proto_INCLUDE_DIRS})
+include_directories(${INCLUDE_DIR} ${SOURCE_DIR} ${proto_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/3dparty/)
 file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS "${SOURCE_DIR}/*.cpp")
 
 find_package(spdlog CONFIG REQUIRED)
-
-find_package(yaml-cpp REQUIRED)
+find_package(CLI11 CONFIG REQUIRED)
+find_package(yaml-cpp CONFIG REQUIRED)
 if(TARGET yaml-cpp::yaml-cpp)
     set(YAML_CPP_TARGET yaml-cpp::yaml-cpp)
 elseif(TARGET yaml-cpp)
@@ -59,6 +59,7 @@ function(link_common_libraries target)
             spdlog::spdlog_header_only
             ${YAML_CPP_TARGET}
             registers
+            CLI11::CLI11
     )
 endfunction(link_common_libraries)
 

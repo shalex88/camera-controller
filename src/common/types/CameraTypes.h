@@ -1,15 +1,26 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 namespace camera_service::types {
     using zoom = uint32_t;
     using focus = uint32_t;
+    using info = std::string;
 
-    struct CameraLimits {
-        zoom min_zoom;
-        zoom max_zoom;
-        focus min_focus;
-        focus max_focus;
+    inline constexpr zoom MIN_NORMALIZED_ZOOM = 0;
+    inline constexpr zoom MAX_NORMALIZED_ZOOM = 100;
+
+    inline constexpr focus MIN_NORMALIZED_FOCUS = 0;
+    inline constexpr focus MAX_NORMALIZED_FOCUS = 100;
+
+    struct ZoomRange {
+        zoom min;
+        zoom max;
+    };
+
+    struct FocusRange {
+        focus min;
+        focus max;
     };
 }
