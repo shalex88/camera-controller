@@ -1,34 +1,27 @@
 #pragma once
 
 #include "common/types/Result.h"
+#include "infrastructure/camera/protocol/genicam/include/GenApi/GenApi.h"
 
 namespace camera_service::infrastructure {
-    struct PayloadObject {
-
-    };
+    class FpgaTransport;
 
     class GenicamProtocol final {
-        GenicamProtocol();
+    public:
+        explicit GenicamProtocol(std::unique_ptr<GENAPI_NAMESPACE::IPort> transport);
         ~GenicamProtocol();
-        Result<void> open() const;
-        Result<void> close() const;
+        Result<void> open();
+        Result<void> close();
+        Result<void> setExposureTime(double time_us) const;
 
-        // Receives object fields, returns payload object
-        Result<PayloadObject> pack(int field);
-        // Receives payload object, returns payload raw bytes
-        std::span<uint8_t> serialize(PayloadObject);
-        // Receives payload, return frame
-        std::vector<std::byte> encode(std::span<const std::byte> payload) const;
-        // Receives frame
-        Result<void> send(std::span<const std::byte> frame);
+    private:
+        bool setFloat(const std::string& feature, double value) const;
+        bool setInteger(const std::string& feature, int64_t value) const;
+        bool setBoolean(const std::string& feature, bool value) const;
+        bool setEnum(const std::string& feature, const std::string& value) const;
+        bool executeCommand(const std::string& feature) const;
 
-        // Receives buffer
-        Result<size_t> receive(std::span<std::byte> buffer);
-        // Receives buffer, return payload
-        std::vector<std::byte> decode(std::span<const std::byte> buffer);
-        // Receives payload raw bytes, returns payload object
-        Result<PayloadObject> deserialize(std::span<const std::byte> data);
-        // Receives payload object, returns object fields
-        Result<int> unpack(PayloadObject);
+        std::unique_ptr<GENAPI_NAMESPACE::IPort> transport_{};
+        GENAPI_NAMESPACE::CNodeMapRef node_map_{};
     };
 }

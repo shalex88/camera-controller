@@ -34,7 +34,13 @@ set(INCLUDE_DIR "include")
 
 add_subdirectory(proto)
 
-include_directories(${INCLUDE_DIR} ${SOURCE_DIR} ${proto_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/3dparty/)
+include_directories(
+        ${INCLUDE_DIR}
+        ${SOURCE_DIR}
+        ${proto_INCLUDE_DIRS}
+    ${CMAKE_SOURCE_DIR}/src/infrastructure/camera/protocol/genicam/include
+)
+
 file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS "${SOURCE_DIR}/*.cpp")
 
 find_package(spdlog CONFIG REQUIRED)
@@ -45,6 +51,14 @@ if(TARGET yaml-cpp::yaml-cpp)
 elseif(TARGET yaml-cpp)
     set(YAML_CPP_TARGET yaml-cpp)
 endif()
+
+if (CMAKE_CROSSCOMPILING)
+    set(GENICAM_LIB_DIR "${CMAKE_SOURCE_DIR}/src/infrastructure/camera/protocol/genicam/lib/Linux64_ARM")
+else()
+    set(GENICAM_LIB_DIR "${CMAKE_SOURCE_DIR}/src/infrastructure/camera/protocol/genicam/lib/Linux64_x64")
+endif()
+
+file(GLOB GENICAM_SO_FILES "${GENICAM_LIB_DIR}/*.so*")
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
@@ -60,7 +74,9 @@ function(link_common_libraries target)
             ${YAML_CPP_TARGET}
             registers
             CLI11::CLI11
+            ${GENICAM_SO_FILES}
     )
+    set_target_properties(${target} PROPERTIES BUILD_RPATH "${GENICAM_LIB_DIR}")
 endfunction(link_common_libraries)
 
 link_common_libraries(${PROJECT_NAME})

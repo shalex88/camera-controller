@@ -21,6 +21,6 @@ int main(const int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    LOG_INFO("Stopped gracefully");
+    LOG_INFO("Stopped");
     return EXIT_SUCCESS;
 }
