@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <memory>
 
 #include "common/types/Result.h"
@@ -16,7 +17,7 @@ namespace camera_service::infrastructure {
             uint32_t hposition{};
             uint32_t color{};
             uint32_t blink{};
-            std::array<uint8_t, 20> title{};
+            std::array<std::byte, 20> title{};
         };
 
         explicit ViscaProtocol(std::unique_ptr<ITransport> transport);
@@ -226,6 +227,6 @@ namespace camera_service::infrastructure {
         uint8_t broadcast_{};
         uint8_t cam_address_{};
         Result<ViscaPayload> sendAndReceiveReply(ViscaPayload* payload) const;
-        std::vector<uint8_t> encode(std::span<const uint8_t> payload) const;
+        std::vector<std::byte> encode(std::span<const std::byte> payload) const;
     };
 }
