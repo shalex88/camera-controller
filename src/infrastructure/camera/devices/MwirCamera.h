@@ -30,8 +30,8 @@ namespace camera_service::infrastructure {
         Result<types::info> getInfo() const override;
 
         // ICameraHw implementation
-        Result<void> connect() override;
-        Result<void> disconnect() override;
+        Result<void> open() override;
+        Result<void> close() override;
 
         // IAutoFocusCapable implementation
         Result<void> enableAutoFocus(bool on) const override;

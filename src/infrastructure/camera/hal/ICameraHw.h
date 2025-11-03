@@ -6,7 +6,7 @@ namespace camera_service::infrastructure {
     public:
         virtual ~ICameraHw() = default;
 
-        virtual Result<void> connect() = 0;
-        virtual Result<void> disconnect() = 0;
+        virtual Result<void> open() = 0;
+        virtual Result<void> close() = 0;
     };
 }

@@ -14,11 +14,11 @@ namespace camera_service::infrastructure {
         return Result<types::info>::success(info_);
     }
 
-    Result<void> FakeSimpleCamera::connect() {
+    Result<void> FakeSimpleCamera::open() {
         return Result<void>::success();
     }
 
-    Result<void> FakeSimpleCamera::disconnect() {
+    Result<void> FakeSimpleCamera::close() {
         return Result<void>::success();
     }
 

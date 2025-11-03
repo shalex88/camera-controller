@@ -23,6 +23,10 @@ namespace camera_service::infrastructure {
             return Result<void>::error(e.what());
         }
 
+        if (!setEnum("ConnectionConfig", "CXP3_X1")) {
+            return Result<void>::error("Failed to set ConnectionConfig");
+        }
+
         return Result<void>::success();
     }
 

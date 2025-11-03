@@ -286,11 +286,7 @@ namespace camera_service::infrastructure {
             case ResultCode::ErrorCmdNotExecutable:
                 return "Command not executable";
             default: {
-                thread_local std::array<char, 64> buffer{};
-                const auto [out, size] = std::format_to_n(buffer.begin(), buffer.size() - 1, "Unknown error: 0x{:02X}",
-                                                          static_cast<uint32_t>(error_code));
-                *out = '\0';
-                return std::string_view{buffer.data(), static_cast<std::size_t>(out - buffer.begin())};
+                return "Unknown error";
             }
         }
     }
@@ -447,14 +443,11 @@ namespace camera_service::infrastructure {
         const auto socket_num = unpack8Bit(rx_payload.value(), 6);
 
         thread_local std::array<char, 256> buffer{};
-        const auto [out, size] = std::format_to_n(buffer.begin(), buffer.size() - 1,
-                                                  "{} {}, ROM Version: 0x{:04X}, Socket: 0x{:02X}, Address: 0x{:02X}",
-                                                  vendor_str, model_str, rom_version, socket_num, cam_address_);
-        *out = '\0';
+        const auto size = std::snprintf(buffer.data(), buffer.size(),
+                                       "%s %s, ROM Version: 0x%04X, Socket: 0x%02X, Address: 0x%02X",
+                                       vendor_str.data(), model_str.data(), rom_version, socket_num, cam_address_);
 
-        return Result<std::string_view>::success(std::string_view{
-            buffer.data(), static_cast<std::size_t>(out - buffer.begin())
-        });
+        return Result<std::string_view>::success(std::string_view{buffer.data(), static_cast<std::size_t>(size)});
     }
 
     Result<void> ViscaProtocol::open() const {

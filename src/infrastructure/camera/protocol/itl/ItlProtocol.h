@@ -32,8 +32,8 @@ namespace camera_service::infrastructure {
         explicit ItlProtocol(std::unique_ptr<ITransport> transport);
         ~ItlProtocol();
 
-        Result<void> connect() const;
-        Result<void> disconnect() const;
+        Result<void> open() const;
+        Result<void> close() const;
         Result<std::vector<std::byte>> sendPayload(std::array<std::byte, 4> opcode, std::span<const std::byte> payload) const;
 
     private:

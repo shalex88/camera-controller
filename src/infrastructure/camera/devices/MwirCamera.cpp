@@ -50,15 +50,15 @@ namespace camera_service::infrastructure {
         return Result<types::info>::success(result);
     }
 
-    Result<void> MwirCamera::connect() {
-        if (const auto result = protocol_->connect(); result.isError()) {
+    Result<void> MwirCamera::open() {
+        if (const auto result = protocol_->open(); result.isError()) {
             return Result<void>::error(result.error());
         }
         return Result<void>::success();
     }
 
-    Result<void> MwirCamera::disconnect() {
-        if (const auto result = protocol_->disconnect(); !result.isError()) {
+    Result<void> MwirCamera::close() {
+        if (const auto result = protocol_->close(); !result.isError()) {
             return Result<void>::success();
         }
         return Result<void>::error("Failed to disconnect");

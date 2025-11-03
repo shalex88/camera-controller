@@ -29,11 +29,11 @@ namespace camera_service::infrastructure {
         return Result<types::info>::success(info_);
     }
 
-    Result<void> FakeAdvancedCamera::connect() {
+    Result<void> FakeAdvancedCamera::open() {
         return Result<void>::success();
     }
 
-    Result<void> FakeAdvancedCamera::disconnect() {
+    Result<void> FakeAdvancedCamera::close() {
         return Result<void>::success();
     }
 

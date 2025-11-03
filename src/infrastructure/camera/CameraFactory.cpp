@@ -9,21 +9,23 @@
 #include "infrastructure/camera/devices/SonyCamera.h"
 #include "infrastructure/camera/hal/Camera.h"
 #include "infrastructure/camera/hal/ICamera.h"
+#include "infrastructure/camera/protocol/genicam/FpgaTransport.h"
+#include "infrastructure/camera/protocol/genicam/GenicamProtocol.h"
 #include "infrastructure/camera/protocol/itl/ItlProtocol.h"
 #include "infrastructure/camera/protocol/visca/ViscaProtocol.h"
 #include "infrastructure/camera/transport/ethernet/TcpClient.h"
-#include "infrastructure/camera/transport/mmio/RegisterImplUio.h"
 #include "infrastructure/camera/transport/uart/Uart.h"
-#include "infrastructure/camera/transport/mmio/RegistersMapManager.h"
 
 namespace camera_service::infrastructure {
     std::unique_ptr<ICamera> CameraFactory::createCamera(const common::DataConfig& config) {
         LOG_DEBUG("Device: {} {}", config.camera, config.device);
 
         if (config.camera == "adimec") {
-            auto transport = std::make_unique<RegisterImplUio>(config.device);
-            auto protocol = std::make_unique<RegistersMapManager>(std::move(transport));
-            auto camera = std::make_unique<AdimecCamera>(std::move(protocol));
+            auto camera_transport = std::make_unique<FpgaTransport>(config.device);
+            auto camera_protocol = std::make_unique<GenicamProtocol>(std::move(camera_transport));
+            auto lens_transport = std::make_unique<TcpClient>(config.device); //TODO: need to add a second device address in config
+            auto lens_protocol = std::make_unique<ItlProtocol>(std::move(lens_transport));
+            auto camera = std::make_unique<AdimecCamera>(std::move(camera_protocol), std::move(lens_protocol));
             return std::make_unique<Camera>(std::move(camera));
         }
 

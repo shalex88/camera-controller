@@ -25,8 +25,8 @@ namespace camera_service::infrastructure {
 
         Result<void> stabilize(bool on) const override;
 
-        Result<void> connect() override;
-        Result<void> disconnect() override;
+        Result<void> open() override;
+        Result<void> close() override;
         bool isConnected() const override;
 
         bool hasZoomCapability() const;

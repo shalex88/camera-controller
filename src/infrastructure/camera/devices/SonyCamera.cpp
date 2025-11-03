@@ -10,7 +10,7 @@ namespace camera_service::infrastructure {
         : protocol_(std::move(protocol)) {}
 
     SonyCamera::~SonyCamera() {
-        [[maybe_unused]] const auto disconnect_result = disconnect();
+        [[maybe_unused]] const auto disconnect_result = close();
     }
 
     Result<void> SonyCamera::setZoom(const types::zoom zoom) const {
@@ -80,7 +80,7 @@ namespace camera_service::infrastructure {
         return protocol_->setCamStabilizer(on);
     }
 
-    Result<void> SonyCamera::connect() {
+    Result<void> SonyCamera::open() {
         if (const auto result = protocol_->open(); result.isError()) {
             return Result<void>::error(result.error());
         }
@@ -96,7 +96,7 @@ namespace camera_service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> SonyCamera::disconnect() {
+    Result<void> SonyCamera::close() {
         return protocol_->close();
     }
 }

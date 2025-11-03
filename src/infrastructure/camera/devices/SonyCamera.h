@@ -37,8 +37,8 @@ namespace camera_service::infrastructure {
         Result<void> stabilize(bool on) const override;
 
         // ICameraHw implementation
-        Result<void> connect() override;
-        Result<void> disconnect() override;
+        Result<void> open() override;
+        Result<void> close() override;
 
     private:
         const types::ZoomRange zoom_limits_{

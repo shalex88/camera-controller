@@ -21,7 +21,7 @@ namespace camera_service::core {
         LOG_DEBUG("Starting...");
 
         if (!camera_->isConnected()) {
-            if (const auto connect_result = camera_->connect(); connect_result.isError()) {
+            if (const auto connect_result = camera_->open(); connect_result.isError()) {
                 return Result<void>::error(connect_result.error());
             }
         }
@@ -41,7 +41,7 @@ namespace camera_service::core {
         LOG_DEBUG("Stopping...");
 
         if (camera_ && camera_->isConnected()) {
-            if (const auto disconnect_result = camera_->disconnect(); disconnect_result.isError()) {
+            if (const auto disconnect_result = camera_->close(); disconnect_result.isError()) {
                 return Result<void>::error(disconnect_result.error());
             }
         }

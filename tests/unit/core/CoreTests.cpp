@@ -25,9 +25,9 @@ TEST_F(CoreTests, InitializeSuccessWhenDisconnected) {
     EXPECT_CALL(*camera, isConnected())
         .WillOnce(Return(false))
         .WillOnce(Return(true)); // for shutdown
-    EXPECT_CALL(*camera, connect())
+    EXPECT_CALL(*camera, open())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera, disconnect())
+    EXPECT_CALL(*camera, close())
         .WillOnce(Return(Result<void>::success()));
 
     core::Core core(std::move(camera));
@@ -39,7 +39,7 @@ TEST_F(CoreTests, InitializeSuccessWhenAlreadyConnected) {
     EXPECT_CALL(*camera, isConnected())
         .WillOnce(Return(true))
         .WillOnce(Return(true)); // for shutdown
-    EXPECT_CALL(*camera, disconnect())
+    EXPECT_CALL(*camera, close())
         .WillOnce(Return(Result<void>::success()));
 
     core::Core core(std::move(camera));
@@ -50,13 +50,13 @@ TEST_F(CoreTests, InitializeSuccessWhenAlreadyConnected) {
 TEST_F(CoreTests, InitializeFailsOnConnectError) {
     EXPECT_CALL(*camera, isConnected())
         .WillOnce(Return(false));
-    EXPECT_CALL(*camera, connect())
-        .WillOnce(Return(Result<void>::error("Failed to connect")));
+    EXPECT_CALL(*camera, open())
+        .WillOnce(Return(Result<void>::error("Failed to open")));
 
     core::Core core(std::move(camera));
     const auto result = core.start();
     ASSERT_TRUE(result.isError());
-    EXPECT_THAT(result.error(), ::testing::HasSubstr("Failed to connect"));
+    EXPECT_THAT(result.error(), ::testing::HasSubstr("Failed to open"));
 }
 
 TEST_F(CoreTests, ZoomOperationsSuccess) {
@@ -64,13 +64,13 @@ TEST_F(CoreTests, ZoomOperationsSuccess) {
     EXPECT_CALL(*camera, isConnected())
         .WillOnce(Return(false))
         .WillOnce(Return(true)); // for shutdown
-    EXPECT_CALL(*camera, connect())
+    EXPECT_CALL(*camera, open())
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera, setZoom(2))
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera, getZoom())
         .WillOnce(Return(Result<types::zoom>::success(2u)));
-    EXPECT_CALL(*camera, disconnect())
+    EXPECT_CALL(*camera, close())
         .WillOnce(Return(Result<void>::success()));
 
 
@@ -105,13 +105,13 @@ TEST_F(CoreTests, FocusOperations) {
     EXPECT_CALL(*camera, isConnected())
         .WillOnce(Return(false))
         .WillOnce(Return(true)); // for shutdown
-    EXPECT_CALL(*camera, connect())
+    EXPECT_CALL(*camera, open())
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera, setFocus(1))
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera, getFocus())
         .WillOnce(Return(Result<types::focus>::success(1u)));
-    EXPECT_CALL(*camera, disconnect())
+    EXPECT_CALL(*camera, close())
         .WillOnce(Return(Result<void>::success()));
 
     // Now create the core with the moved camera
@@ -144,9 +144,9 @@ TEST_F(CoreTests, ShutdownSuccess) {
     EXPECT_CALL(*camera, isConnected())
         .WillOnce(Return(false))  // initialize
         .WillOnce(Return(true));  // shutdown
-    EXPECT_CALL(*camera, connect())
+    EXPECT_CALL(*camera, open())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera, disconnect())
+    EXPECT_CALL(*camera, close())
         .WillOnce(Return(Result<void>::success()));
 
     core::Core core(std::move(camera));
@@ -167,10 +167,10 @@ TEST_F(CoreTests, ShutdownWhenCameraDisconnectFailsFails) {
     EXPECT_CALL(*camera, isConnected())
         .WillOnce(Return(false))
         .WillOnce(Return(true));
-    EXPECT_CALL(*camera, connect())
+    EXPECT_CALL(*camera, open())
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera, disconnect())
-        .WillOnce(Return(Result<void>::error("Failed to disconnect")));
+    EXPECT_CALL(*camera, close())
+        .WillOnce(Return(Result<void>::error("Failed to close")));
 
     core::Core core(std::move(camera));
     const auto init_result = core.start();
@@ -178,18 +178,18 @@ TEST_F(CoreTests, ShutdownWhenCameraDisconnectFailsFails) {
 
     const auto shutdown_result = core.stop();
     ASSERT_TRUE(shutdown_result.isError());
-    EXPECT_EQ(shutdown_result.error(), "Failed to disconnect");
+    EXPECT_EQ(shutdown_result.error(), "Failed to close");
 }
 
 TEST_F(CoreTests, GetInfoSuccess) {
     EXPECT_CALL(*camera, isConnected())
         .WillOnce(Return(false))
         .WillOnce(Return(true));
-    EXPECT_CALL(*camera, connect())
+    EXPECT_CALL(*camera, open())
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera, getInfo())
         .WillOnce(Return(Result<types::info>::success(std::string("Test Camera Info"))));
-    EXPECT_CALL(*camera, disconnect())
+    EXPECT_CALL(*camera, close())
         .WillOnce(Return(Result<void>::success()));
 
     core::Core core(std::move(camera));
@@ -212,11 +212,11 @@ TEST_F(CoreTests, EnableAutoFocusSuccess) {
     EXPECT_CALL(*camera, isConnected())
         .WillOnce(Return(false))
         .WillOnce(Return(true));
-    EXPECT_CALL(*camera, connect())
+    EXPECT_CALL(*camera, open())
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera, enableAutoFocus(true))
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera, disconnect())
+    EXPECT_CALL(*camera, close())
         .WillOnce(Return(Result<void>::success()));
 
     core::Core core(std::move(camera));
@@ -238,11 +238,11 @@ TEST_F(CoreTests, StabilizeSuccess) {
     EXPECT_CALL(*camera, isConnected())
         .WillOnce(Return(false))
         .WillOnce(Return(true));
-    EXPECT_CALL(*camera, connect())
+    EXPECT_CALL(*camera, open())
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera, stabilize(true))
         .WillOnce(Return(Result<void>::success()));
-    EXPECT_CALL(*camera, disconnect())
+    EXPECT_CALL(*camera, close())
         .WillOnce(Return(Result<void>::success()));
 
     core::Core core(std::move(camera));

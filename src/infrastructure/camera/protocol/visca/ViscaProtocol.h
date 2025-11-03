@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <memory>
+#include <span>
 
 #include "common/types/Result.h"
 

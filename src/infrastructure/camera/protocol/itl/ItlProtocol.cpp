@@ -12,11 +12,11 @@ namespace camera_service::infrastructure {
 
     ItlProtocol::~ItlProtocol() = default;
 
-    Result<void> ItlProtocol::connect() const {
+    Result<void> ItlProtocol::open() const {
         return transport_->open();
     }
 
-    Result<void> ItlProtocol::disconnect() const {
+    Result<void> ItlProtocol::close() const {
         return transport_->close();
     }
 

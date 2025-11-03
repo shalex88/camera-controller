@@ -12,8 +12,8 @@ namespace camera_service::infrastructure {
     public:
         ~ICamera() override = default;
 
-        virtual Result<void> connect() = 0;
-        virtual Result<void> disconnect() = 0;
+        virtual Result<void> open() = 0;
+        virtual Result<void> close() = 0;
         virtual bool isConnected() const = 0;
     };
 }

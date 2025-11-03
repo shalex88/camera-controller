@@ -6,14 +6,15 @@
 #include "infrastructure/camera/hal/ICameraHw.h"
 
 namespace camera_service::infrastructure {
-    class RegistersMapManager;
+    class GenicamProtocol;
+    class ItlProtocol;
 
     class AdimecCamera final : public ICameraHw,
                                public capabilities::IZoomCapable,
                                public capabilities::IFocusCapable,
                                public capabilities::IInfoCapable {
     public:
-        explicit AdimecCamera(std::unique_ptr<RegistersMapManager> fpga_manager);
+        explicit AdimecCamera(std::unique_ptr<GenicamProtocol> camera_protocol, std::unique_ptr<ItlProtocol> lens_protocol);
         ~AdimecCamera() override = default;
 
         // IZoomCapable implementation
@@ -30,8 +31,8 @@ namespace camera_service::infrastructure {
         Result<types::info> getInfo() const override;
 
         // ICameraHw implementation
-        Result<void> connect() override;
-        Result<void> disconnect() override;
+        Result<void> open() override;
+        Result<void> close() override;
 
     private:
         const types::ZoomRange zoom_limits_{
@@ -44,6 +45,7 @@ namespace camera_service::infrastructure {
             .max = 100
         };
 
-        std::unique_ptr<RegistersMapManager> fpga_;
+        std::unique_ptr<GenicamProtocol> camera_protocol_;
+        std::unique_ptr<ItlProtocol> lens_protocol_;
     };
 }

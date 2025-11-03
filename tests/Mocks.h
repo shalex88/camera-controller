@@ -55,8 +55,8 @@ public:
 
 class MockCameraHal : public infrastructure::ICamera {
 public:
-    MOCK_METHOD(Result<void>, connect, (), (override));
-    MOCK_METHOD(Result<void>, disconnect, (), (override));
+    MOCK_METHOD(Result<void>, open, (), (override));
+    MOCK_METHOD(Result<void>, close, (), (override));
     MOCK_METHOD(bool, isConnected, (), (const, override));
 
     // IZoomCapable implementation
@@ -97,8 +97,8 @@ public:
             .WillByDefault(Return(default_focus_limits));
     }
 
-    MOCK_METHOD(Result<void>, connect, (), (override));
-    MOCK_METHOD(Result<void>, disconnect, (), (override));
+    MOCK_METHOD(Result<void>, open, (), (override));
+    MOCK_METHOD(Result<void>, close, (), (override));
 
     // IZoomCapable implementation
     MOCK_METHOD(Result<void>, setZoom, (types::zoom), (const, override));
