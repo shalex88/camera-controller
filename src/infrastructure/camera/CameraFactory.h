@@ -3,7 +3,7 @@
 #include <memory>
 
 namespace camera_service::common {
-    struct DataConfig;
+    struct InfrastructureConfig;
 }
 
 namespace camera_service::infrastructure {
@@ -11,6 +11,6 @@ namespace camera_service::infrastructure {
 
     class CameraFactory {
     public:
-        static std::unique_ptr<ICamera> createCamera(const common::DataConfig& config);
+        static std::unique_ptr<ICamera> createCamera(const common::InfrastructureConfig& config);
     };
 }

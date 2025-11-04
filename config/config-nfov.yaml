@@ -6,6 +6,8 @@ app:
     server_address: 0.0.0.0:50051
   core:
     camera: core
-  data:
+  infrastructure:
     camera: adimec
-    device: /dev/uio0
+    endpoints:
+      - address: /dev/uio0
+      - address: 192.168.1.10:5555

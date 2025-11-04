@@ -16,7 +16,11 @@ class SonyCameraTests : public Test {
 protected:
     SonyCameraTests() : config_(std::make_unique<common::ConfigManager>("../../config/config-wfov.yaml")) {
         CONFIGURE_LOGGER(config_->getAppName(), config_->getLogLevel());
-        auto uart = std::make_unique<infrastructure::Uart>(config_->getDataConfig().device);
+        const auto& infrastructure_config = config_->getInfrastructureConfig();
+        const auto& endpoint = infrastructure_config.endpoints[0];
+        auto uart = std::make_unique<infrastructure::Uart>(
+            endpoint.address,
+            endpoint.configuration.at("baud_rate"));
         auto protocol = std::make_unique<infrastructure::ViscaProtocol>(std::move(uart));
         auto camera_hw = std::make_unique<infrastructure::SonyCamera>(std::move(protocol));
         camera_ = std::make_unique<infrastructure::Camera>(std::move(camera_hw));
@@ -31,7 +35,11 @@ protected:
 // ============================================================================
 
 TEST_F(SonyCameraTests, CanBeConstructed) {
-    auto uart = std::make_unique<infrastructure::Uart>(config_->getDataConfig().device);
+    const auto& infrastructure_config = config_->getInfrastructureConfig();
+    const auto& endpoint = infrastructure_config.endpoints[0];
+    auto uart = std::make_unique<infrastructure::Uart>(
+        endpoint.address,
+        endpoint.configuration.at("baud_rate"));
     auto protocol = std::make_unique<infrastructure::ViscaProtocol>(std::move(uart));
     const auto camera = std::make_unique<infrastructure::SonyCamera>(std::move(protocol));
     ASSERT_NE(nullptr, camera);

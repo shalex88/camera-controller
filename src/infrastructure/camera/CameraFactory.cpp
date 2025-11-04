@@ -16,39 +16,80 @@
 #include "infrastructure/camera/transport/ethernet/TcpClient.h"
 #include "infrastructure/camera/transport/uart/Uart.h"
 
+namespace {
+    std::string formatConfiguration(const std::unordered_map<std::string, std::string>& configuration) {
+        std::string result;
+        for (const auto& [key, value] : configuration) {
+            if (!result.empty()) {
+                result.append(", ");
+            }
+            result.append(key).append("=").append(value);
+        }
+        return result;
+    }
+}
+
 namespace camera_service::infrastructure {
-    std::unique_ptr<ICamera> CameraFactory::createCamera(const common::DataConfig& config) {
-        LOG_DEBUG("Device: {} {}", config.camera, config.device);
+    std::unique_ptr<ICamera> CameraFactory::createCamera(const common::InfrastructureConfig& config) {
+        LOG_DEBUG("Creating camera: {}", config.camera);
+        for (size_t i = 0; i < config.endpoints.size(); ++i) {
+            const auto& [address, configuration] = config.endpoints[i];
+            LOG_DEBUG("Endpoint[{}]: address={}, config: {}", i, address, formatConfiguration(configuration));
+        }
 
         if (config.camera == "adimec") {
-            auto camera_transport = std::make_unique<FpgaTransport>(config.device);
+            if (config.endpoints.size() != 2) {
+                throw std::invalid_argument("Adimec requires 2 endpoints");
+            }
+
+            const auto& [camera_address, camera_configuration] = config.endpoints[0];
+            const auto& [lens_address, lens_configuration] = config.endpoints[1];
+            auto camera_transport = std::make_unique<FpgaTransport>(camera_address);
             auto camera_protocol = std::make_unique<GenicamProtocol>(std::move(camera_transport));
-            auto lens_transport = std::make_unique<TcpClient>(config.device); //TODO: need to add a second device address in config
+            auto lens_transport = std::make_unique<TcpClient>(lens_address);
             auto lens_protocol = std::make_unique<ItlProtocol>(std::move(lens_transport));
             auto camera = std::make_unique<AdimecCamera>(std::move(camera_protocol), std::move(lens_protocol));
             return std::make_unique<Camera>(std::move(camera));
         }
 
         if (config.camera == "sony") {
-            auto transport = std::make_unique<Uart>(config.device);
+            if (config.endpoints.size() != 1) {
+                throw std::invalid_argument("Sony requires at 1 endpoint");
+            }
+
+            const auto& [camera_address, camera_configuration] = config.endpoints[0];
+            auto transport = std::make_unique<Uart>(camera_address, camera_configuration.at("baud_rate"));
             auto protocol = std::make_unique<ViscaProtocol>(std::move(transport));
             auto camera = std::make_unique<SonyCamera>(std::move(protocol));
             return std::make_unique<Camera>(std::move(camera));
         }
 
         if (config.camera == "mwir") {
-            auto transport = std::make_unique<TcpClient>(config.device);
+            if (config.endpoints.size() != 1) {
+                throw std::invalid_argument("MWIR requires at 1 endpoint");
+            }
+
+            const auto& [camera_address, camera_configuration] = config.endpoints[0];
+            auto transport = std::make_unique<TcpClient>(camera_address);
             auto protocol = std::make_unique<ItlProtocol>(std::move(transport));
             auto camera = std::make_unique<MwirCamera>(std::move(protocol));
             return std::make_unique<Camera>(std::move(camera));
         }
 
         if (config.camera == "fake_advanced") {
+            if (!config.endpoints.empty()) {
+                throw std::invalid_argument("Fake camera should not have endpoints");
+            }
+
             auto camera = std::make_unique<FakeAdvancedCamera>();
             return std::make_unique<Camera>(std::move(camera));
         }
 
         if (config.camera == "fake_simple") {
+            if (!config.endpoints.empty()) {
+                throw std::invalid_argument("Fake camera should not have endpoints");
+            }
+
             auto camera = std::make_unique<FakeSimpleCamera>();
             return std::make_unique<Camera>(std::move(camera));
         }

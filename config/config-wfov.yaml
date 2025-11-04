@@ -6,6 +6,9 @@ app:
     server_address: 0.0.0.0:50051
   core:
     camera: core
-  data:
+  infrastructure:
     camera: sony
-    device: /dev/ttyACM0 #TODO: pass parameters like boudrate
+    endpoints:
+      - address: /dev/ttyACM0
+        configuration:
+          baud_rate: 115200

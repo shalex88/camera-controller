@@ -6,6 +6,5 @@ app:
     server_address: 0.0.0.0:50051
   core:
     camera: core
-  data:
+  infrastructure:
     camera: fake_simple
-    device: fake

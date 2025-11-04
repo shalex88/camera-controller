@@ -69,3 +69,4 @@ grpcui -plaintext 0.0.0.0:50051
 
 - Set Nagle's algorithm on TCP sockets?
 - FpgaTransport implements GenTL to be GenICam-compliant (GenTL.h)
+- Core still does almost nothing, it's config file is also unnecessary

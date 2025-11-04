@@ -2,8 +2,9 @@
 
 #include <filesystem>
 #include <memory>
-#include <stdexcept>
 #include <string>
+#include <unordered_map>
+#include <vector>
 #include <yaml-cpp/yaml.h>
 
 namespace camera_service::common {
@@ -20,9 +21,16 @@ namespace camera_service::common {
         void validate() const;
     };
 
-    struct DataConfig {
+    struct EndpointConfig {
+        std::string address;
+        std::unordered_map<std::string, std::string> configuration;
+
+        void validate() const;
+    };
+
+    struct InfrastructureConfig {
         std::string camera;
-        std::string device;
+        std::vector<EndpointConfig> endpoints;
 
         void validate() const;
     };
@@ -30,7 +38,7 @@ namespace camera_service::common {
     struct AppConfig {
         ApiConfig api_config;
         CoreConfig core_config;
-        DataConfig data_config;
+        InfrastructureConfig infrastructure_config;
         std::string log_level;
         std::string name;
 
@@ -44,7 +52,7 @@ namespace camera_service::common {
 
         const ApiConfig& getApiConfig() const;
         const CoreConfig& getCoreConfig() const;
-        const DataConfig& getDataConfig() const;
+        const InfrastructureConfig& getInfrastructureConfig() const;
         const std::string& getLogLevel() const;
         const std::string& getAppName() const;
 
@@ -53,7 +61,7 @@ namespace camera_service::common {
         void validateConfiguration() const;
         void loadApiConfig(const YAML::Node& app_node) const;
         void loadCoreConfig(const YAML::Node& app_node) const;
-        void loadDataConfig(const YAML::Node& app_node) const;
+        void loadInfrastructureConfig(const YAML::Node& app_node) const;
         void loadAppConfig(const YAML::Node& app_node) const;
 
         std::unique_ptr<AppConfig> app_config_;

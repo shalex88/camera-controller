@@ -29,17 +29,28 @@ namespace camera_service::common {
         }
     }
 
-    void DataConfig::validate() const {
-        static const std::set<std::string> valid_cameras{"sony", "adimec", "mwir", "fake_advanced", "fake_simple",};
+    void EndpointConfig::validate() const {
+        if (address.empty()) {
+            throw std::runtime_error("Endpoint address cannot be empty");
+        }
+    }
+
+    void InfrastructureConfig::validate() const {
+        static const std::set<std::string> valid_cameras{"sony", "adimec", "mwir", "fake_advanced", "fake_simple"};
 
         if (camera.empty()) {
-            throw std::runtime_error("Data camera type cannot be empty");
+            throw std::runtime_error("Infrastructure camera type cannot be empty");
         }
         if (!valid_cameras.contains(camera)) {
-            throw std::runtime_error("Invalid data camera type: " + camera);
+            throw std::runtime_error("Invalid infrastructure camera type: " + camera);
         }
-        if (device.empty()) {
-            throw std::runtime_error("Device type cannot be empty");
+
+        for (const auto& endpoint : endpoints) {
+            endpoint.validate();
+        }
+
+        if (camera == "adimec" && endpoints.size() != 2) {
+            throw std::runtime_error("Adimec camera requires exactly 2 endpoints");
         }
     }
 
@@ -48,7 +59,7 @@ namespace camera_service::common {
 
         api_config.validate();
         core_config.validate();
-        data_config.validate();
+        infrastructure_config.validate();
 
         if (log_level.empty()) {
             throw std::runtime_error("Log level cannot be empty");
@@ -79,7 +90,7 @@ namespace camera_service::common {
                 const auto& app_node = config["app"];
                 loadApiConfig(app_node);
                 loadCoreConfig(app_node);
-                loadDataConfig(app_node);
+                loadInfrastructureConfig(app_node);
                 loadAppConfig(app_node);
             }
         }
@@ -102,22 +113,70 @@ namespace camera_service::common {
 
     void ConfigManager::loadCoreConfig(const YAML::Node& app_node) const {
         if (app_node["core"]) {
-            const auto& core_node = app_node["core"];
-            if (core_node["camera"]) {
+            if (const auto& core_node = app_node["core"]; core_node["camera"]) {
                 app_config_->core_config.camera = core_node["camera"].as<std::string>();
             }
         }
     }
 
-    void ConfigManager::loadDataConfig(const YAML::Node& app_node) const {
-        if (app_node["data"]) {
-            const auto& data_node = app_node["data"];
-            if (data_node["camera"]) {
-                app_config_->data_config.camera = data_node["camera"].as<std::string>();
+    namespace {
+        EndpointConfig parseEndpointNode(const YAML::Node& node) {
+            EndpointConfig endpoint;
+
+            if (!node) {
+                return endpoint;
             }
-            if (data_node["device"]) {
-                app_config_->data_config.device = data_node["device"].as<std::string>();
+
+            if (node.IsScalar()) {
+                endpoint.address = node.as<std::string>();
+                return endpoint;
             }
+
+            if (node["address"]) {
+                endpoint.address = node["address"].as<std::string>();
+            }
+
+            if (node["configuration"]) {
+                const auto& configuration_node = node["configuration"];
+                if (!configuration_node.IsMap()) {
+                    throw std::runtime_error("Endpoint configuration must be a key/value map");
+                }
+
+                for (const auto& entry : configuration_node) {
+                    const auto key = entry.first.as<std::string>();
+                    const auto value = entry.second.as<std::string>();
+                    endpoint.configuration.emplace(key, value);
+                }
+            }
+
+            return endpoint;
+        }
+    }
+
+    void ConfigManager::loadInfrastructureConfig(const YAML::Node& app_node) const {
+        if (!app_node["infrastructure"]) {
+            return;
+        }
+
+        const auto& infrastructure_node = app_node["infrastructure"];
+
+        if (infrastructure_node["camera"]) {
+            app_config_->infrastructure_config.camera = infrastructure_node["camera"].as<std::string>();
+        }
+
+        app_config_->infrastructure_config.endpoints.clear();
+
+        if (!infrastructure_node["endpoints"]) {
+            return;
+        }
+
+        const auto& endpoints_node = infrastructure_node["endpoints"];
+        if (!endpoints_node.IsSequence()) {
+            throw std::runtime_error("Endpoints must be a list");
+        }
+
+        for (const auto& endpoint_node : endpoints_node) {
+            app_config_->infrastructure_config.endpoints.push_back(parseEndpointNode(endpoint_node));
         }
     }
 
@@ -138,8 +197,8 @@ namespace camera_service::common {
         return app_config_->core_config;
     }
 
-    const DataConfig& ConfigManager::getDataConfig() const {
-        return app_config_->data_config;
+    const InfrastructureConfig& ConfigManager::getInfrastructureConfig() const {
+        return app_config_->infrastructure_config;
     }
 
     const std::string& ConfigManager::getLogLevel() const {

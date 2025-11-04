@@ -70,7 +70,7 @@ namespace camera_service::app {
             LOG_INFO("{} v{}.{}.{}{}", APP_NAME, APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH,
                      APP_VERSION_DIRTY);
 
-            auto camera = infrastructure::CameraFactory::createCamera(config_->getDataConfig());
+            auto camera = infrastructure::CameraFactory::createCamera(config_->getInfrastructureConfig());
             auto core = core::CoreFactory::createCore(std::move(camera), config_->getCoreConfig());
             api_controller_ = api::ApiControllerFactory::createController(std::move(core), config_->getApiConfig());
 

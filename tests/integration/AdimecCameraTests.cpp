@@ -18,9 +18,12 @@ class AdimecCameraTests : public Test {
 protected:
     AdimecCameraTests() : config_(std::make_unique<common::ConfigManager>("../../config/config-nfov.yaml")) {
         CONFIGURE_LOGGER(config_->getAppName(), config_->getLogLevel());
-        auto camera_transport = std::make_unique<infrastructure::FpgaTransport>(config_->getDataConfig().device);
+        const auto& infrastructure_config = config_->getInfrastructureConfig();
+        const auto& camera_endpoint = infrastructure_config.endpoints[0];
+        const auto& lens_endpoint = infrastructure_config.endpoints[1];
+        auto camera_transport = std::make_unique<infrastructure::FpgaTransport>(camera_endpoint.address);
         auto camera_protocol = std::make_unique<infrastructure::GenicamProtocol>(std::move(camera_transport));
-        auto lens_transport = std::make_unique<infrastructure::TcpClient>(config_->getDataConfig().device); //TODO: need to add a second device address in config
+        auto lens_transport = std::make_unique<infrastructure::TcpClient>(lens_endpoint.address);
         auto lens_protocol = std::make_unique<infrastructure::ItlProtocol>(std::move(lens_transport));
         auto camera_hw = std::make_unique<infrastructure::AdimecCamera>(std::move(camera_protocol), std::move(lens_protocol));
         camera_ = std::make_unique<infrastructure::Camera>(std::move(camera_hw));
@@ -31,9 +34,12 @@ protected:
 };
 
 TEST_F(AdimecCameraTests, CanBeConstructed) {
-    auto camera_transport = std::make_unique<infrastructure::FpgaTransport>(config_->getDataConfig().device);
+    const auto& infrastructure_config = config_->getInfrastructureConfig();
+    const auto& camera_endpoint = infrastructure_config.endpoints[0];
+    const auto& lens_endpoint = infrastructure_config.endpoints[1];
+    auto camera_transport = std::make_unique<infrastructure::FpgaTransport>(camera_endpoint.address);
     auto camera_protocol = std::make_unique<infrastructure::GenicamProtocol>(std::move(camera_transport));
-    auto lens_transport = std::make_unique<infrastructure::TcpClient>(config_->getDataConfig().device); //TODO: need to add a second device address in config
+    auto lens_transport = std::make_unique<infrastructure::TcpClient>(lens_endpoint.address);
     auto lens_protocol = std::make_unique<infrastructure::ItlProtocol>(std::move(lens_transport));
     const auto camera = std::make_unique<infrastructure::AdimecCamera>(std::move(camera_protocol), std::move(lens_protocol));
     ASSERT_NE(nullptr, camera);
