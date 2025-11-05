@@ -1,6 +1,10 @@
 #include "FpgaTransport.h"
 
+#include <cstdint>
 #include <fcntl.h>
+#include <fstream>
+#include <regex>
+#include <utility>
 #include <sys/mman.h>
 
 #include "common/logger/Logger.h"
@@ -8,13 +12,14 @@
 namespace {
     constexpr uint32_t FPGA_BASE_ADDR = 0x90000000;
     constexpr uint32_t FPGA_MEMORY_SIZE = 0x4000000;
+
     enum class FpgaRegs : uint32_t {
-        Trigger = 0x00,
-        Channel = 0x04,
-        TargetReg = 0x0C,
-        State = 0x10,
-        AddressType = 0x14,
-        ReadbackData = 0x08
+        StartStop = 0x00,
+        ReadWrite = 0x04,
+        ReadLastData = 0x08,
+        WriteData = 0x0C,
+        WriteCounter = 0x10,
+        NumOfWrites = 0x14,
     };
 
     enum class HostReg : uint32_t {
@@ -22,7 +27,7 @@ namespace {
         WorkingSpeed = 0x4,
         LinkStatus = 0x8,
         Reset = 0x2000,
-        StreamID = 0x2018,
+        StreamId = 0x2018,
         CameraIndex = 0x40,
         CameraArbitration = 0x3C,
         HostDecoder = 0x2034
@@ -30,10 +35,15 @@ namespace {
 }
 
 namespace camera_service::infrastructure {
-    FpgaTransport::FpgaTransport(const std::string& device)
-        : device_(device) {
-        if (!open()) {
-            LOG_ERROR("Failed to open FPGA transport on device: {}", device);
+    FpgaTransport::FpgaTransport(std::string device)
+        : device_(std::move(device)), base_address_(FPGA_BASE_ADDR), memory_size_(FPGA_MEMORY_SIZE)  {
+        if (!open() || !mapMemory()) {
+            throw std::runtime_error("Failed to open device: " + device_);
+        }
+
+        if (!configureLink()) {
+            close();
+            throw std::runtime_error("Failed to connect to a camera: " + device_);
         }
     }
 
@@ -58,143 +68,148 @@ namespace camera_service::infrastructure {
 
     bool FpgaTransport::open() {
         fd_ = ::open(device_.c_str(), O_RDWR | O_SYNC);
-        if (fd_ < 0) {
+        return fd_ != -1;
+    }
+
+    bool FpgaTransport::mapMemory() {
+        if (fd_ == -1 || memory_size_ == 0) {
             return false;
         }
 
-        regs_ = static_cast<uint32_t*>(mmap(nullptr, FPGA_MEMORY_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd_,
-                                                     FPGA_BASE_ADDR));
-        if (regs_ == MAP_FAILED) {
-            regs_ = nullptr;
-            return false;
-        }
-
-        if (!configureLink()) {
-            close();
+        // For /dev/mem, use the physical address as the mmap offset
+        mapped_memory_ = static_cast<volatile uint32_t*>(mmap(nullptr, memory_size_, PROT_READ | PROT_WRITE, MAP_SHARED,
+                                                              fd_, base_address_));
+        if (mapped_memory_ == MAP_FAILED) {
             return false;
         }
 
         return true;
     }
 
+    void FpgaTransport::unmapMemory() {
+        if (mapped_memory_ != MAP_FAILED) {
+            munmap(const_cast<uint32_t*>(mapped_memory_), memory_size_);
+            mapped_memory_ = nullptr;
+        }
+        memory_size_ = 0;
+    }
+
     void FpgaTransport::close() {
-        if (regs_) {
-            munmap(regs_, FPGA_MEMORY_SIZE);
-        }
-        if (fd_ >= 0) {
+        unmapMemory();
+
+        if (fd_ != -1) {
             ::close(fd_);
+            fd_ = -1;
         }
-        regs_ = nullptr;
     }
 
     bool FpgaTransport::configureLink() const {
-        uint32_t result{};
-
         // [CXP] Channel select 0
         writeReg(Target::Host, HostReg::SelectChannel, 0x0);
+        readReg(Target::Host, HostReg::SelectChannel);
 
         // [CXP] Link speed discovery 3.125 Gbps
         writeReg(Target::Host, HostReg::WorkingSpeed, 0x38);
+        readReg(Target::Host, HostReg::WorkingSpeed);
 
         // [CXP] Reset link on camera side
         writeReg(Target::Camera, 0x4000, 0x1);
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        std::this_thread::sleep_for(std::chrono::milliseconds(400));
 
         // [CXP] Read link status (bit0=1 expected)
-        result = readReg(Target::Host, HostReg::LinkStatus);
-        LOG_INFO("Link status: 0x{:X}", result);
+        if (readReg(Target::Host, HostReg::LinkStatus) != 0x1) {
+            return false;
+        }
 
         // [CXP] Read magic number (expect 0xC0A79AE5)
-        result = readReg(Target::Camera, 0x0);
-        LOG_INFO("Camera magic: 0x{:X}", result);
+        readReg(Target::Camera, 0x0);
 
         // [CXP] Set link speed to camera 3.125 Gbps
         writeReg(Target::Camera, 0x4014, 0x38);
+        readReg(Target::Camera, 0x4014);
 
         // [CXP] Confirm link speed discovery again
         writeReg(Target::Host, HostReg::WorkingSpeed, 0x38);
+        readReg(Target::Host, HostReg::WorkingSpeed);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        std::this_thread::sleep_for(std::chrono::milliseconds(400));
 
         // [CXP] Read link status (bits0:1 = 11 expected)
-        result = readReg(Target::Host, HostReg::LinkStatus);
-        LOG_INFO("Link status: 0x{:X}", result);
+        readReg(Target::Host, HostReg::LinkStatus);
 
         // [CXP] Read magic again
-        result = readReg(Target::Camera, 0x0);
-        LOG_INFO("Camera magic: 0x{:X}", result);
-
-        // [CXP] Read stream ID (0x301C)
-        result = readReg(Target::Camera, 0x301C);
-        LOG_INFO("Stream ID: 0x{:X}", result);
-
-        // [CXP] Read AcquisitionStartAddress (0x300C)
-        result = readReg(Target::Camera, 0x300C);
-        LOG_INFO("AcquisitionStartAddress: 0x{:X}", result);
+        readReg(Target::Camera, 0x0);
 
         // [CXP] Write MasterHostConnectionID = 0xDE000000
         writeReg(Target::Camera, 0x4008, 0xDE000000);
+        readReg(Target::Camera, 0x4008);
 
         // [CXP] Packet size = 2048
         writeReg(Target::Camera, 0x4010, 0x800);
+        readReg(Target::Camera, 0x4010);
 
         // [CXP] Decoder reset
         writeReg(Target::Host, HostReg::Reset, 0x2);
+        readReg(Target::Host, HostReg::Reset);
 
         // [CXP] Stream id[15..8]=1, channel mask[7..0]=1
-        writeReg(Target::Host, HostReg::StreamID, 0x00000100);
+        writeReg(Target::Host, HostReg::StreamId, 0x00000100);
+        readReg(Target::Host, HostReg::StreamId);
 
         // [CXP] Select camera 0
         writeReg(Target::Host, HostReg::CameraIndex, 0x0);
+        readReg(Target::Host, HostReg::CameraIndex);
 
         // [CXP] Connect link0->arbiter0
         writeReg(Target::Host, HostReg::CameraArbitration, 0x1);
+        readReg(Target::Host, HostReg::CameraArbitration);
 
         // [CXP] Connect arbiter0->decoder0
         writeReg(Target::Host, HostReg::HostDecoder, 0x0);
+        readReg(Target::Host, HostReg::HostDecoder);
 
         // [CXP] Decoder enable
         writeReg(Target::Host, HostReg::Reset, 0x1);
-
-        // [CXP] Start acquisition
-        writeReg(Target::Camera, 0x1005C, 0x1);
+        readReg(Target::Host, HostReg::Reset);
 
         return true; //TODO: add failure checks
     }
 
     void FpgaTransport::writeTransaction(const uint32_t target_reg, const uint32_t value) const {
-        regs_[static_cast<uint32_t>(FpgaRegs::Trigger) / 4] = 0;
-        regs_[static_cast<uint32_t>(FpgaRegs::Channel) / 4] = 1;
-        regs_[static_cast<uint32_t>(FpgaRegs::AddressType) / 4] = 0x2;
-        regs_[static_cast<uint32_t>(FpgaRegs::TargetReg) / 4] = target_reg;
-        regs_[static_cast<uint32_t>(FpgaRegs::State) / 4] = 0;
-        regs_[static_cast<uint32_t>(FpgaRegs::TargetReg) / 4] = value;
-        regs_[static_cast<uint32_t>(FpgaRegs::State) / 4] = 1;
-        regs_[static_cast<uint32_t>(FpgaRegs::Trigger) / 4] = 1;
+        auto idx = [](FpgaRegs r) { return static_cast<uint32_t>(r) >> 2; };
+        mapped_memory_[idx(FpgaRegs::StartStop)] = 0;
+        mapped_memory_[idx(FpgaRegs::ReadWrite)] = 1;
+        mapped_memory_[idx(FpgaRegs::NumOfWrites)] = 2;
+        mapped_memory_[idx(FpgaRegs::WriteData)] = target_reg;
+        mapped_memory_[idx(FpgaRegs::WriteCounter)] = 0;
+        mapped_memory_[idx(FpgaRegs::WriteData)] = value;
+        mapped_memory_[idx(FpgaRegs::WriteCounter)] = 1;
+        mapped_memory_[idx(FpgaRegs::StartStop)] = 1;
     }
 
     uint32_t FpgaTransport::readTransaction(const uint32_t target_reg) const {
-        regs_[static_cast<uint32_t>(FpgaRegs::Trigger) / 4] = 0;
-        regs_[static_cast<uint32_t>(FpgaRegs::Channel) / 4] = 0;
-        regs_[static_cast<uint32_t>(FpgaRegs::TargetReg) / 4] = target_reg;
-        regs_[static_cast<uint32_t>(FpgaRegs::State) / 4] = 0;
-        regs_[static_cast<uint32_t>(FpgaRegs::Trigger) / 4] = 1;
+        auto idx = [](FpgaRegs r) { return static_cast<uint32_t>(r) >> 2; };
+        mapped_memory_[idx(FpgaRegs::StartStop)] = 0;
+        mapped_memory_[idx(FpgaRegs::ReadWrite)] = 0;
+        mapped_memory_[idx(FpgaRegs::WriteData)] = target_reg;
+        mapped_memory_[idx(FpgaRegs::WriteCounter)] = 0;
+        mapped_memory_[idx(FpgaRegs::StartStop)] = 1;
 
-
-        return regs_[static_cast<uint32_t>(FpgaRegs::ReadbackData) / 4];
+        return mapped_memory_[idx(FpgaRegs::ReadLastData)];
     }
 
     void FpgaTransport::writeReg(const Target target, const auto reg, const uint32_t value) const {
-        const auto targer_reg = static_cast<uint32_t>(target) + static_cast<uint32_t>(reg);
-        writeTransaction(targer_reg, value);
-        LOG_INFO("{} = {}", targer_reg, value);
+        //TODO: allow reg to be only enum
+        const auto target_reg = static_cast<uint32_t>(target) + static_cast<uint32_t>(reg);
+        writeTransaction(target_reg, value);
+        LOG_DEBUG("[0x{:X}] <- 0x{:X}", target_reg, value);
     }
 
     uint32_t FpgaTransport::readReg(const Target target, const auto reg) const {
+        //TODO: allow reg to be only enum
         const auto target_reg = static_cast<uint32_t>(target) + static_cast<uint32_t>(reg);
         const uint32_t value = readTransaction(target_reg);
-        LOG_INFO("{} = {}", target_reg, value);
+        LOG_DEBUG("[0x{:X}] -> 0x{:X}", target_reg, value);
 
         return value;
     }

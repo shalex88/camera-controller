@@ -8,7 +8,7 @@ namespace camera_service::infrastructure {
 
 class RegisterImplUio final : public IRegisterImpl {
 public:
-    explicit RegisterImplUio(const std::string& device_path);
+    explicit RegisterImplUio(std::string device);
     ~RegisterImplUio() override;
 
     // Delete copy constructor and assignment operator
@@ -25,18 +25,18 @@ public:
     bool isOpen() const noexcept { return fd_ != -1 && mapped_memory_ != nullptr; }
 
 private:
-    bool openDevice();
-    void closeDevice();
+    bool open();
+    void close();
     bool mapMemory();
     void unmapMemory();
-    bool readUioInfo();
+    bool getUioInfo();
     std::string getUioNameFromDevicePath() const;
-    static uint64_t readUioAddress(const std::string& uio_name);
-    static size_t readUioSize(const std::string& uio_name);
+    static uint64_t getUioBaseAddress(const std::string& uio_name);
+    static size_t getUioSize(const std::string& uio_name);
     bool isValidAddress(uint32_t address) const;
     uint64_t calculateOffset(uint32_t address) const;
 
-    std::string device_path_;
+    std::string device_;
     int fd_{-1};
     void* mapped_memory_{nullptr};
     size_t memory_size_{0};

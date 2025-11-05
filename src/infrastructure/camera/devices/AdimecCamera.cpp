@@ -9,34 +9,6 @@ namespace camera_service::infrastructure {
         camera_protocol_(std::move(camera_protocol)), lens_protocol_(std::move(lens_protocol)) {
     }
 
-    Result<void> AdimecCamera::setZoom(const types::zoom zoom) const {
-        return Result<void>::success();
-    }
-
-    Result<types::zoom> AdimecCamera::getZoom() const {
-        return Result<types::zoom>::success(static_cast<types::zoom>(0));
-    }
-
-    types::ZoomRange AdimecCamera::getZoomLimits() const {
-        return zoom_limits_;
-    }
-
-    Result<void> AdimecCamera::setFocus(const types::focus focus) const {
-        return Result<void>::success();
-    }
-
-    Result<types::focus> AdimecCamera::getFocus() const {
-        return Result<types::focus>::success(static_cast<types::focus>(0));
-    }
-
-    types::FocusRange AdimecCamera::getFocusLimits() const {
-        return focus_limits_;
-    }
-
-    Result<types::info> AdimecCamera::getInfo() const {
-        return Result<types::info>::success(std::to_string(0));
-    }
-
     Result<void> AdimecCamera::open() {
         if (camera_protocol_->open().isError()) {
             return Result<void>::error("Failed to connect to Adimec camera");
@@ -55,5 +27,31 @@ namespace camera_service::infrastructure {
             return Result<void>::error("Failed to disconnect from Adimec lens");
         }
         return Result<void>::success();
+    }
+
+    Result<types::info> AdimecCamera::getInfo() const {
+        std::string info;
+
+        if (const auto vendor = camera_protocol_->getDeviceVendorName(); vendor.isSuccess()) {
+            info += "Vendor: " + vendor.value() + "";
+        }
+
+        if (const auto model = camera_protocol_->getDeviceModelName(); model.isSuccess()) {
+            info += "Model: " + model.value() + "";
+        }
+
+        if (const auto manufacturer_info = camera_protocol_->getDeviceManufacturerInfo(); manufacturer_info.isSuccess()) {
+            info += "Manufacturer Info: " + manufacturer_info.value() + " ";
+        }
+
+        if (const auto firmware = camera_protocol_->getDeviceFirmwareVersion(); firmware.isSuccess()) {
+            info += "Firmware Version: " + firmware.value();
+        }
+
+        if (info.empty()) {
+            return Result<types::info>::error("Failed to retrieve camera information");
+        }
+
+        return Result<types::info>::success(info);
     }
 }

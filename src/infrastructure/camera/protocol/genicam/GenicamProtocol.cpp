@@ -23,23 +23,55 @@ namespace camera_service::infrastructure {
             return Result<void>::error(e.what());
         }
 
-        if (!setEnum("ConnectionConfig", "CXP3_X1")) {
-            return Result<void>::error("Failed to set ConnectionConfig");
+        return startAcquisition();
+    }
+
+    Result<void> GenicamProtocol::close() const {
+        return stopAcquisition();
+    }
+
+    Result<void> GenicamProtocol::startAcquisition() const {
+        if (!executeCommand("AcquisitionStart")) {
+            return Result<void>::error("Failed to start acquisition");
         }
 
         return Result<void>::success();
     }
 
-    Result<void> GenicamProtocol::close() {
-        return Result<void>::success();
-    }
-
-    Result<void> GenicamProtocol::setExposureTime(const double time_us) const {
-        if (!setFloat("ExposureTime", time_us)) {
-            return Result<void>::error("Failed to set exposure time");
+    Result<void> GenicamProtocol::stopAcquisition() const {
+        if (!executeCommand("AcquisitionStop")) {
+            return Result<void>::error("Failed to stop acquisition");
         }
 
         return Result<void>::success();
+    }
+
+    Result<std::string> GenicamProtocol::getDeviceVendorName() const {
+        return getString("DeviceVendorName");
+    }
+
+    Result<std::string> GenicamProtocol::getDeviceModelName() const {
+        return getString("DeviceModelName");
+    }
+
+    Result<std::string> GenicamProtocol::getDeviceManufacturerInfo() const {
+        return getString("DeviceManufacturerInfo");
+    }
+
+    Result<std::string> GenicamProtocol::getDeviceFirmwareVersion() const {
+        return getString("DeviceFirmwareVersion");
+    }
+
+    Result<std::string> GenicamProtocol::getString(const std::string& feature) const {
+        try {
+            const GENAPI_NAMESPACE::CStringPtr node = node_map_._GetNode(feature.c_str());
+            if (!GENAPI_NAMESPACE::IsReadable(node)) {
+                return Result<std::string>::error("Feature '" + feature + "' is not readable");
+            }
+            return Result<std::string>::success(std::string(node->GetValue()));
+        } catch (...) {
+            return Result<std::string>::error("Failed to get " + feature);
+        }
     }
 
     bool GenicamProtocol::setFloat(const std::string& feature, const double value) const {

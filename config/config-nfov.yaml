@@ -9,5 +9,5 @@ app:
   infrastructure:
     camera: adimec
     endpoints:
-      - address: /dev/uio0
+      - address: /dev/map #TODO: use uio when available in BSP
       - address: 192.168.1.10:5555

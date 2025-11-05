@@ -11,33 +11,33 @@
 
 namespace camera_service::infrastructure {
 
-RegisterImplUio::RegisterImplUio(const std::string& device_path)
-    : device_path_(device_path) {
-    if (!openDevice()) {
-        throw std::runtime_error("Failed to open UIO device: " + device_path_);
+RegisterImplUio::RegisterImplUio(std::string device)
+    : device_(std::move(device)) {
+    if (!open()) {
+        throw std::runtime_error("Failed to open UIO device: " + device_);
     }
 
-    if (!readUioInfo()) {
-        closeDevice();
-        throw std::runtime_error("Failed to read UIO device information from sysfs for: " + device_path_);
+    if (!getUioInfo()) {
+        close();
+        throw std::runtime_error("Failed to read UIO device information from sysfs for: " + device_);
     }
 
     if (!mapMemory()) {
-        closeDevice();
-        throw std::runtime_error("Failed to map UIO device memory for: " + device_path_);
+        close();
+        throw std::runtime_error("Failed to map UIO device memory for: " + device_);
     }
 }
 
 RegisterImplUio::~RegisterImplUio() {
-    closeDevice();
+    close();
 }
 
 RegisterImplUio::RegisterImplUio(RegisterImplUio&& other) noexcept
-    : device_path_(std::move(other.device_path_))
-    , fd_(other.fd_)
-    , mapped_memory_(other.mapped_memory_)
-    , memory_size_(other.memory_size_)
-    , base_address_(other.base_address_) {
+    : device_(std::move(other.device_))
+      , fd_(other.fd_)
+      , mapped_memory_(other.mapped_memory_)
+      , memory_size_(other.memory_size_)
+      , base_address_(other.base_address_) {
     other.fd_ = -1;
     other.mapped_memory_ = nullptr;
     other.memory_size_ = 0;
@@ -46,9 +46,9 @@ RegisterImplUio::RegisterImplUio(RegisterImplUio&& other) noexcept
 
 RegisterImplUio& RegisterImplUio::operator=(RegisterImplUio&& other) noexcept {
     if (this != &other) {
-        closeDevice();
+        close();
 
-        device_path_ = std::move(other.device_path_);
+        device_ = std::move(other.device_);
         fd_ = other.fd_;
         mapped_memory_ = other.mapped_memory_;
         memory_size_ = other.memory_size_;
@@ -96,16 +96,16 @@ Result<uint32_t> RegisterImplUio::get(const uint32_t address) const {
     return Result<uint32_t>::success(value);
 }
 
-bool RegisterImplUio::openDevice() {
-    fd_ = open(device_path_.c_str(), O_RDWR | O_SYNC);
+bool RegisterImplUio::open() {
+    fd_ = ::open(device_.c_str(), O_RDWR | O_SYNC);
     return fd_ != -1;
 }
 
-void RegisterImplUio::closeDevice() {
+void RegisterImplUio::close() {
     unmapMemory();
 
     if (fd_ != -1) {
-        close(fd_);
+        ::close(fd_);
         fd_ = -1;
     }
 }
@@ -132,23 +132,69 @@ void RegisterImplUio::unmapMemory() {
     memory_size_ = 0;
 }
 
-bool RegisterImplUio::readUioInfo() {
+bool RegisterImplUio::getUioInfo() {
     const std::string uio_name = getUioNameFromDevicePath();
     if (uio_name.empty()) {
         return false;
     }
 
-    base_address_ = readUioAddress(uio_name);
+    base_address_ = getUioBaseAddress(uio_name);
     if (base_address_ == 0) {
         return false;
     }
 
-    memory_size_ = readUioSize(uio_name);
+    memory_size_ = getUioSize(uio_name);
     if (memory_size_ == 0) {
         return false;
     }
 
     return true;
+}
+
+std::string RegisterImplUio::getUioNameFromDevicePath() const {
+    // Extract UIO number from device path (e.g., "/dev/uio0" -> "uio0")
+    const std::regex uio_regex(R"(/dev/(uio\d+))");
+
+    if (std::smatch match; std::regex_search(device_, match, uio_regex)) {
+        return match[1].str();
+    }
+
+    return "";
+}
+
+uint64_t RegisterImplUio::getUioBaseAddress(const std::string& uio_name) {
+    const std::string addr_file = "/sys/class/uio/" + uio_name + "/maps/map0/addr";
+    std::ifstream file(addr_file);
+
+    if (!file.is_open()) {
+        return 0;
+    }
+
+    std::string addr_str;
+    std::getline(file, addr_str);
+
+    if (addr_str.empty()) {
+        return 0;
+    }
+
+    return std::stoull(addr_str, nullptr, 16);
+}
+
+size_t RegisterImplUio::getUioSize(const std::string& uio_name) {
+    const std::string size_file = "/sys/class/uio/" + uio_name + "/maps/map0/size";
+    std::ifstream file(size_file);
+
+    if (!file.is_open()) {
+        return 0;
+    }
+
+    std::string size_str;
+    std::getline(file, size_str);
+
+    if (size_str.empty()) {
+        return 0;
+    }
+    return std::stoull(size_str, nullptr, 16);
 }
 
 bool RegisterImplUio::isValidAddress(const uint32_t address) const {
@@ -174,52 +220,6 @@ bool RegisterImplUio::isValidAddress(const uint32_t address) const {
 
 uint64_t RegisterImplUio::calculateOffset(const uint32_t address) const {
     return static_cast<uint64_t>(address) - base_address_;
-}
-
-std::string RegisterImplUio::getUioNameFromDevicePath() const {
-    // Extract UIO number from device path (e.g., "/dev/uio0" -> "uio0")
-    const std::regex uio_regex(R"(/dev/(uio\d+))");
-
-    if (std::smatch match; std::regex_search(device_path_, match, uio_regex)) {
-        return match[1].str();
-    }
-
-    return "";
-}
-
-uint64_t RegisterImplUio::readUioAddress(const std::string& uio_name) {
-    const std::string addr_file = "/sys/class/uio/" + uio_name + "/maps/map0/addr";
-    std::ifstream file(addr_file);
-
-    if (!file.is_open()) {
-        return 0;
-    }
-
-    std::string addr_str;
-    std::getline(file, addr_str);
-
-    if (addr_str.empty()) {
-        return 0;
-    }
-
-    return std::stoull(addr_str, nullptr, 16);
-}
-
-size_t RegisterImplUio::readUioSize(const std::string& uio_name) {
-    const std::string size_file = "/sys/class/uio/" + uio_name + "/maps/map0/size";
-    std::ifstream file(size_file);
-
-    if (!file.is_open()) {
-        return 0;
-    }
-
-    std::string size_str;
-    std::getline(file, size_str);
-
-    if (size_str.empty()) {
-        return 0;
-    }
-    return std::stoull(size_str, nullptr, 16);
 }
 
 }
