@@ -33,6 +33,7 @@ set(SOURCE_DIR "src")
 set(INCLUDE_DIR "include")
 
 add_subdirectory(proto)
+add_subdirectory(src/infrastructure/camera/protocol/gentl)
 
 include_directories(
         ${INCLUDE_DIR}
@@ -42,6 +43,9 @@ include_directories(
 )
 
 file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS "${SOURCE_DIR}/*.cpp")
+
+# Exclude GenTL producer sources (they build as a separate library)
+list(FILTER SOURCE_FILES EXCLUDE REGEX ".*gentl/.*")
 
 find_package(spdlog CONFIG REQUIRED)
 find_package(CLI11 CONFIG REQUIRED)
@@ -81,6 +85,7 @@ endfunction(link_common_libraries)
 
 link_common_libraries(${PROJECT_NAME})
 add_subdirectory(tests)
+add_subdirectory(examples)
 
 include(GNUInstallDirs)
 install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})
