@@ -1,6 +1,6 @@
 app:
   name: mwir
-  log_level: info
+  log_level: debug
   api:
     api_type: grpc
     server_address: 0.0.0.0:50051

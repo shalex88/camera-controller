@@ -13,8 +13,12 @@ namespace camera_service::infrastructure {
         if (camera_protocol_->open().isError()) {
             return Result<void>::error("Failed to connect to Adimec camera");
         }
-        if (lens_protocol_->open().isError()) {
-            return Result<void>::error("Failed to connect to Adimec lens");
+        if (lens_protocol_) {
+            if (lens_protocol_->open().isError()) {
+                return Result<void>::error("Failed to connect to Adimec lens");
+            }
+        } else {
+            LOG_WARN("No lens endpoint provided. Operating without lens control.");
         }
         return Result<void>::success();
     }
@@ -23,8 +27,10 @@ namespace camera_service::infrastructure {
         if (camera_protocol_->close().isError()) {
             return Result<void>::error("Failed to disconnect from Adimec camera");
         }
-        if (lens_protocol_->close().isError()) {
-            return Result<void>::error("Failed to disconnect from Adimec lens");
+        if (lens_protocol_) {
+            if (lens_protocol_->close().isError()) {
+                return Result<void>::error("Failed to disconnect from Adimec lens");
+            }
         }
         return Result<void>::success();
     }

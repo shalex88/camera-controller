@@ -1,6 +1,6 @@
 app:
   name: nfov
-  log_level: info
+  log_level: debug
   api:
     api_type: grpc
     server_address: 0.0.0.0:50051
@@ -9,5 +9,5 @@ app:
   infrastructure:
     camera: adimec
     endpoints:
-      - address: /dev/map #TODO: use uio when available in BSP
+      - address: /dev/mem #TODO: use uio when available in BSP
       - address: 192.168.1.10:5555

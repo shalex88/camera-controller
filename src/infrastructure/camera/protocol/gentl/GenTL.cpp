@@ -1,27 +1,27 @@
 #include "GenTL.h"
-#include "GenTLImpl.h"
-#include "../genicam/include/GenApi/GenApi.h"
-#include "common/logger/Logger.h"
-#include <map>
+
 #include <mutex>
 #include <string>
+
+#include "common/logger/Logger.h"
+#include "infrastructure/camera/protocol/genicam/include/GenApi/GenApi.h"
+#include "infrastructure/camera/protocol/gentl/GenTLImpl.h"
 
 using namespace camera_service::infrastructure::gentl;
 using namespace GenTL;
 
 namespace {
     std::mutex g_mutex;
-    std::string g_lastError;
+    std::string g_last_error;
     bool g_initialized = false;
 
-    // Helper to set last error
-    void setLastError(GC_ERROR error, const std::string& message) {
-        g_lastError = message;
+    void setLastError(const GC_ERROR error, const std::string& message) {
+        g_last_error = message;
         LOG_ERROR("GenTL Error {}: {}", static_cast<int>(error), message);
     }
 
     // Validate handle type casts
-    template<typename T>
+    template <typename T>
     T* validateHandle(void* handle) {
         if (handle == nullptr) {
             setLastError(GC_ERR_INVALID_HANDLE, "Null handle");
@@ -35,14 +35,13 @@ namespace {
 // System Module Functions
 //-----------------------------------------------------------------------------
 extern "C" {
-
-GC_ERROR GCGetInfo(TL_INFO_CMD cmd, INFO_DATATYPE* type, void* buffer, size_t* size) {
+GC_ERROR GCGetInfo(const TL_INFO_CMD cmd, INFO_DATATYPE* type, void* buffer, size_t* size) {
     // Global library info - no handle needed
     SystemModule temp;
     return temp.getInfo(cmd, type, buffer, size);
 }
 
-GC_ERROR GCGetLastError(GC_ERROR* error, char* errText, size_t* size) {
+GC_ERROR GCGetLastError(GC_ERROR* error, char* err_text, size_t* size) {
     std::scoped_lock lock(g_mutex);
 
     if (error) {
@@ -53,8 +52,8 @@ GC_ERROR GCGetLastError(GC_ERROR* error, char* errText, size_t* size) {
         return GC_ERR_INVALID_PARAMETER;
     }
 
-    const size_t required = g_lastError.length() + 1;
-    if (errText == nullptr) {
+    const size_t required = g_last_error.length() + 1;
+    if (err_text == nullptr) {
         *size = required;
         return GC_ERR_SUCCESS;
     }
@@ -64,7 +63,7 @@ GC_ERROR GCGetLastError(GC_ERROR* error, char* errText, size_t* size) {
         return GC_ERR_BUFFER_TOO_SMALL;
     }
 
-    std::memcpy(errText, g_lastError.c_str(), required);
+    std::memcpy(err_text, g_last_error.c_str(), required);
     *size = required;
     return GC_ERR_SUCCESS;
 }
@@ -75,7 +74,7 @@ GC_ERROR GCInitLib() {
         return GC_ERR_SUCCESS;
     }
 
-    LOG_INFO("Initializing GenTL library");
+    LOG_DEBUG("Initializing GenTL library");
     g_initialized = true;
     return GC_ERR_SUCCESS;
 }
@@ -86,12 +85,12 @@ GC_ERROR GCCloseLib() {
         return GC_ERR_NOT_INITIALIZED;
     }
 
-    LOG_INFO("Closing GenTL library");
+    LOG_DEBUG("Closing GenTL library");
     g_initialized = false;
     return GC_ERR_SUCCESS;
 }
 
-GC_ERROR GCReadPort(PORT_HANDLE port, uint64_t address, void* buffer, size_t* size) {
+GC_ERROR GCReadPort(const PORT_HANDLE port, uint64_t address, void* buffer, size_t* size) {
     if (port == nullptr || buffer == nullptr || size == nullptr) {
         return GC_ERR_INVALID_PARAMETER;
     }
@@ -167,14 +166,14 @@ GC_ERROR TLOpen(TL_HANDLE* tlHandle) {
     std::scoped_lock lock(g_mutex);
 
     if (!g_initialized) {
-        GCInitLib();
+        g_initialized = true;
     }
 
     try {
         auto* impl = new TLHandleImpl();
         impl->system = std::make_unique<SystemModule>();
         *tlHandle = impl;
-        LOG_INFO("TLOpen succeeded");
+        LOG_DEBUG("TLOpen succeeded");
         return GC_ERR_SUCCESS;
     } catch (const std::exception& e) {
         setLastError(GC_ERR_ERROR, e.what());
@@ -189,7 +188,7 @@ GC_ERROR TLClose(TL_HANDLE tlHandle) {
     }
 
     delete impl;
-    LOG_INFO("TLClose succeeded");
+    LOG_DEBUG("TLClose succeeded");
     return GC_ERR_SUCCESS;
 }
 
@@ -220,7 +219,8 @@ GC_ERROR TLGetInterfaceID(TL_HANDLE tlHandle, uint32_t index, char* ifaceID, siz
     return impl->system->getInterfaceID(index, ifaceID, size);
 }
 
-GC_ERROR TLGetInterfaceInfo(TL_HANDLE tlHandle, const char* ifaceID, INTERFACE_INFO_CMD cmd, INFO_DATATYPE* type, void* buffer, size_t* size) {
+GC_ERROR TLGetInterfaceInfo(TL_HANDLE tlHandle, const char* ifaceID, INTERFACE_INFO_CMD cmd, INFO_DATATYPE* type,
+                            void* buffer, size_t* size) {
     auto* impl = validateHandle<TLHandleImpl>(tlHandle);
     if (impl == nullptr || impl->system == nullptr) {
         return GC_ERR_INVALID_HANDLE;
@@ -308,7 +308,8 @@ GC_ERROR IFUpdateDeviceList(IF_HANDLE ifHandle, bool8_t* changed, uint64_t timeo
     return impl->interface->updateDeviceList(changed, timeout);
 }
 
-GC_ERROR IFGetDeviceInfo(IF_HANDLE ifHandle, const char* devID, DEVICE_INFO_CMD cmd, INFO_DATATYPE* type, void* buffer, size_t* size) {
+GC_ERROR IFGetDeviceInfo(IF_HANDLE ifHandle, const char* devID, DEVICE_INFO_CMD cmd, INFO_DATATYPE* type, void* buffer,
+                         size_t* size) {
     auto* impl = validateHandle<IFHandleImpl>(ifHandle);
     if (impl == nullptr || impl->interface == nullptr) {
         return GC_ERR_INVALID_HANDLE;
@@ -436,7 +437,8 @@ GC_ERROR DSGetInfo(DS_HANDLE streamHandle, STREAM_INFO_CMD cmd, INFO_DATATYPE* t
     return impl->stream->getInfo(cmd, type, buffer, size);
 }
 
-GC_ERROR DSAnnounceBuffer(DS_HANDLE streamHandle, void* buffer, size_t size, void* privateData, BUFFER_HANDLE* bufferHandle) {
+GC_ERROR DSAnnounceBuffer(DS_HANDLE streamHandle, void* buffer, size_t size, void* privateData,
+                          BUFFER_HANDLE* bufferHandle) {
     auto* impl = validateHandle<DSHandleImpl>(streamHandle);
     if (impl == nullptr || impl->stream == nullptr || bufferHandle == nullptr) {
         return GC_ERR_INVALID_HANDLE;
@@ -553,7 +555,8 @@ GC_ERROR DSQueueBuffer(DS_HANDLE streamHandle, BUFFER_HANDLE bufferHandle) {
     return impl->stream->queueBuffer(bufImpl->buffer.get());
 }
 
-GC_ERROR DSGetBufferInfo(DS_HANDLE streamHandle, BUFFER_HANDLE bufferHandle, BUFFER_INFO_CMD cmd, INFO_DATATYPE* type, void* buffer, size_t* size) {
+GC_ERROR DSGetBufferInfo(DS_HANDLE streamHandle, BUFFER_HANDLE bufferHandle, BUFFER_INFO_CMD cmd, INFO_DATATYPE* type,
+                         void* buffer, size_t* size) {
     auto* impl = validateHandle<DSHandleImpl>(streamHandle);
     if (impl == nullptr || impl->stream == nullptr) {
         return GC_ERR_INVALID_HANDLE;
@@ -591,7 +594,8 @@ GC_ERROR EventGetData(EVENT_HANDLE eventHandle, void* buffer, size_t* size, uint
     return GC_ERR_NOT_IMPLEMENTED;
 }
 
-GC_ERROR EventGetDataInfo(EVENT_HANDLE eventHandle, const void* pInBuffer, size_t iInSize, EVENT_DATA_INFO_CMD cmd, INFO_DATATYPE* type, void* buffer, size_t* size) {
+GC_ERROR EventGetDataInfo(EVENT_HANDLE eventHandle, const void* pInBuffer, size_t iInSize, EVENT_DATA_INFO_CMD cmd,
+                          INFO_DATATYPE* type, void* buffer, size_t* size) {
     (void)eventHandle;
     (void)pInBuffer;
     (void)iInSize;
@@ -620,5 +624,4 @@ GC_ERROR EventKill(EVENT_HANDLE eventHandle) {
     (void)eventHandle;
     return GC_ERR_NOT_IMPLEMENTED;
 }
-
-} // extern "C"
+}

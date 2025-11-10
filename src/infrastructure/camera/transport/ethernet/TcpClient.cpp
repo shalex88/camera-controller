@@ -5,6 +5,9 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <sys/select.h>
 
 namespace camera_service::infrastructure {
     TcpClient::TcpClient(const std::string& device_path) {
@@ -47,6 +50,15 @@ namespace camera_service::infrastructure {
         if (socket_fd_ < 0) {
             return Result<void>::error("Failed to create socket");
         }
+
+        // Set socket to non-blocking mode for connection timeout
+        int flags = ::fcntl(socket_fd_, F_GETFL, 0);
+        if (flags < 0 || ::fcntl(socket_fd_, F_SETFL, flags | O_NONBLOCK) < 0) {
+            ::close(socket_fd_);
+            socket_fd_ = -1;
+            return Result<void>::error("Failed to set socket non-blocking");
+        }
+
         sockaddr_in server_addr{};
         server_addr.sin_family = AF_INET;
         server_addr.sin_port = htons(port_);
@@ -55,11 +67,55 @@ namespace camera_service::infrastructure {
             socket_fd_ = -1;
             return Result<void>::error("Invalid address");
         }
-        if (::connect(socket_fd_, reinterpret_cast<sockaddr*>(&server_addr), sizeof(server_addr)) < 0) {
+
+        // Attempt connection (will return immediately due to non-blocking)
+        int connect_result = ::connect(socket_fd_, reinterpret_cast<sockaddr*>(&server_addr), sizeof(server_addr));
+
+        if (connect_result < 0) {
+            if (errno == EINPROGRESS) {
+                // Connection in progress, wait with timeout (3 seconds)
+                fd_set write_fds;
+                FD_ZERO(&write_fds);
+                FD_SET(socket_fd_, &write_fds);
+
+                struct timeval timeout;
+                timeout.tv_sec = 3;
+                timeout.tv_usec = 0;
+
+                int select_result = ::select(socket_fd_ + 1, nullptr, &write_fds, nullptr, &timeout);
+
+                if (select_result <= 0) {
+                    // Timeout or error
+                    ::close(socket_fd_);
+                    socket_fd_ = -1;
+                    return Result<void>::error(select_result == 0 ?
+                        "Connection timeout (address not reachable)" :
+                        "Connection failed: " + std::string(std::strerror(errno)));
+                }
+
+                // Check if connection was successful
+                int error = 0;
+                socklen_t len = sizeof(error);
+                if (::getsockopt(socket_fd_, SOL_SOCKET, SO_ERROR, &error, &len) < 0 || error != 0) {
+                    ::close(socket_fd_);
+                    socket_fd_ = -1;
+                    return Result<void>::error("Connection failed: " + std::string(std::strerror(error ? error : errno)));
+                }
+            } else {
+                // Immediate connection error
+                ::close(socket_fd_);
+                socket_fd_ = -1;
+                return Result<void>::error("Connection failed: " + std::string(std::strerror(errno)));
+            }
+        }
+
+        // Restore blocking mode
+        if (::fcntl(socket_fd_, F_SETFL, flags) < 0) {
             ::close(socket_fd_);
             socket_fd_ = -1;
-            return Result<void>::error("Connection failed");
+            return Result<void>::error("Failed to restore socket blocking mode");
         }
+
         is_connected_ = true;
         return Result<void>::success();
     }

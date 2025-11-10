@@ -1,8 +1,8 @@
+#include <algorithm>
+#include <cstring>
+
 #include "GenTLImpl.h"
 #include "common/logger/Logger.h"
-#include <cstring>
-#include <algorithm>
-#include <cstdlib>
 
 using namespace GenTL;
 

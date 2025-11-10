@@ -1,12 +1,13 @@
 #pragma once
 
+#include <memory>
+#include <string>
+
 #include "common/types/CameraCapabilities.h"
 #include "common/types/Result.h"
 #include "infrastructure/camera/hal/ICameraHw.h"
+#include "infrastructure/camera/protocol/genicam/GenTLLoader.h"
 #include "infrastructure/camera/protocol/gentl/GenTL.h"
-#include "GenTLLoader.h"
-#include <memory>
-#include <string>
 
 namespace camera_service::infrastructure {
     class ItlProtocol;
@@ -20,22 +21,22 @@ namespace camera_service::infrastructure {
      * - Register access through GenApi IPort
      * - Standard acquisition control
      * - Buffer management
+     *
+     * Opens first interface (index 0) and first device (index 0) found.
      */
-    class GenTLCamera final : public ICameraHw,
+    class AdimecGenTLCamera final : public ICameraHw,
                               public capabilities::IInfoCapable {
     public:
         /**
          * @brief Construct camera with optional lens control
          * @param producer_path Path to .cti GenTL Producer library
-         * @param device_id Device ID to open (empty = first device found)
          * @param lens_protocol Optional lens control protocol (e.g., ITL over TCP)
          */
-        explicit GenTLCamera(
+        explicit AdimecGenTLCamera(
             std::string producer_path,
-            std::string device_id = "",
             std::unique_ptr<ItlProtocol> lens_protocol = nullptr
         );
-        ~GenTLCamera() override;
+        ~AdimecGenTLCamera() override;
 
         Result<void> open() override;
         Result<void> close() override;
@@ -50,9 +51,8 @@ namespace camera_service::infrastructure {
 
     private:
         std::string producer_path_;
-        std::string device_id_;
         std::unique_ptr<ItlProtocol> lens_protocol_;
-        
+
         // GenTL dynamic loader
         std::unique_ptr<GenTLLoader> gentl_;
 

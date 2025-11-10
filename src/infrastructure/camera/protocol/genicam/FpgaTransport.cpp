@@ -1,6 +1,5 @@
 #include "FpgaTransport.h"
 
-#include <cstdint>
 #include <fcntl.h>
 #include <fstream>
 #include <regex>
@@ -76,7 +75,6 @@ namespace camera_service::infrastructure {
             return false;
         }
 
-        // For /dev/mem, use the physical address as the mmap offset
         mapped_memory_ = static_cast<volatile uint32_t*>(mmap(nullptr, memory_size_, PROT_READ | PROT_WRITE, MAP_SHARED,
                                                               fd_, base_address_));
         if (mapped_memory_ == MAP_FAILED) {
