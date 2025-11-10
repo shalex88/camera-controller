@@ -5,6 +5,7 @@
 #include "infrastructure/camera/devices/AdimecCamera.h"
 #include "infrastructure/camera/devices/FakeAdvancedCamera.h"
 #include "infrastructure/camera/devices/FakeSimpleCamera.h"
+#include "infrastructure/camera/devices/GenTLCamera.h"
 #include "infrastructure/camera/devices/MwirCamera.h"
 #include "infrastructure/camera/devices/SonyCamera.h"
 #include "infrastructure/camera/hal/Camera.h"
@@ -49,6 +50,24 @@ namespace camera_service::infrastructure {
             auto lens_transport = std::make_unique<TcpClient>(lens_address);
             auto lens_protocol = std::make_unique<ItlProtocol>(std::move(lens_transport));
             auto camera = std::make_unique<AdimecCamera>(std::move(camera_protocol), std::move(lens_protocol));
+            return std::make_unique<Camera>(std::move(camera));
+        }
+
+        if (config.camera == "adimec-gentl") {
+            if (config.endpoints.size() != 2) {
+                throw std::invalid_argument("Adimec requires 2 endpoints");
+            }
+
+            const auto& [producer_path, camera_configuration] = config.endpoints[0];
+
+            if (const std::filesystem::path producer{producer_path}; ! exists(producer) || !is_regular_file(producer)) {
+                throw std::invalid_argument("Adimec GenTL was not found at path: " + producer_path);
+            }
+
+            const auto& [lens_address, lens_configuration] = config.endpoints[1];
+            auto lens_transport = std::make_unique<TcpClient>(lens_address);
+            auto lens_protocol = std::make_unique<ItlProtocol>(std::move(lens_transport));
+            auto camera = std::make_unique<GenTLCamera>(producer_path, "", std::move(lens_protocol));
             return std::make_unique<Camera>(std::move(camera));
         }
 

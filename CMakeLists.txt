@@ -68,6 +68,7 @@ add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
 include(resources/registers/GenerateRegistersMap.cmake)
 add_dependencies(${PROJECT_NAME} registers)
+add_dependencies(${PROJECT_NAME} FpgaCXPProducer)
 
 function(link_common_libraries target)
     target_link_libraries(${target}
@@ -80,7 +81,6 @@ function(link_common_libraries target)
             CLI11::CLI11
             ${GENICAM_SO_FILES}
     )
-    set_target_properties(${target} PROPERTIES BUILD_RPATH "${GENICAM_LIB_DIR}")
 endfunction(link_common_libraries)
 
 link_common_libraries(${PROJECT_NAME})
@@ -89,4 +89,5 @@ add_subdirectory(examples)
 
 include(GNUInstallDirs)
 install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})
+
 include(cmake/CreatePackage.cmake)

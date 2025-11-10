@@ -68,7 +68,6 @@ grpcui -plaintext 0.0.0.0:50051
 ## TODO
 
 - Set Nagle's algorithm on TCP sockets?
-- FpgaTransport implements GenTL to be GenICam-compliant (GenTL.h)
 - Core still does almost nothing, it's config file is also unnecessary
-- Add GenICam shared libs to BSP
 - Use uio device instead of mem when implemented in BSP
+- Deploy GenICam shared libs and GenTL Producer libraries with the package

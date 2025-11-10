@@ -21,10 +21,9 @@ add_library(${PROJECT_NAME} SHARED ${GENTL_SOURCES} ${GENTL_HEADERS})
 
 # Set output name to .cti (GenTL Producer extension)
 set_target_properties(${PROJECT_NAME} PROPERTIES
-    OUTPUT_NAME "FpgaCXP"
+    OUTPUT_NAME "libFpgaCXP"
     SUFFIX ".cti"
-    VERSION ${PROJECT_VERSION}
-    SOVERSION 1
+    PREFIX ""
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
     POSITION_INDEPENDENT_CODE ON
@@ -71,40 +70,5 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         -Wpedantic
     )
 endif()
-
-# Install the producer library to standard GenTL location
-install(TARGETS ${PROJECT_NAME}
-    LIBRARY DESTINATION lib/genicam/gentl
-    RUNTIME DESTINATION lib/genicam/gentl
-)
-
-# Install headers for development (optional)
-install(FILES ${GENTL_HEADERS}
-    DESTINATION include/genicam/gentl
-)
-
-# Create GenTL Producer info file
-set(GENTL_INFO_FILE "${CMAKE_CURRENT_BINARY_DIR}/FpgaCXP.cti.info")
-file(WRITE ${GENTL_INFO_FILE}
-"<?xml version=\"1.0\" encoding=\"UTF-8\"?>
-<GenTLProducerInfo>
-    <Producer>
-        <ID>FpgaCXP</ID>
-        <Vendor>CameraService</Vendor>
-        <Model>FPGA CoaXPress Transport Layer</Model>
-        <Version>1.0.0</Version>
-        <TLType>CXP</TLType>
-        <Name>FpgaCXPProducer</Name>
-        <PathName>/usr/lib/genicam/gentl/FpgaCXP.cti</PathName>
-        <DisplayName>FPGA CoaXPress Producer</DisplayName>
-        <GenTLVersionMajor>1</GenTLVersionMajor>
-        <GenTLVersionMinor>6</GenTLVersionMinor>
-    </Producer>
-</GenTLProducerInfo>
-")
-
-install(FILES ${GENTL_INFO_FILE}
-    DESTINATION lib/genicam/gentl
-)
 
 message(STATUS "GenTL Producer library configured: ${PROJECT_NAME}")

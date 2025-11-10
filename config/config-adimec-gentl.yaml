@@ -1,0 +1,13 @@
+app:
+  name: adimec-gentl
+  log_level: debug
+  api:
+    api_type: grpc
+    server_address: 0.0.0.0:50051
+  core:
+    camera: core
+  infrastructure:
+    camera: adimec-gentl
+    endpoints:
+      - address: ../lib/genicam/libFpgaCXP.cti
+      - address: 192.168.1.100:5000
