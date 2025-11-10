@@ -36,7 +36,7 @@ namespace camera_service::common {
     }
 
     void InfrastructureConfig::validate() const {
-        static const std::set<std::string> valid_cameras{"sony", "adimec", "adimec-gentl", "mwir", "fake_advanced", "fake_simple"};
+        static const std::set<std::string> valid_cameras{"sony", "adimec", "mwir", "fake_advanced", "fake_simple"};
 
         if (camera.empty()) {
             throw std::runtime_error("Infrastructure camera type cannot be empty");

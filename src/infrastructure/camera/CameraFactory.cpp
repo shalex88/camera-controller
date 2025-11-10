@@ -3,7 +3,6 @@
 #include "common/config/ConfigManager.h"
 #include "common/logger/Logger.h"
 #include "infrastructure/camera/devices/AdimecCamera.h"
-#include "infrastructure/camera/devices/AdimecGenTLCamera.h"
 #include "infrastructure/camera/devices/FakeAdvancedCamera.h"
 #include "infrastructure/camera/devices/FakeSimpleCamera.h"
 #include "infrastructure/camera/devices/MwirCamera.h"
@@ -41,58 +40,18 @@ namespace camera_service::infrastructure {
         if (config.camera == "adimec") {
             if (config.endpoints.size() < 1 || config.endpoints.size() > 2) {
                 throw std::invalid_argument(
-                    "Adimec GenTL requires 1 or 2 endpoints (producer path, optional lens address)");
+                    "Adimec requires 1 or 2 endpoints");
             }
 
             const auto& [camera_address, camera_configuration] = config.endpoints[0];
             auto camera_transport = std::make_unique<FpgaTransport>(camera_address);
             auto camera_protocol = std::make_unique<GenicamProtocol>(std::move(camera_transport));
 
-            std::unique_ptr<ItlProtocol> lens_protocol;
-            if (config.endpoints.size() == 2) {
-                const auto& [lens_address, lens_configuration] = config.endpoints[1];
-                try {
-                    auto lens_transport = std::make_unique<TcpClient>(lens_address);
-                    lens_protocol = std::make_unique<ItlProtocol>(std::move(lens_transport));
-                } catch (const std::exception& e) {
-                    LOG_WARN("Failed to initialize lens. Camera will operate without lens control.", lens_address,
-                             e.what());
-                }
-            } else {
-                LOG_WARN("No lens endpoint configured. Camera will operate without lens control.");
-            }
+            const auto& [lens_address, lens_configuration] = config.endpoints[1];
+            auto lens_transport = std::make_unique<TcpClient>(lens_address);
+            auto lens_protocol = std::make_unique<ItlProtocol>(std::move(lens_transport));
 
             auto camera = std::make_unique<AdimecCamera>(std::move(camera_protocol), std::move(lens_protocol));
-            return std::make_unique<Camera>(std::move(camera));
-        }
-
-        if (config.camera == "adimec-gentl") {
-            if (config.endpoints.size() < 1 || config.endpoints.size() > 2) {
-                throw std::invalid_argument(
-                    "Adimec GenTL requires 1 or 2 endpoints (producer path, optional lens address)");
-            }
-
-            const auto& [gentl_producer, camera_configuration] = config.endpoints[0];
-
-            if (const std::filesystem::path producer{gentl_producer}; !exists(producer) || !is_regular_file(producer)) {
-                throw std::invalid_argument("Adimec GenTL was not found at path: " + gentl_producer);
-            }
-
-            std::unique_ptr<ItlProtocol> lens_protocol;
-            if (config.endpoints.size() == 2) {
-                const auto& [lens_address, lens_configuration] = config.endpoints[1];
-                try {
-                    auto lens_transport = std::make_unique<TcpClient>(lens_address);
-                    lens_protocol = std::make_unique<ItlProtocol>(std::move(lens_transport));
-                } catch (const std::exception& e) {
-                    LOG_WARN("Failed to initialize lens. Camera will operate without lens control.", lens_address,
-                             e.what());
-                }
-            } else {
-                LOG_WARN("No lens endpoint configured. Camera will operate without lens control.");
-            }
-
-            auto camera = std::make_unique<AdimecGenTLCamera>(gentl_producer, std::move(lens_protocol));
             return std::make_unique<Camera>(std::move(camera));
         }
 
@@ -104,6 +63,7 @@ namespace camera_service::infrastructure {
             const auto& [camera_address, camera_configuration] = config.endpoints[0];
             auto transport = std::make_unique<Uart>(camera_address, camera_configuration.at("baud_rate"));
             auto protocol = std::make_unique<ViscaProtocol>(std::move(transport));
+
             auto camera = std::make_unique<SonyCamera>(std::move(protocol));
             return std::make_unique<Camera>(std::move(camera));
         }
@@ -116,6 +76,7 @@ namespace camera_service::infrastructure {
             const auto& [camera_address, camera_configuration] = config.endpoints[0];
             auto transport = std::make_unique<TcpClient>(camera_address);
             auto protocol = std::make_unique<ItlProtocol>(std::move(transport));
+
             auto camera = std::make_unique<MwirCamera>(std::move(protocol));
             return std::make_unique<Camera>(std::move(camera));
         }

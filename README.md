@@ -70,5 +70,5 @@ grpcui -plaintext 0.0.0.0:50051
 - Set Nagle's algorithm on TCP sockets?
 - Core still does almost nothing, it's config file is also unnecessary
 - Use uio device instead of mem when implemented in BSP
-- Deploy GenICam shared libs and GenTL Producer libraries with the package
+- Deploy GenICam shared libs with the package
 - Deploy config files with the package
