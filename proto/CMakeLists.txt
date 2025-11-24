@@ -1,6 +1,7 @@
 find_package(Protobuf REQUIRED)
 find_package(gRPC CONFIG REQUIRED)
 find_program(GRPC_CPP_PLUGIN grpc_cpp_plugin)
+add_compile_definitions(GRPC_CALLBACK_API_NONEXPERIMENTAL)
 
 set(PROTO_SRC_DIR "${CMAKE_SOURCE_DIR}/proto")
 set(PROTO_OUT_DIR "${CMAKE_BINARY_DIR}/api/proto")

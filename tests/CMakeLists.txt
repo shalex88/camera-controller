@@ -2,10 +2,9 @@ project(${PROJECT_NAME})
 
 enable_testing()
 
-if(CMAKE_CROSSCOMPILING)
-    set(gtest_force_shared_crt OFF CACHE BOOL "Use shared (DLL) run-time lib even when Google Test is built as static lib" FORCE)
-    set(INSTALL_GTEST OFF CACHE BOOL "Enable installation of googletest" FORCE)
-endif()
+set(gtest_force_shared_crt OFF CACHE BOOL "Use shared (DLL) run-time lib even when Google Test is built as static lib" FORCE)
+set(INSTALL_GTEST OFF CACHE BOOL "Enable installation of googletest" FORCE)
+set(INSTALL_GMOCK OFF CACHE BOOL "Enable installation of googletest" FORCE)
 
 include(FetchContent)
 FetchContent_Declare(
