@@ -4,6 +4,19 @@
 [![Coverage](https://img.shields.io/codecov/c/github/shalex88/camera-controller)](https://codecov.io/github/shalex88/camera-controller)
 [![Release](https://img.shields.io/github/v/release/shalex88/camera-controller.svg)](https://github.com/shalex88/camera-controller/releases/latest)
 
+## Build
+
+```bash
+./scripts/build.sh
+```
+
+## Install
+
+```bash
+./scripts/install.sh
+sudo dpkg -i ./build-native/camera-controller-tests_0.0.0_amd64.deb
+```
+
 ## Usage
 
 ```bash
