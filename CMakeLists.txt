@@ -1,11 +1,11 @@
 set(PROJECT_NAME camera-controller)
 include(cmake/SetVersion.cmake)
-include(cmake/EnableVcpkg.cmake)
 
-if(CMAKE_CROSSCOMPILING)
+if(DEFINED ENV{OE_CMAKE_TOOLCHAIN_FILE})
     message(STATUS "Cross compilation")
 else()
     message(STATUS "Native compilation")
+    include(cmake/EnableVcpkg.cmake)
 endif()
 
 cmake_minimum_required(VERSION 3.21)

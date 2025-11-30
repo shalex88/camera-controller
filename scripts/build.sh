@@ -53,7 +53,7 @@ mkdir -p "$BUILD_DIR"
     echo "Build directory: $BUILD_DIR"
 
     if [ "$BUILD_TYPE" == "cross" ]; then
-        cmake -S . -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE="$CMAKE_TOOLCHAIN_FILE"
+        cmake -S . -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release
     else
         cmake -S . -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release
     fi
