@@ -52,10 +52,18 @@ mkdir -p "$BUILD_DIR"
     fi
     echo "Build directory: $BUILD_DIR"
 
+    CMAKE_ARGS=(-S . -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release)
+    
+    # Add install prefix if INSTALL_ROOT is set
+    if [ -n "${INSTALL_ROOT:-}" ]; then
+        CMAKE_ARGS+=(-DCMAKE_INSTALL_PREFIX="$INSTALL_ROOT" -DINSTALL_ROOT="$INSTALL_ROOT")
+        echo "Install prefix: $INSTALL_ROOT"
+    fi
+
     if [ "$BUILD_TYPE" == "cross" ]; then
-        cmake -S . -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release
+        cmake "${CMAKE_ARGS[@]}"
     else
-        cmake -S . -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release
+        cmake "${CMAKE_ARGS[@]}"
     fi
 
     CMAKE_EXIT=$?
