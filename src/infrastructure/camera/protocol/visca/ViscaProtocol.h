@@ -227,7 +227,9 @@ namespace camera_service::infrastructure {
         std::unique_ptr<ITransport> transport_;
         uint8_t broadcast_{};
         uint8_t cam_address_{};
-        Result<ViscaPayload> sendAndReceiveReply(ViscaPayload* payload) const;
+        Result<ViscaPayload> writeRead(ViscaPayload* payload) const;
         std::vector<std::byte> encode(std::span<const std::byte> payload) const;
+        Result<void> write(ViscaPayload* payload) const;
+        Result<ViscaPayload> read() const;
     };
 }

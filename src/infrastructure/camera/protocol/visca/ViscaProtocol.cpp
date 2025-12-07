@@ -5,7 +5,8 @@
 #include "infrastructure/camera/transport/ITransport.h"
 
 namespace {
-    constexpr uint32_t VISCA_INPUT_BUFFER_SIZE = 16;
+    constexpr uint32_t VISCA_MAX_INPUT_BUFFER_SIZE = 16;
+    constexpr uint32_t VISCA_MIN_INPUT_BUFFER_SIZE = 3;
     constexpr uint32_t VISCA_PAYLOAD_SIZE = 14;
     constexpr uint32_t VISCA_SOCKET_NUM = 0;
     constexpr std::byte VISCA_START_BYTE{0x80};
@@ -379,12 +380,9 @@ namespace camera_service::infrastructure {
 
     ViscaProtocol::ViscaProtocol(std::unique_ptr<ITransport> transport)
         : transport_(std::move(transport)) {
-        LOG_TRACE("Visca constructor called");
     }
 
-    ViscaProtocol::~ViscaProtocol() {
-        LOG_TRACE("Visca destructor called");
-    }
+    ViscaProtocol::~ViscaProtocol() = default;
 
     Result<void> ViscaProtocol::setAddress() {
         ViscaPayload tx_payload{};
@@ -394,7 +392,7 @@ namespace camera_service::infrastructure {
 
         const auto backup = broadcast_;
         broadcast_ = 1;
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
@@ -412,7 +410,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, std::byte{0x00});
         pack8Bit(&tx_payload, std::byte{0x01});
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
         return Result<void>::success();
@@ -425,7 +423,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_INTERFACE);
         pack8Bit(&tx_payload, VISCA_DEVICE_INFO);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<std::string_view>::error(rx_payload.error());
         }
@@ -466,7 +464,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_POWER);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -481,7 +479,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_KEYLOCK);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -496,7 +494,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_ID);
         pack16BitAsNibbles(&tx_payload, id);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -511,7 +509,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_ZOOM);
         pack8Bit(&tx_payload, VISCA_ZOOM_TELE);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -526,7 +524,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_ZOOM);
         pack8Bit(&tx_payload, VISCA_ZOOM_WIDE);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -541,7 +539,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_ZOOM);
         pack8Bit(&tx_payload, VISCA_ZOOM_STOP);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -556,7 +554,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_ZOOM);
         pack8Bit(&tx_payload, VISCA_ZOOM_TELE_SPEED | static_cast<std::byte>(speed & 0x7));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -571,7 +569,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_ZOOM);
         pack8Bit(&tx_payload, VISCA_ZOOM_WIDE_SPEED | static_cast<std::byte>(speed & 0x7));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -586,7 +584,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_ZOOM_VALUE);
         pack16BitAsNibbles(&tx_payload, zoom);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -602,7 +600,7 @@ namespace camera_service::infrastructure {
         pack16BitAsNibbles(&tx_payload, zoom);
         pack16BitAsNibbles(&tx_payload, focus);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -617,7 +615,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_DZOOM_VALUE);
         pack16BitAsNibbles(&tx_payload, value);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -632,7 +630,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_DZOOM_LIMIT);
         pack8Bit(&tx_payload, static_cast<std::byte>(limit));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -647,7 +645,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_DZOOM_MODE);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -662,7 +660,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_FOCUS);
         pack8Bit(&tx_payload, VISCA_FOCUS_FAR);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -677,7 +675,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_FOCUS);
         pack8Bit(&tx_payload, VISCA_FOCUS_NEAR);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -692,7 +690,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_FOCUS);
         pack8Bit(&tx_payload, VISCA_FOCUS_STOP);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -707,7 +705,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_FOCUS);
         pack8Bit(&tx_payload, VISCA_FOCUS_FAR_SPEED | static_cast<std::byte>(speed & 0x7));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -722,7 +720,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_FOCUS);
         pack8Bit(&tx_payload, VISCA_FOCUS_NEAR_SPEED | static_cast<std::byte>(speed & 0x7));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -737,7 +735,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_FOCUS_VALUE);
         pack16BitAsNibbles(&tx_payload, focus);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -752,7 +750,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_FOCUS_AUTO);
         pack8Bit(&tx_payload, on ? VISCA_ON : VISCA_OFF);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -767,7 +765,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_FOCUS_ONE_PUSH);
         pack8Bit(&tx_payload, VISCA_FOCUS_ONE_PUSH_TRIG);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -782,7 +780,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_FOCUS_ONE_PUSH);
         pack8Bit(&tx_payload, VISCA_FOCUS_ONE_PUSH_INF);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -797,7 +795,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_FOCUS_AUTO_SENSE);
         pack8Bit(&tx_payload, VISCA_FOCUS_AUTO_SENSE_HIGH);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -812,7 +810,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_FOCUS_AUTO_SENSE);
         pack8Bit(&tx_payload, VISCA_FOCUS_AUTO_SENSE_LOW);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -827,7 +825,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_FOCUS_NEAR_LIMIT);
         pack16BitAsNibbles(&tx_payload, limit);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -842,7 +840,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_WB);
         pack8Bit(&tx_payload, static_cast<std::byte>(mode));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -857,7 +855,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_WB_TRIGGER);
         pack8Bit(&tx_payload, VISCA_WB_ONE_PUSH_TRIG);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -872,7 +870,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_RGAIN);
         pack8Bit(&tx_payload, VISCA_UP);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -887,7 +885,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_RGAIN);
         pack8Bit(&tx_payload, VISCA_DOWN);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -902,7 +900,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_RGAIN);
         pack8Bit(&tx_payload, VISCA_RESET);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -917,7 +915,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_RGAIN_VALUE);
         pack16BitAsNibbles(&tx_payload, value);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -932,7 +930,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_BGAIN);
         pack8Bit(&tx_payload, VISCA_UP);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -947,7 +945,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_BGAIN);
         pack8Bit(&tx_payload, VISCA_DOWN);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -962,7 +960,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_BGAIN);
         pack8Bit(&tx_payload, VISCA_RESET);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -977,7 +975,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_BGAIN_VALUE);
         pack16BitAsNibbles(&tx_payload, value);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -992,7 +990,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_SHUTTER);
         pack8Bit(&tx_payload, VISCA_UP);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1007,7 +1005,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_SHUTTER);
         pack8Bit(&tx_payload, VISCA_DOWN);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1022,7 +1020,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_SHUTTER);
         pack8Bit(&tx_payload, VISCA_RESET);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1037,7 +1035,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_SHUTTER_VALUE);
         pack16BitAsNibbles(&tx_payload, value);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1052,7 +1050,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_IRIS);
         pack8Bit(&tx_payload, VISCA_UP);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1067,7 +1065,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_IRIS);
         pack8Bit(&tx_payload, VISCA_DOWN);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1082,7 +1080,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_IRIS);
         pack8Bit(&tx_payload, VISCA_RESET);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1097,7 +1095,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_IRIS_VALUE);
         pack16BitAsNibbles(&tx_payload, value);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1112,7 +1110,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_GAIN);
         pack8Bit(&tx_payload, VISCA_UP);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1127,7 +1125,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_GAIN);
         pack8Bit(&tx_payload, VISCA_DOWN);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1142,7 +1140,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_GAIN);
         pack8Bit(&tx_payload, VISCA_RESET);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1157,7 +1155,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_GAIN_VALUE);
         pack16BitAsNibbles(&tx_payload, value);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1172,7 +1170,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_BRIGHT);
         pack8Bit(&tx_payload, VISCA_UP);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1187,7 +1185,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_BRIGHT);
         pack8Bit(&tx_payload, VISCA_DOWN);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1202,7 +1200,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_BRIGHT);
         pack8Bit(&tx_payload, VISCA_RESET);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1217,7 +1215,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_BRIGHT_VALUE);
         pack16BitAsNibbles(&tx_payload, value);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1232,7 +1230,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_APERTURE);
         pack8Bit(&tx_payload, VISCA_UP);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1247,7 +1245,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_APERTURE);
         pack8Bit(&tx_payload, VISCA_DOWN);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1262,7 +1260,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_APERTURE);
         pack8Bit(&tx_payload, VISCA_RESET);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1277,7 +1275,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_APERTURE_VALUE);
         pack16BitAsNibbles(&tx_payload, value);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1292,7 +1290,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_EXP_COMP);
         pack8Bit(&tx_payload, VISCA_UP);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1307,7 +1305,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_EXP_COMP);
         pack8Bit(&tx_payload, VISCA_DOWN);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1322,7 +1320,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_EXP_COMP);
         pack8Bit(&tx_payload, VISCA_RESET);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1337,7 +1335,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_EXP_COMP_VALUE);
         pack16BitAsNibbles(&tx_payload, value);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1352,7 +1350,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_EXP_COMP_POWER);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1367,7 +1365,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_AUTO_EXP);
         pack8Bit(&tx_payload, static_cast<std::byte>(mode));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1382,7 +1380,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_SLOW_SHUTTER);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1401,7 +1399,7 @@ namespace camera_service::infrastructure {
             pack8Bit(&tx_payload, VISCA_OFF);
         }
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1416,7 +1414,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_ZERO_LUX);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1431,7 +1429,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_IR_LED);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1446,7 +1444,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_WIDE_MODE);
         pack8Bit(&tx_payload, static_cast<std::byte>(mode));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1461,7 +1459,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_MIRROR);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1476,7 +1474,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_FREEZE);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1491,7 +1489,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_PICTURE_EFFECT);
         pack8Bit(&tx_payload, static_cast<std::byte>(mode));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1506,7 +1504,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_DIGITAL_EFFECT);
         pack8Bit(&tx_payload, static_cast<std::byte>(mode));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1521,7 +1519,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_DIGITAL_EFFECT_LEVEL);
         pack8Bit(&tx_payload, static_cast<std::byte>(level));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1541,7 +1539,7 @@ namespace camera_service::infrastructure {
             pack8Bit(&tx_payload, VISCA_OFF);
         }
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1557,7 +1555,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_MEMORY_SET);
         pack8Bit(&tx_payload, static_cast<std::byte>(channel));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1573,7 +1571,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_MEMORY_RECALL);
         pack8Bit(&tx_payload, static_cast<std::byte>(channel));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1589,7 +1587,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_MEMORY_RESET);
         pack8Bit(&tx_payload, static_cast<std::byte>(channel));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1604,7 +1602,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_DISPLAY);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1633,7 +1631,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, static_cast<std::byte>(minute / 10));
         pack8Bit(&tx_payload, static_cast<std::byte>(minute - 10 * (minute / 10)));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1648,7 +1646,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_DATE_DISPLAY);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1663,7 +1661,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_TIME_DISPLAY);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1678,7 +1676,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_TITLE_DISPLAY);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1693,7 +1691,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_TITLE_DISPLAY);
         pack8Bit(&tx_payload, VISCA_TITLE_DISPLAY_CLEAR);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1718,7 +1716,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, std::byte{0});
         pack8Bit(&tx_payload, std::byte{0});
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1737,7 +1735,7 @@ namespace camera_service::infrastructure {
             pack8Bit(&tx_payload, title->title.at(i));
         }
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1750,7 +1748,7 @@ namespace camera_service::infrastructure {
             pack8Bit(&tx_payload, title->title.at(i + 10));
         }
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1765,7 +1763,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_IRRECEIVE);
         pack8Bit(&tx_payload, VISCA_ON);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1780,7 +1778,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_IRRECEIVE);
         pack8Bit(&tx_payload, VISCA_OFF);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1795,7 +1793,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_IRRECEIVE);
         pack8Bit(&tx_payload, VISCA_IRRECEIVE_ONOFF);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1819,7 +1817,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
         pack8Bit(&tx_payload, VISCA_PT_DRIVE_HORIZ_STOP);
         pack8Bit(&tx_payload, VISCA_PT_DRIVE_VERT_UP);
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1836,7 +1834,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
         pack8Bit(&tx_payload, VISCA_PT_DRIVE_HORIZ_STOP);
         pack8Bit(&tx_payload, VISCA_PT_DRIVE_VERT_DOWN);
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1853,7 +1851,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
         pack8Bit(&tx_payload, VISCA_PT_DRIVE_HORIZ_LEFT);
         pack8Bit(&tx_payload, VISCA_PT_DRIVE_VERT_STOP);
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1870,7 +1868,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
         pack8Bit(&tx_payload, VISCA_PT_DRIVE_HORIZ_RIGHT);
         pack8Bit(&tx_payload, VISCA_PT_DRIVE_VERT_STOP);
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1887,7 +1885,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
         pack8Bit(&tx_payload, VISCA_PT_DRIVE_HORIZ_LEFT);
         pack8Bit(&tx_payload, VISCA_PT_DRIVE_VERT_UP);
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1904,7 +1902,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
         pack8Bit(&tx_payload, VISCA_PT_DRIVE_HORIZ_RIGHT);
         pack8Bit(&tx_payload, VISCA_PT_DRIVE_VERT_UP);
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1921,7 +1919,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
         pack8Bit(&tx_payload, VISCA_PT_DRIVE_HORIZ_LEFT);
         pack8Bit(&tx_payload, VISCA_PT_DRIVE_VERT_DOWN);
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1938,7 +1936,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
         pack8Bit(&tx_payload, VISCA_PT_DRIVE_HORIZ_RIGHT);
         pack8Bit(&tx_payload, VISCA_PT_DRIVE_VERT_DOWN);
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1955,7 +1953,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
         pack8Bit(&tx_payload, VISCA_PT_DRIVE_HORIZ_STOP);
         pack8Bit(&tx_payload, VISCA_PT_DRIVE_VERT_STOP);
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1988,7 +1986,7 @@ namespace camera_service::infrastructure {
         pack16BitAsNibbles(&tx_payload, pan_position);
         pack16BitAsNibbles(&tx_payload, tilt_position);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2015,7 +2013,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, static_cast<std::byte>((tilt_pos & 0x00F0) >> 4));
         pack8Bit(&tx_payload, static_cast<std::byte>(tilt_pos & 0x000F));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2028,7 +2026,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_COMMAND);
         pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
         pack8Bit(&tx_payload, VISCA_PT_HOME);
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2041,7 +2039,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_COMMAND);
         pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
         pack8Bit(&tx_payload, VISCA_PT_RESET);
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2066,7 +2064,7 @@ namespace camera_service::infrastructure {
         pack16BitAsNibbles(&tx_payload, pan_limit);
         pack16BitAsNibbles(&tx_payload, tilt_limit);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2084,7 +2082,7 @@ namespace camera_service::infrastructure {
         pack16BitAsNibbles(&tx_payload, pan_limit);
         pack16BitAsNibbles(&tx_payload, tilt_limit);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2105,7 +2103,7 @@ namespace camera_service::infrastructure {
         pack16BitAsNibbles(&tx_payload, pan_limit);
         pack16BitAsNibbles(&tx_payload, tilt_limit);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2126,7 +2124,7 @@ namespace camera_service::infrastructure {
         pack16BitAsNibbles(&tx_payload, pan_limit);
         pack16BitAsNibbles(&tx_payload, tilt_limit);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2141,7 +2139,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_PT_DATASCREEN);
         pack8Bit(&tx_payload, VISCA_ON);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2156,7 +2154,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_PT_DATASCREEN);
         pack8Bit(&tx_payload, VISCA_OFF);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2171,7 +2169,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_PT_DATASCREEN);
         pack8Bit(&tx_payload, VISCA_PT_DATASCREEN_ONOFF);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2186,7 +2184,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_SPOT_AE);
         pack8Bit(&tx_payload, VISCA_ON);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2201,7 +2199,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_SPOT_AE);
         pack8Bit(&tx_payload, VISCA_OFF);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2219,7 +2217,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, static_cast<std::byte>((y_position & 0xF0) >> 4));
         pack8Bit(&tx_payload, static_cast<std::byte>(y_position & 0x0F));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2232,7 +2230,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_INQUIRY);
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_POWER);
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2246,7 +2244,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_DZOOM);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2259,7 +2257,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_INQUIRY);
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_DZOOM_LIMIT);
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2273,7 +2271,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_ZOOM_VALUE);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint16_t>::error(rx_payload.error());
         }
@@ -2287,7 +2285,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_FOCUS_AUTO);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<bool>::error(rx_payload.error());
         }
@@ -2305,7 +2303,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_FOCUS_VALUE);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint16_t>::error(rx_payload.error());
         }
@@ -2319,7 +2317,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_FOCUS_AUTO_SENSE);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2333,7 +2331,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_FOCUS_NEAR_LIMIT);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint16_t>::error(rx_payload.error());
         }
@@ -2347,7 +2345,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_WB);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2361,7 +2359,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_RGAIN_VALUE);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2375,7 +2373,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_BGAIN_VALUE);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2389,7 +2387,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_AUTO_EXP);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2403,7 +2401,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_SLOW_SHUTTER);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2417,7 +2415,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_SHUTTER_VALUE);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2431,7 +2429,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_IRIS_VALUE);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2445,7 +2443,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_GAIN_VALUE);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2459,7 +2457,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_BRIGHT_VALUE);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint16_t>::error(rx_payload.error());
         }
@@ -2473,7 +2471,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_EXP_COMP_POWER);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2487,7 +2485,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_EXP_COMP_VALUE);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2501,7 +2499,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_BACKLIGHT_COMP);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<bool>::error(rx_payload.error());
         }
@@ -2519,7 +2517,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_APERTURE_VALUE);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2533,7 +2531,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_ZERO_LUX);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2547,7 +2545,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_IR_LED);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2561,7 +2559,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_WIDE_MODE);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2575,7 +2573,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_MIRROR);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2589,7 +2587,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_FREEZE);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2603,7 +2601,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_PICTURE_EFFECT);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2617,7 +2615,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_DIGITAL_EFFECT);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2631,7 +2629,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_DIGITAL_EFFECT_LEVEL);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint16_t>::error(rx_payload.error());
         }
@@ -2645,7 +2643,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_MEMORY);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2659,7 +2657,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_DISPLAY);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2673,7 +2671,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_ID);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint16_t>::error(rx_payload.error());
         }
@@ -2687,7 +2685,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
         pack8Bit(&tx_payload, VISCA_PT_VIDEOSYSTEM_INQ);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2701,7 +2699,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
         pack8Bit(&tx_payload, VISCA_PT_MODE_INQ);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint16_t>::error(rx_payload.error());
         }
@@ -2716,7 +2714,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
         pack8Bit(&tx_payload, VISCA_PT_MAXSPEED_INQ);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<std::pair<uint8_t, uint8_t>>::error(rx_payload.error());
         }
@@ -2732,7 +2730,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
         pack8Bit(&tx_payload, VISCA_PT_POSITION_INQ);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<std::pair<uint16_t, uint16_t>>::error(rx_payload.error());
         }
@@ -2749,7 +2747,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
         pack8Bit(&tx_payload, VISCA_PT_DATASCREEN_INQ);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2765,7 +2763,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, static_cast<std::byte>(reg_num));
         pack8Bit(&tx_payload, static_cast<std::byte>((reg_val & 0xF0) >> 4));
         pack8Bit(&tx_payload, static_cast<std::byte>(reg_val & 0x0F));
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2780,7 +2778,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_REGISTER_VALUE);
         pack8Bit(&tx_payload, static_cast<std::byte>(reg_num));
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -2788,45 +2786,57 @@ namespace camera_service::infrastructure {
         return Result<uint8_t>::success(reg_val);
     }
 
-    Result<ViscaProtocol::ViscaPayload> ViscaProtocol::sendAndReceiveReply(ViscaPayload* payload) const {
+    Result<void> ViscaProtocol::write(ViscaPayload* payload) const {
         const auto serialized_payload = serialize(payload);
         const auto frame = encode(serialized_payload);
 
-        if (const auto result = transport_->write(frame); result.isError()) {
-            return Result<ViscaPayload>::error(result.error());
-        }
+        return transport_->write(frame);
+    }
 
-        std::array<std::byte, VISCA_INPUT_BUFFER_SIZE> rx_buffer{};
+    Result<ViscaProtocol::ViscaPayload> ViscaProtocol::read() const{
+        std::array<std::byte, VISCA_MAX_INPUT_BUFFER_SIZE> rx_buffer{};
 
         if (const auto result = transport_->read(rx_buffer); result.isError()) {
             return Result<ViscaPayload>::error(result.error());
-        } else if (result.value() < 3) {
+        } else if (result.value() < VISCA_MIN_INPUT_BUFFER_SIZE) {
             return Result<ViscaPayload>::error("Received response is too short");
         }
-        auto type = static_cast<ResponseType>(std::to_integer<uint8_t>(rx_buffer.at(1)) & 0xF0);
 
-        while (type == ResponseType::Ack) {
+        auto response = static_cast<ResponseType>(std::to_integer<uint8_t>(rx_buffer.at(1)) & 0xF0);
+
+        while (response == ResponseType::Ack) {
             if (const auto result = transport_->read(rx_buffer); result.isError()) {
                 return Result<ViscaPayload>::error(result.error());
-            } else if (result.value() < 3) {
+            } else if (result.value() < VISCA_MIN_INPUT_BUFFER_SIZE) {
                 return Result<ViscaPayload>::error("Received response is too short");
             }
-            type = static_cast<ResponseType>(std::to_integer<uint8_t>(rx_buffer.at(1)) & 0xF0);
+            response = static_cast<ResponseType>(std::to_integer<uint8_t>(rx_buffer.at(1)) & 0xF0);
         }
 
-        if (type == ResponseType::Error) {
+        if (response == ResponseType::Error) {
             const auto error_msg = getViscaErrorMessage(
                 static_cast<ResultCode>(std::to_integer<uint8_t>(rx_buffer.at(2))));
             return Result<ViscaPayload>::error(std::string(error_msg));
         }
 
-        if (type != ResponseType::Completed && type != ResponseType::Address && type != ResponseType::Clear) {
+        if (response != ResponseType::Completed && response != ResponseType::Address && response != ResponseType::Clear) {
             return Result<ViscaPayload>::error("Unexpected response type from camera");
         }
 
-        const auto response_payload = deserialize(decode(rx_buffer));
+        return Result<ViscaPayload>::success(deserialize(decode(rx_buffer)));
+    }
 
-        return Result<ViscaPayload>::success(response_payload);
+    Result<ViscaProtocol::ViscaPayload> ViscaProtocol::writeRead(ViscaPayload* payload) const {
+        if (const auto result = write(payload); result.isError()) {
+            return Result<ViscaPayload>::error(result.error());
+        }
+
+        const auto result = read();
+        if (result.isError()) {
+            return Result<ViscaPayload>::error(result.error());
+        }
+
+        return Result<ViscaPayload>::success(result.value());
     }
 
     std::vector<std::byte> ViscaProtocol::encode(std::span<const std::byte> payload) const {
@@ -2860,7 +2870,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_WIDE_CON_LENS_SET);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2875,7 +2885,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_AT_MODE);
         pack8Bit(&tx_payload, VISCA_AT_ONOFF);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2890,7 +2900,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_AT_MODE);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2905,7 +2915,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_AT_AE);
         pack8Bit(&tx_payload, VISCA_AT_ONOFF);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2920,7 +2930,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_AT_AE);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2935,7 +2945,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_AT_AUTOZOOM);
         pack8Bit(&tx_payload, VISCA_AT_ONOFF);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2950,7 +2960,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_AT_AUTOZOOM);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2965,7 +2975,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_ATMD_FRAMEDISPLAY);
         pack8Bit(&tx_payload, VISCA_AT_ONOFF);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2980,7 +2990,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_ATMD_FRAMEDISPLAY);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2995,7 +3005,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_AT_FRAMEOFFSET);
         pack8Bit(&tx_payload, VISCA_AT_ONOFF);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3010,7 +3020,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_AT_FRAMEOFFSET);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3025,7 +3035,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_ATMD_STARTSTOP);
         pack8Bit(&tx_payload, VISCA_AT_ONOFF);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3040,7 +3050,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_AT_CHASE);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3055,7 +3065,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_AT_CHASE);
         pack8Bit(&tx_payload, VISCA_AT_CHASE_NEXT);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3070,7 +3080,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_MD_MODE);
         pack8Bit(&tx_payload, VISCA_MD_ONOFF);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3085,7 +3095,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_MD_MODE);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3099,7 +3109,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
         pack8Bit(&tx_payload, VISCA_MD_FRAME);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3114,7 +3124,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_MD_DETECT);
         pack8Bit(&tx_payload, VISCA_MD_ONOFF);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3129,7 +3139,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_AT_ENTRY);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3145,7 +3155,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_ATMD_LOSTINFO2);
         pack8Bit(&tx_payload, VISCA_AT_LOSTINFO);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3161,7 +3171,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_ATMD_LOSTINFO2);
         pack8Bit(&tx_payload, VISCA_MD_LOSTINFO);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3177,7 +3187,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_MD_ADJUST);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3193,7 +3203,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_MD_ADJUST);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3209,7 +3219,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_MD_ADJUST);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3225,7 +3235,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_MD_ADJUST);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3240,7 +3250,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_MD_ADJUST_REFMODE);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3256,7 +3266,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_MD_ADJUST);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3271,7 +3281,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_MD_MEASURE_MODE_1);
         pack8Bit(&tx_payload, VISCA_MD_ONOFF);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3286,7 +3296,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_MD_MEASURE_MODE_1);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3301,7 +3311,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_MD_MEASURE_MODE_2);
         pack8Bit(&tx_payload, VISCA_MD_ONOFF);
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3316,7 +3326,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_MD_MEASURE_MODE_2);
         pack8Bit(&tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = sendAndReceiveReply(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -3330,7 +3340,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_KEYLOCK);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -3344,7 +3354,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_WIDE_CON_LENS);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -3358,7 +3368,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
         pack8Bit(&tx_payload, VISCA_ATMD_MODE);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -3372,7 +3382,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
         pack8Bit(&tx_payload, VISCA_AT_MODE_QUERY);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint16_t>::error(rx_payload.error());
         }
@@ -3387,7 +3397,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
         pack8Bit(&tx_payload, VISCA_AT_ENTRY);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -3400,7 +3410,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_INQUIRY);
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
         pack8Bit(&tx_payload, VISCA_MD_MODE_QUERY);
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint16_t>::error(rx_payload.error());
         }
@@ -3414,7 +3424,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_INQUIRY);
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
         pack8Bit(&tx_payload, VISCA_MD_ADJUST_YLEVEL);
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -3428,7 +3438,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_INQUIRY);
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
         pack8Bit(&tx_payload, VISCA_MD_ADJUST_HUELEVEL);
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -3442,7 +3452,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_INQUIRY);
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
         pack8Bit(&tx_payload, VISCA_MD_ADJUST_SIZE);
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -3457,7 +3467,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
         pack8Bit(&tx_payload, VISCA_MD_ADJUST_DISPTIME);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -3472,7 +3482,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
         pack8Bit(&tx_payload, VISCA_MD_ADJUST_REFMODE);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
@@ -3486,7 +3496,7 @@ namespace camera_service::infrastructure {
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
         pack8Bit(&tx_payload, VISCA_MD_REFTIME_QUERY);
 
-        const auto rx_payload = sendAndReceiveReply(&tx_payload);
+        const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }

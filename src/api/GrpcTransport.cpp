@@ -51,7 +51,7 @@ namespace camera_service::api {
         }
 
         is_running_ = true;
-        LOG_INFO("Server is listening on: {}", server_address);
+        LOG_INFO("Server is listening on: {}", server_address); //TODO: show actual target ip
         return Result<void>::success();
     }
 
