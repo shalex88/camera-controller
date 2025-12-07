@@ -2805,12 +2805,18 @@ namespace camera_service::infrastructure {
         auto response = static_cast<ResponseType>(std::to_integer<uint8_t>(rx_buffer.at(1)) & 0xF0);
 
         while (response == ResponseType::Ack) {
-            if (const auto result = transport_->read(rx_buffer); result.isError()) {
-                return Result<ViscaPayload>::error(result.error());
-            } else if (result.value() < VISCA_MIN_INPUT_BUFFER_SIZE) {
-                return Result<ViscaPayload>::error("Received response is too short");
+            if (rx_buffer[4] != static_cast<std::byte>(0)) {
+                response = static_cast<ResponseType>(std::to_integer<uint8_t>(rx_buffer.at(1)) & 0xF0);
+                LOG_TRACE("2 responces in one buffer");
+                break;
+            } else {
+                if (const auto result = transport_->read(rx_buffer); result.isError()) {
+                    return Result<ViscaPayload>::error(result.error());
+                } else if (result.value() < VISCA_MIN_INPUT_BUFFER_SIZE) {
+                    return Result<ViscaPayload>::error("Received response is too short");
+                }
+                response = static_cast<ResponseType>(std::to_integer<uint8_t>(rx_buffer.at(1)) & 0xF0);
             }
-            response = static_cast<ResponseType>(std::to_integer<uint8_t>(rx_buffer.at(1)) & 0xF0);
         }
 
         if (response == ResponseType::Error) {
