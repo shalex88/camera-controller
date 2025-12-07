@@ -1,6 +1,6 @@
 app:
   name: wfov
-  log_level: debug
+  log_level: trace
   api:
     api_type: grpc
     server_address: 0.0.0.0:50051

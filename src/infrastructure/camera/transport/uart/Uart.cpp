@@ -1,6 +1,8 @@
 #include "Uart.h"
 
 #include <cerrno>
+#include <chrono>
+#include <cstdio>
 #include <cstring>
 #include <fcntl.h>
 #include <string_view>
@@ -32,6 +34,24 @@ namespace camera_service::infrastructure {
 
             throw std::invalid_argument("Invalid baud rate: " + std::string(baud_rate) +
                                       ". Supported: 9600, 19200, 38400, 57600, 115200");
+        }
+
+        std::string getHexDump(const std::span<const std::byte> data) {
+            if (data.empty()) {
+                return "[]";
+            }
+
+            std::string result = "[";
+            for (size_t i = 0; i < data.size(); ++i) {
+                char buf[8];
+                snprintf(buf, sizeof(buf), "0x%02X", static_cast<unsigned char>(data[i]));
+                result += buf;
+                if (i < data.size() - 1) {
+                    result += ", ";
+                }
+            }
+            result += "]";
+            return result;
         }
     }
 
@@ -108,6 +128,8 @@ namespace camera_service::infrastructure {
             return Result<void>::success();
         }
 
+        LOG_TRACE("UART TX: {}", getHexDump(data));
+
         if (const auto bytes_written = ::write(port_fd_, data.data(), data.size()); bytes_written < 0) {
             return Result<void>::error("Failed to write to UART: " + std::string(strerror(errno)));
         }
@@ -125,7 +147,7 @@ namespace camera_service::infrastructure {
             FD_ZERO(&read_fds);
             FD_SET(port_fd_, &read_fds);
 
-            timeval timeout{10, 0};;
+            timeval timeout{10, 0};
 
             const auto select_result = ::select(port_fd_ + 1, &read_fds, nullptr, nullptr, &timeout);
             if (select_result < 0) {
@@ -156,6 +178,8 @@ namespace camera_service::infrastructure {
             if (bytes_read == 0) {
                 return Result<size_t>::error("UART device closed");
             }
+
+            LOG_TRACE("UART RX: {}", getHexDump(rx_data.subspan(0, static_cast<size_t>(bytes_read))));
 
             return Result<size_t>::success(static_cast<size_t>(bytes_read));
         }
