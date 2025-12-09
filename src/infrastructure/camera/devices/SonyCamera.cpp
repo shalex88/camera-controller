@@ -1,13 +1,13 @@
 #include "SonyCamera.h"
 
-#include <chrono>
 #include <utility>
 
 #include "infrastructure/camera/protocol/visca/ViscaProtocol.h"
 
 namespace camera_service::infrastructure {
     SonyCamera::SonyCamera(std::unique_ptr<ViscaProtocol> protocol)
-        : protocol_(std::move(protocol)) {}
+        : protocol_(std::move(protocol)) {
+    }
 
     SonyCamera::~SonyCamera() {
         [[maybe_unused]] const auto disconnect_result = close();

@@ -164,6 +164,10 @@ namespace camera_service::common {
             app_config_->infrastructure_config.camera = infrastructure_node["camera"].as<std::string>();
         }
 
+        if (infrastructure_node["video_channel"]) {
+            app_config_->infrastructure_config.video_channel = infrastructure_node["video_channel"].as<int>();
+        }
+
         app_config_->infrastructure_config.endpoints.clear();
 
         if (!infrastructure_node["endpoints"]) {

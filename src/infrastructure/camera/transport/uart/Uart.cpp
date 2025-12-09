@@ -94,6 +94,7 @@ namespace camera_service::infrastructure {
         options_.c_cflag |= CS8;
         options_.c_cflag &= ~CRTSCTS;
         options_.c_cc[VMIN]  = 10; //FIXME: bad solution, needed for mpsoc
+        options_.c_cc[VTIME] = 1; //FIXME: bad solution, needed for mpsoc
 
         options_.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
 

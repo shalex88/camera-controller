@@ -5,6 +5,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <optional>
 #include <yaml-cpp/yaml.h>
 
 namespace camera_service::common {
@@ -31,6 +32,7 @@ namespace camera_service::common {
     struct InfrastructureConfig {
         std::string camera;
         std::vector<EndpointConfig> endpoints;
+        std::optional<int> video_channel;
 
         void validate() const;
     };

@@ -15,6 +15,7 @@
 #include "infrastructure/camera/protocol/visca/ViscaProtocol.h"
 #include "infrastructure/camera/transport/ethernet/TcpClient.h"
 #include "infrastructure/camera/transport/uart/Uart.h"
+#include "infrastructure/fpga/VideoChannel.h"
 
 namespace {
     std::string formatConfiguration(const std::unordered_map<std::string, std::string>& configuration) {
@@ -35,6 +36,10 @@ namespace camera_service::infrastructure {
         for (size_t i = 0; i < config.endpoints.size(); ++i) {
             const auto& [address, configuration] = config.endpoints[i];
             LOG_DEBUG("Endpoint[{}]: address={}, config: {}", i, address, formatConfiguration(configuration));
+        }
+
+        if (config.video_channel != std::nullopt) {
+            VideoChannel(config.video_channel.value());
         }
 
         if (config.camera == "adimec") {
@@ -59,7 +64,6 @@ namespace camera_service::infrastructure {
             if (config.endpoints.size() != 1) {
                 throw std::invalid_argument("Sony requires at 1 endpoint");
             }
-
             const auto& [camera_address, camera_configuration] = config.endpoints[0];
             auto transport = std::make_unique<Uart>(camera_address, camera_configuration.at("baud_rate"));
             auto protocol = std::make_unique<ViscaProtocol>(std::move(transport));

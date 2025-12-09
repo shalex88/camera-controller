@@ -8,6 +8,7 @@ app:
     camera: core
   infrastructure:
     camera: sony
+    video_channel: 1
     endpoints:
       - address: /dev/ttyUL0
         configuration:
