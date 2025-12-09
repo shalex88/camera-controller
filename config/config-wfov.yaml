@@ -1,6 +1,6 @@
 app:
   name: wfov
-  log_level: trace
+  log_level: info
   api:
     api_type: grpc
     server_address: 0.0.0.0:50051
@@ -9,6 +9,6 @@ app:
   infrastructure:
     camera: sony
     endpoints:
-      - address: /dev/ttyACM0
+      - address: /dev/ttyUL0
         configuration:
           baud_rate: 115200
