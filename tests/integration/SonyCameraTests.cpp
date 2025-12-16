@@ -9,7 +9,7 @@
 #include "infrastructure/camera/protocol/visca/ViscaProtocol.h"
 #include "infrastructure/camera/transport/uart/Uart.h"
 
-using namespace camera_service;
+using namespace service;
 using namespace testing;
 
 class SonyCameraTests : public Test {

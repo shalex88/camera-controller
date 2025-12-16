@@ -10,7 +10,7 @@
 #include "api/IRequestHandler.h"
 #include "common/logger/Logger.h"
 
-namespace camera_service::api {
+namespace service::api {
     GrpcTransport::GrpcTransport(IRequestHandler& request_handler) {
         callback_handler_ = std::make_unique<GrpcCallbackHandler>(request_handler);
     }

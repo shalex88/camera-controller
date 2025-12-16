@@ -5,7 +5,7 @@
 
 #include "infrastructure/camera/transport/ITransport.h"
 
-namespace camera_service::infrastructure::uart {
+namespace service::infrastructure::uart {
     class FakeUart final : public ITransport {
     public:
         FakeUart();

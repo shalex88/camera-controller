@@ -2,15 +2,15 @@
 
 #include <memory>
 
-namespace camera_service::common {
+namespace service::common {
     struct ApiConfig;
 }
 
-namespace camera_service::core {
+namespace service::core {
     class ICore;
 }
 
-namespace camera_service::api {
+namespace service::api {
     class ApiController;
 
     class ApiControllerFactory {

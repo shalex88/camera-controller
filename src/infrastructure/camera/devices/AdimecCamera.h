@@ -5,7 +5,7 @@
 #include "common/types/CameraCapabilities.h"
 #include "infrastructure/camera/hal/ICameraHw.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class GenicamProtocol;
     class ItlProtocol;
 

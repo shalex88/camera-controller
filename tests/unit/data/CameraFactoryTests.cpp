@@ -5,7 +5,7 @@
 #include "common/config/ConfigManager.h"
 #include "infrastructure/camera/hal/ICamera.h"
 
-using namespace camera_service;
+using namespace service;
 using namespace testing;
 
 TEST(CameraFactoryTests, CreateSonyCameraSuccess) {

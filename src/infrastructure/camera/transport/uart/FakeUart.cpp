@@ -2,7 +2,7 @@
 
 #include "common/logger/Logger.h"
 
-namespace camera_service::infrastructure::uart {
+namespace service::infrastructure::uart {
     FakeUart::FakeUart() {
         if (open().isError()) {
             LOG_ERROR("Failed to open Fake UART interface");

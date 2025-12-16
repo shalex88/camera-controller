@@ -6,7 +6,7 @@
 #include "common/types/Result.h"
 #include "infrastructure/camera/hal/ICamera.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class ICameraHw;
 
     class Camera final : public ICamera {

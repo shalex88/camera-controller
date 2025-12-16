@@ -6,11 +6,11 @@
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
 
-namespace camera_service::core {
+namespace service::core {
     class ICore;
 }
 
-namespace camera_service::api {
+namespace service::api {
     class RequestHandler final : public IRequestHandler {
     public:
         explicit RequestHandler(std::unique_ptr<core::ICore> core);

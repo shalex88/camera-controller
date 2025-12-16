@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-namespace camera_service::types {
+namespace service::types {
     using zoom = uint32_t;
     using focus = uint32_t;
     using info = std::string;

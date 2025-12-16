@@ -1,8 +1,8 @@
 #include "app/Application.h"
 #include "common/logger/Logger.h"
 
-int main(const int argc, char* argv[]) {
-    camera_service::app::Application app(argc, argv);
+int main(int argc, char* argv[]) {
+    service::app::Application app(argc, argv);
 
     if (const auto result = app.initialize(); result.isError()) {
         LOG_ERROR("Initialization failed: {}", result.error());
@@ -14,7 +14,7 @@ int main(const int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    app.run();
+    app.run(); // Blocking call
 
     if (const auto result = app.stop(); result.isError()) {
         LOG_ERROR("Shutdown error: {}", result.error());

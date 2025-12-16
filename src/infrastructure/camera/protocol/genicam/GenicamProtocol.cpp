@@ -1,6 +1,6 @@
 #include "GenicamProtocol.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     GenicamProtocol::GenicamProtocol(std::unique_ptr<GENAPI_NAMESPACE::IPort> transport)
         : transport_(std::move(transport)) {
         if (!transport_) {

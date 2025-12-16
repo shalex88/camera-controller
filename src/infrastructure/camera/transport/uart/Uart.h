@@ -6,7 +6,7 @@
 
 #include "infrastructure/camera/transport/ITransport.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class Uart final : public ITransport {
     public:
         explicit Uart(std::string device_path, std::string_view baud_rate);

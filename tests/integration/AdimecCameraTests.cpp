@@ -11,7 +11,7 @@
 #include "infrastructure/camera/protocol/itl/ItlProtocol.h"
 #include "infrastructure/camera/transport/ethernet/TcpClient.h"
 
-using namespace camera_service;
+using namespace service;
 using namespace testing;
 
 class AdimecCameraTests : public Test {

@@ -30,7 +30,7 @@ namespace {
     }
 }
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     std::unique_ptr<ICamera> CameraFactory::createCamera(const common::InfrastructureConfig& config) {
         LOG_DEBUG("Creating camera: {}", config.camera);
         for (size_t i = 0; i < config.endpoints.size(); ++i) {

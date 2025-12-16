@@ -2,11 +2,11 @@
 
 #include <memory>
 
-namespace camera_service::common {
+namespace service::common {
     struct InfrastructureConfig;
 }
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class ICamera;
 
     class CameraFactory {

@@ -5,7 +5,7 @@
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
 
-namespace camera_service::core {
+namespace service::core {
     class ICore {
     public:
         virtual ~ICore() = default;

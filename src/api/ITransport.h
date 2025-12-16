@@ -2,7 +2,7 @@
 #include <string>
 #include "common/types/Result.h"
 
-namespace camera_service::api {
+namespace service::api {
     class ITransport {
     public:
         virtual ~ITransport() = default;

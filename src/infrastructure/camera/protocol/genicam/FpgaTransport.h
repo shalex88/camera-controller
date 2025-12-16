@@ -2,7 +2,7 @@
 
 #include "infrastructure/camera/protocol/genicam/include/GenApi/GenApi.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class FpgaTransport final : public GENAPI_NAMESPACE::IPort {
     public:
         explicit FpgaTransport(std::string device);

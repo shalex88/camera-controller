@@ -3,7 +3,7 @@
 #include "common/types/Result.h"
 #include "common/types/CameraTypes.h"
 
-namespace camera_service::api {
+namespace service::api {
     class IRequestHandler {
     public:
         virtual ~IRequestHandler() = default;

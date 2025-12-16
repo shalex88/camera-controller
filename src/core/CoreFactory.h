@@ -1,15 +1,15 @@
 #pragma once
 #include <memory>
 
-namespace camera_service::common {
+namespace service::common {
     struct CoreConfig;
 }
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class ICamera;
 }
 
-namespace camera_service::core {
+namespace service::core {
     class ICore;
 
     class CoreFactory {

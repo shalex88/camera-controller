@@ -3,7 +3,7 @@
 #include "common/logger/Logger.h"
 #include "core/ICore.h"
 
-namespace camera_service::api {
+namespace service::api {
     RequestHandler::RequestHandler(std::unique_ptr<core::ICore> core)
         : core_(std::move(core)), running_(false) {
         if (!core_) {

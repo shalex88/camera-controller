@@ -3,7 +3,7 @@
 #include "common/logger/Logger.h"
 #include "infrastructure/camera/hal/ICamera.h"
 
-namespace camera_service::core {
+namespace service::core {
     Core::Core(std::unique_ptr<infrastructure::ICamera> camera)
         : camera_(std::move(camera)), is_running_(false) {
         if (!camera_) {

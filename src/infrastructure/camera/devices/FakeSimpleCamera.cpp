@@ -1,6 +1,6 @@
 #include "FakeSimpleCamera.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     Result<void> FakeSimpleCamera::setZoom(const types::zoom zoom) const {
         zoom_ = zoom;
         return Result<void>::success();

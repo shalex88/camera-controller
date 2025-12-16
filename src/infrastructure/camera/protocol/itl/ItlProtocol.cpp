@@ -5,7 +5,7 @@
 
 #include "infrastructure/camera/transport/ITransport.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     ItlProtocol::ItlProtocol(std::unique_ptr<ITransport> transport)
         : transport_(std::move(transport)) {
     }

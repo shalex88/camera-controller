@@ -13,7 +13,7 @@
 
 #include "common/logger/Logger.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     namespace {
         [[nodiscard]] speed_t toTermiosBaud(const std::string_view baud_rate) {
             if (baud_rate == "9600") {

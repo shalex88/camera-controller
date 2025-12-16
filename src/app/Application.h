@@ -6,23 +6,23 @@
 
 #include "common/types/Result.h"
 
-namespace camera_service::common {
+namespace service::common {
     class ConfigManager;
 }
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class ICamera;
 }
 
-namespace camera_service::core {
+namespace service::core {
     class ICore;
 }
 
-namespace camera_service::api {
+namespace service::api {
     class ApiController;
 }
 
-namespace camera_service::app {
+namespace service::app {
 
     class Application final {
     public:

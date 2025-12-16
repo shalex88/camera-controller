@@ -6,7 +6,7 @@
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
 
-using namespace camera_service;
+using namespace service;
 using namespace std::chrono_literals;
 
 #define NFOV_CAMERA_LOCK_TIMEOUT_MS 400ms

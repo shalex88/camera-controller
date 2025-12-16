@@ -3,7 +3,7 @@
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
 
-namespace camera_service::capabilities {
+namespace service::capabilities {
     class IZoomCapable {
     public:
         virtual ~IZoomCapable() = default;

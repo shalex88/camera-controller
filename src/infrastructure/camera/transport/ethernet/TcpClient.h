@@ -5,7 +5,7 @@
 #include "common/types/Result.h"
 #include "infrastructure/camera/transport/ITransport.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class TcpClient final : public ITransport {
     public:
         explicit TcpClient(const std::string& device_path);

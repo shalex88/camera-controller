@@ -11,7 +11,7 @@
 #include "infrastructure/camera/transport/mmio/IRegisterImpl.h"
 #include "common/types/CameraCapabilities.h"
 
-using namespace camera_service;
+using namespace service;
 using namespace testing;
 
 class TransportMock: public api::ITransport {

@@ -3,7 +3,7 @@
 #include "infrastructure/camera/protocol/itl/ItlProtocol.h"
 #include "infrastructure/camera/transport/ethernet/MwirOpcodes.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     MwirCamera::MwirCamera(std::unique_ptr<ItlProtocol> protocol) : protocol_(std::move(protocol)) {
         if (!protocol_) {
             throw std::invalid_argument("Protocol cannot be null");

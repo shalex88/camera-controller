@@ -4,7 +4,7 @@
 
 #include "infrastructure/camera/protocol/visca/ViscaProtocol.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     SonyCamera::SonyCamera(std::unique_ptr<ViscaProtocol> protocol)
         : protocol_(std::move(protocol)) {
     }

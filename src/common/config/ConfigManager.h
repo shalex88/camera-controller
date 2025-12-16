@@ -8,7 +8,7 @@
 #include <optional>
 #include <yaml-cpp/yaml.h>
 
-namespace camera_service::common {
+namespace service::common {
     struct ApiConfig {
         std::string api;
         std::string server_address;

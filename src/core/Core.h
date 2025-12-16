@@ -5,11 +5,11 @@
 #include "common/types/Result.h"
 #include "core/ICore.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class ICamera;
 }
 
-namespace camera_service::core {
+namespace service::core {
     class Core final : public ICore {
     public:
         explicit Core(std::unique_ptr<infrastructure::ICamera> camera);

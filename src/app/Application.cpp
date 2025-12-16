@@ -16,10 +16,10 @@
 #include "infrastructure/camera/CameraFactory.h"
 #include "infrastructure/camera/hal/ICamera.h"
 
-namespace camera_service::app {
+namespace service::app {
     static Application* g_application_instance = nullptr;
 
-    void signalHandler(const int signal) {
+    void signalHandler(int signal) {
         if (signal == SIGTERM || signal == SIGINT) {
             if (g_application_instance != nullptr) {
                 g_application_instance->requestShutdown();
@@ -27,14 +27,14 @@ namespace camera_service::app {
         }
     }
 
-    Application::Application(const int argc, char* argv[]) {
+    Application::Application(int argc, char* argv[]) {
         parseArguments(argc, argv);
         setupSignalHandlers();
     }
 
     Application::~Application() = default;
 
-    void Application::parseArguments(const int argc, char* argv[]) {
+    void Application::parseArguments(int argc, char* argv[]) {
         CLI::App app{"A camera control service", APP_NAME};
 
         bool show_version = false;

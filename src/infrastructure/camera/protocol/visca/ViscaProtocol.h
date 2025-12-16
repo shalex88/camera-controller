@@ -7,7 +7,7 @@
 
 #include "common/types/Result.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class ITransport;
 
     class ViscaProtocol {

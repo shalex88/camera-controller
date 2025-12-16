@@ -3,7 +3,7 @@
 #include <set>
 #include <yaml-cpp/yaml.h>
 
-namespace camera_service::common {
+namespace service::common {
     void ApiConfig::validate() const {
         static const std::set<std::string> valid_apis{"grpc"};
 

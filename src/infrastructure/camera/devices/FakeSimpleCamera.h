@@ -3,7 +3,7 @@
 #include "common/types/CameraCapabilities.h"
 #include "infrastructure/camera/hal/ICameraHw.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class FakeSimpleCamera final : public ICameraHw,
                              public capabilities::IZoomCapable,
                              public capabilities::IFocusCapable,

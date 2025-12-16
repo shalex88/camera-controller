@@ -7,7 +7,7 @@
 #include "infrastructure/camera/hal/Camera.h"
 #include "infrastructure/camera/devices/FakeAdvancedCamera.h"
 
-using namespace camera_service;
+using namespace service;
 using namespace testing;
 
 class CameraTests : public Test {

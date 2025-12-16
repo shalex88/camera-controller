@@ -4,7 +4,7 @@
 #include "common/types/CameraTypes.h"
 #include "infrastructure/camera/hal/ICameraHw.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class ItlProtocol;
 
     class MwirCamera final : public ICameraHw,

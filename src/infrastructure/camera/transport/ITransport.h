@@ -6,7 +6,7 @@
 
 #include "common/types/Result.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class ITransport {
     public:
         virtual ~ITransport() = default;

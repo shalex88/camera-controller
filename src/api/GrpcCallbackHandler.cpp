@@ -6,7 +6,7 @@
 #include "api/IRequestHandler.h"
 #include "common/logger/Logger.h"
 
-namespace camera_service::api {
+namespace service::api {
     GrpcCallbackHandler::GrpcCallbackHandler(IRequestHandler& request_handler)
         : request_handler_(request_handler) {
     }

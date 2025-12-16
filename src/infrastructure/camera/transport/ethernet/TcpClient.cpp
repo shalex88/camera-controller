@@ -9,7 +9,7 @@
 #include <errno.h>
 #include <sys/select.h>
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     TcpClient::TcpClient(const std::string& device_path) {
         if (device_path.empty()) {
             throw std::invalid_argument("Device path cannot be empty");

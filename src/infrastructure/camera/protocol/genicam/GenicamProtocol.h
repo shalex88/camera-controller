@@ -3,7 +3,7 @@
 #include "common/types/Result.h"
 #include "infrastructure/camera/protocol/genicam/include/GenApi/GenApi.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class FpgaTransport;
 
     class GenicamProtocol final {

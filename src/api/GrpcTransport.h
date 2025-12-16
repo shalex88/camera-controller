@@ -4,7 +4,7 @@
 #include "api/proto/camera_service.grpc.pb.h" //TODO: can move to implementation file?
 #include "common/types/Result.h"
 
-namespace camera_service::api {
+namespace service::api {
     class IRequestHandler;
     class GrpcCallbackHandler;
 

@@ -3,7 +3,7 @@
 #include "common/logger/Logger.h"
 #include "infrastructure/camera/hal/ICameraHw.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     Camera::Camera(std::unique_ptr<ICameraHw> camera_strategy)
         : camera_hw_(std::move(camera_strategy)) {
         if (!camera_hw_) {

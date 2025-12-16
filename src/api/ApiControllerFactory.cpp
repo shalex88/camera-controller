@@ -6,7 +6,7 @@
 #include "common/config/ConfigManager.h"
 #include "core/ICore.h"
 
-namespace camera_service::api {
+namespace service::api {
     std::unique_ptr<ApiController> ApiControllerFactory::createController(
         std::unique_ptr<core::ICore> core, const common::ApiConfig& config) {
         if (!core) {

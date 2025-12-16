@@ -33,7 +33,7 @@ namespace {
     };
 }
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     FpgaTransport::FpgaTransport(std::string device)
         : device_(std::move(device)), base_address_(FPGA_BASE_ADDR), memory_size_(FPGA_MEMORY_SIZE)  {
         if (!open() || !mapMemory()) {

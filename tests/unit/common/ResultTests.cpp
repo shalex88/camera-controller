@@ -4,7 +4,7 @@
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
 
-using namespace camera_service;
+using namespace service;
 using namespace testing;
 
 class ResultTests : public Test {

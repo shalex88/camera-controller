@@ -266,7 +266,7 @@ namespace {
     };
 }
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     struct ViscaProtocol::ViscaPayload {
         std::array<std::byte, VISCA_PAYLOAD_SIZE> data{};
         size_t size = 0;

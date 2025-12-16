@@ -4,7 +4,7 @@
 #include "infrastructure/camera/protocol/genicam/GenicamProtocol.h"
 #include "infrastructure/camera/protocol/itl/ItlProtocol.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     AdimecCamera::AdimecCamera(std::unique_ptr<GenicamProtocol> camera_protocol, std::unique_ptr<ItlProtocol> lens_protocol) :
         camera_protocol_(std::move(camera_protocol)), lens_protocol_(std::move(lens_protocol)) {
     }

@@ -2,7 +2,7 @@
 /* Add your project include files here */
 #include "common/types/CameraTypes.h"
 
-using namespace camera_service::types;
+using namespace service::types;
 
 class CameraTypesTests : public ::testing::Test {
 };
