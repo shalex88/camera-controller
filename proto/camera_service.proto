@@ -1,76 +1,68 @@
 syntax = "proto3";
 
-package camera;
+package camera.v1;
+
+import "google/protobuf/empty.proto";
 
 service CameraService {
+  // Zoom operations
   rpc SetZoom (SetZoomRequest) returns (SetZoomResponse) {}
-  rpc GetZoom (GetZoomRequest) returns (GetZoomResponse) {}
+  rpc GetZoom (google.protobuf.Empty) returns (GetZoomResponse) {}
+  rpc GoToMinZoom (google.protobuf.Empty) returns (GoToMinZoomResponse) {}
+  rpc GoToMaxZoom (google.protobuf.Empty) returns (GoToMaxZoomResponse) {}
+
+  // Focus operations
   rpc SetFocus (SetFocusRequest) returns (SetFocusResponse) {}
-  rpc GetFocus (GetFocusRequest) returns (GetFocusResponse) {}
-  rpc GetInfo (GetInfoRequest) returns (GetInfoResponse) {}
-  rpc GoToMinZoom (GoToMinZoomRequest) returns (GoToMinZoomResponse) {}
-  rpc GoToMaxZoom (GoToMaxZoomRequest) returns (GoToMaxZoomResponse) {}
-  rpc EnableAutoFocus (EnableAutoFocusRequest) returns (EnableAutoFocusResponse) {}
-  rpc Stabilize (EnableStabilizationRequest) returns (EnableStabilizationResponse) {}
+  rpc GetFocus (google.protobuf.Empty) returns (GetFocusResponse) {}
+  rpc SetAutoFocus (SetAutoFocusRequest) returns (google.protobuf.Empty) {}
+
+  // Device info
+  rpc GetInfo (google.protobuf.Empty) returns (GetInfoResponse) {}
+
+  // Advanced operations
+  rpc SetStabilization (SetStabilizationRequest) returns (google.protobuf.Empty) {}
 }
 
+// Zoom operations
 message SetZoomRequest {
-  uint32 zoom = 1;
+  uint32 zoom = 1; // normalized [0 - 100]
 }
 
 message SetZoomResponse {
 }
 
-message GetZoomRequest {
-}
-
 message GetZoomResponse {
-  uint32 zoom = 1;
-}
-
-message SetFocusRequest {
-  uint32 focus = 1;
-}
-
-message SetFocusResponse {
-}
-
-message GetFocusRequest {
-}
-
-message GetFocusResponse {
-  uint32 focus = 1;
-}
-
-message GetInfoRequest {
-}
-
-message GetInfoResponse {
-  string info = 1;
-}
-
-message GoToMinZoomRequest {
+  uint32 zoom = 1; // normalized [0 - 100]
 }
 
 message GoToMinZoomResponse {
 }
 
-message GoToMaxZoomRequest {
-}
-
 message GoToMaxZoomResponse {
 }
 
-message EnableAutoFocusRequest {
+// Focus operations
+message SetFocusRequest {
+  uint32 focus = 1; // normalized [0 - 100]
+}
+
+message SetFocusResponse {
+}
+
+message GetFocusResponse {
+  uint32 focus = 1; // normalized [0 - 100]
+}
+
+message SetAutoFocusRequest {
   bool enable = 1;
 }
 
-message EnableAutoFocusResponse {
+// Device info
+message GetInfoResponse {
+  string info = 1;
 }
 
-message EnableStabilizationRequest {
+// Advanced operations
+message SetStabilizationRequest {
   bool enable = 1;
-}
-
-message EnableStabilizationResponse {
 }

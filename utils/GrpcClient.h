@@ -14,11 +14,11 @@ using namespace std::chrono_literals;
 class GrpcClient {
 public:
     explicit GrpcClient(const std::shared_ptr<grpc::Channel>& channel)
-        : stub_(camera::CameraService::NewStub(channel)) {}
+        : stub_(camera::v1::CameraService::NewStub(channel)) {}
 
     Result<void> setZoom(const types::zoom zoom_value, const std::chrono::milliseconds timeout = NFOV_CAMERA_LOCK_TIMEOUT_MS) const {
-        camera::SetZoomRequest request;
-        camera::SetZoomResponse response;
+        camera::v1::SetZoomRequest request;
+        camera::v1::SetZoomResponse response;
         grpc::ClientContext context;
 
         request.set_zoom(zoom_value);
@@ -31,8 +31,8 @@ public:
     }
 
     Result<types::zoom> getZoom(const std::chrono::milliseconds timeout = NFOV_CAMERA_LOCK_TIMEOUT_MS) const {
-        camera::GetZoomRequest request;
-        camera::GetZoomResponse response;
+        const google::protobuf::Empty request;
+        camera::v1::GetZoomResponse response;
         grpc::ClientContext context;
 
         context.set_deadline(std::chrono::system_clock::now() + timeout);
@@ -44,8 +44,8 @@ public:
     }
 
     Result<void> setFocus(const types::focus focus_value, const std::chrono::milliseconds timeout = NFOV_CAMERA_LOCK_TIMEOUT_MS) const {
-        camera::SetFocusRequest request;
-        camera::SetFocusResponse response;
+        camera::v1::SetFocusRequest request;
+        camera::v1::SetFocusResponse response;
         grpc::ClientContext context;
 
         request.set_focus(focus_value);
@@ -58,8 +58,8 @@ public:
     }
 
     Result<types::focus> getFocus(const std::chrono::milliseconds timeout = NFOV_CAMERA_LOCK_TIMEOUT_MS) const {
-        camera::GetFocusRequest request;
-        camera::GetFocusResponse response;
+        const google::protobuf::Empty request;
+        camera::v1::GetFocusResponse response;
         grpc::ClientContext context;
 
         context.set_deadline(std::chrono::system_clock::now() + timeout);
@@ -71,19 +71,19 @@ public:
     }
 
     Result<void> setAutoFocus(const auto enable, const std::chrono::milliseconds timeout = NFOV_CAMERA_LOCK_TIMEOUT_MS) const {
-        camera::EnableAutoFocusRequest request;
-        camera::EnableAutoFocusResponse response;
+        camera::v1::SetAutoFocusRequest request;
+        google::protobuf::Empty response;
         grpc::ClientContext context;
 
         request.set_enable(enable);
         context.set_deadline(std::chrono::system_clock::now() + timeout);
 
-        if (const grpc::Status status = stub_->EnableAutoFocus(&context, request, &response); !status.ok()) {
+        if (const grpc::Status status = stub_->SetAutoFocus(&context, request, &response); !status.ok()) {
             return Result<void>::error(status.error_message());
         }
         return Result<void>::success();
     }
 
 private:
-    std::unique_ptr<camera::CameraService::Stub> stub_;
+    std::unique_ptr<camera::v1::CameraService::Stub> stub_;
 };

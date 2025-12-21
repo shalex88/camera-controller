@@ -47,30 +47,30 @@ namespace service::api {
 
     grpc::ServerUnaryReactor* GrpcCallbackHandler::SetZoom(
         grpc::CallbackServerContext* context,
-        const camera::SetZoomRequest* request,
-        camera::SetZoomResponse* response) {
+        const camera::v1::SetZoomRequest* request,
+        camera::v1::SetZoomResponse* response) {
         return handleGrpcRequest(context, request, response,
-            [this](const camera::SetZoomRequest* req, camera::SetZoomResponse* resp) {
+            [this](const camera::v1::SetZoomRequest* req, camera::v1::SetZoomResponse* resp) {
                 return request_handler_.setZoom(req->zoom());
             });
     }
 
     grpc::ServerUnaryReactor* GrpcCallbackHandler::SetFocus(
         grpc::CallbackServerContext* context,
-        const camera::SetFocusRequest* request,
-        camera::SetFocusResponse* response) {
+        const camera::v1::SetFocusRequest* request,
+        camera::v1::SetFocusResponse* response) {
         return handleGrpcRequest(context, request, response,
-            [this](const camera::SetFocusRequest* req, camera::SetFocusResponse* resp) {
+            [this](const camera::v1::SetFocusRequest* req, camera::v1::SetFocusResponse* resp) {
                 return request_handler_.setFocus(req->focus());
             });
     }
 
     grpc::ServerUnaryReactor* GrpcCallbackHandler::GetZoom(
         grpc::CallbackServerContext* context,
-        const camera::GetZoomRequest* request,
-        camera::GetZoomResponse* response) {
+        const google::protobuf::Empty* request,
+        camera::v1::GetZoomResponse* response) {
         return handleGrpcRequest(context, request, response,
-            [this](const camera::GetZoomRequest* req, camera::GetZoomResponse* resp) {
+            [this](const google::protobuf::Empty* req, camera::v1::GetZoomResponse* resp) {
                 const auto result = request_handler_.getZoom();
                 if (result.isSuccess()) {
                     resp->set_zoom(result.value());
@@ -82,10 +82,10 @@ namespace service::api {
 
     grpc::ServerUnaryReactor* GrpcCallbackHandler::GetFocus(
         grpc::CallbackServerContext* context,
-        const camera::GetFocusRequest* request,
-        camera::GetFocusResponse* response) {
+        const google::protobuf::Empty* request,
+        camera::v1::GetFocusResponse* response) {
         return handleGrpcRequest(context, request, response,
-            [this](const camera::GetFocusRequest* req, camera::GetFocusResponse* resp) {
+            [this](const google::protobuf::Empty* req, camera::v1::GetFocusResponse* resp) {
                 const auto result = request_handler_.getFocus();
                 if (result.isSuccess()) {
                     resp->set_focus(result.value());
@@ -97,10 +97,10 @@ namespace service::api {
 
     grpc::ServerUnaryReactor* GrpcCallbackHandler::GetInfo(
         grpc::CallbackServerContext* context,
-        const camera::GetInfoRequest* request,
-        camera::GetInfoResponse* response) {
+        const google::protobuf::Empty* request,
+        camera::v1::GetInfoResponse* response) {
         return handleGrpcRequest(context, request, response,
-            [this](const camera::GetInfoRequest* req, camera::GetInfoResponse* resp) {
+            [this](const google::protobuf::Empty* req, camera::v1::GetInfoResponse* resp) {
                 const auto result = request_handler_.getInfo();
                 if (result.isSuccess()) {
                     resp->set_info(result.value());
@@ -112,10 +112,10 @@ namespace service::api {
 
     grpc::ServerUnaryReactor* GrpcCallbackHandler::GoToMinZoom(
         grpc::CallbackServerContext* context,
-        const camera::GoToMinZoomRequest* request,
-        camera::GoToMinZoomResponse* response) {
+        const google::protobuf::Empty* request,
+        camera::v1::GoToMinZoomResponse* response) {
         return handleGrpcRequest(context, request, response,
-            [this](const camera::GoToMinZoomRequest* req, camera::GoToMinZoomResponse* resp) {
+            [this](const google::protobuf::Empty* req, camera::v1::GoToMinZoomResponse* resp) {
                 const auto result = request_handler_.goToMinZoom();
                 if (result.isSuccess()) {
                     return Result<void>::success();
@@ -126,10 +126,10 @@ namespace service::api {
 
     grpc::ServerUnaryReactor* GrpcCallbackHandler::GoToMaxZoom(
         grpc::CallbackServerContext* context,
-        const camera::GoToMaxZoomRequest* request,
-        camera::GoToMaxZoomResponse* response) {
+        const google::protobuf::Empty* request,
+        camera::v1::GoToMaxZoomResponse* response) {
         return handleGrpcRequest(context, request, response,
-            [this](const camera::GoToMaxZoomRequest* req, camera::GoToMaxZoomResponse* resp) {
+            [this](const google::protobuf::Empty* req, camera::v1::GoToMaxZoomResponse* resp) {
                 const auto result = request_handler_.goToMaxZoom();
                 if (result.isSuccess()) {
                     return Result<void>::success();
@@ -138,22 +138,22 @@ namespace service::api {
             });
     }
 
-    grpc::ServerUnaryReactor* GrpcCallbackHandler::EnableAutoFocus(
+    grpc::ServerUnaryReactor* GrpcCallbackHandler::SetAutoFocus(
     grpc::CallbackServerContext* context,
-    const camera::EnableAutoFocusRequest* request,
-    camera::EnableAutoFocusResponse* response) {
+    const camera::v1::SetAutoFocusRequest* request,
+    google::protobuf::Empty* response) {
         return handleGrpcRequest(context, request, response,
-            [this](const camera::EnableAutoFocusRequest* req, camera::EnableAutoFocusResponse* resp) {
+            [this](const camera::v1::SetAutoFocusRequest* req, google::protobuf::Empty* resp) {
                 return request_handler_.enableAutoFocus(req->enable());
             });
     }
 
-    grpc::ServerUnaryReactor* GrpcCallbackHandler::Stabilize(
+    grpc::ServerUnaryReactor* GrpcCallbackHandler::SetStabilization(
     grpc::CallbackServerContext* context,
-    const camera::EnableStabilizationRequest* request,
-    camera::EnableStabilizationResponse* response) {
+    const camera::v1::SetStabilizationRequest* request,
+    google::protobuf::Empty* response) {
         return handleGrpcRequest(context, request, response,
-            [this](const camera::EnableStabilizationRequest* req, camera::EnableStabilizationResponse* resp) {
+            [this](const camera::v1::SetStabilizationRequest* req, google::protobuf::Empty* resp) {
                 return request_handler_.stabilize(req->enable());
             });
     }
