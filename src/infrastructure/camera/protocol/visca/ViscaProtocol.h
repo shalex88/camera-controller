@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <memory>
+#include <mutex>
 #include <span>
 
 #include "common/types/Result.h"
@@ -13,6 +14,7 @@ namespace service::infrastructure {
     class ViscaProtocol {
     public:
         struct ViscaPayload;
+
         struct ViscaTitleData {
             uint32_t vposition{};
             uint32_t hposition{};
@@ -22,11 +24,11 @@ namespace service::infrastructure {
         };
 
         explicit ViscaProtocol(std::unique_ptr<ITransport> transport);
-        ~ViscaProtocol();
+        ~ViscaProtocol() noexcept;
 
         Result<void> setAddress();
         Result<void> clear() const;
-        Result<std::string_view> getCameraInfo() const;
+        Result<std::string> getCameraInfo() const;
         Result<void> open() const;
         Result<void> close() const;
         Result<void> setPower(uint8_t power) const;
@@ -105,7 +107,8 @@ namespace service::infrastructure {
         Result<void> memoryRecall(uint8_t channel) const;
         Result<void> memoryReset(uint8_t channel) const;
         Result<void> setDisplay(uint8_t power) const;
-        Result<void> setDateTime(uint16_t year, uint16_t month, uint16_t day, uint16_t hour, uint16_t minute) const;
+        Result<void> setDateTime(uint16_t year, uint16_t month, uint16_t day, uint16_t hour,
+                                 uint16_t minute) const;
         Result<void> setDateDisplay(uint8_t power) const;
         Result<void> setTimeDisplay(uint8_t power) const;
         Result<void> setTitleDisplay(uint8_t power) const;
@@ -227,9 +230,10 @@ namespace service::infrastructure {
         std::unique_ptr<ITransport> transport_;
         uint8_t broadcast_{};
         uint8_t cam_address_{};
+        mutable std::mutex mutex_;
         Result<ViscaPayload> writeRead(ViscaPayload* payload) const;
         std::vector<std::byte> encode(std::span<const std::byte> payload) const;
         Result<void> write(ViscaPayload* payload) const;
         Result<ViscaPayload> read() const;
     };
-}
+} // namespace service::infrastructure

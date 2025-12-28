@@ -1,388 +1,447 @@
 #include "ViscaProtocol.h"
 
 #include <algorithm>
+#include <iomanip>
+#include <sstream>
 
 #include "infrastructure/camera/transport/ITransport.h"
 
-namespace {
-    constexpr uint32_t VISCA_MAX_INPUT_BUFFER_SIZE = 16;
-    constexpr uint32_t VISCA_MIN_INPUT_BUFFER_SIZE = 3;
-    constexpr uint32_t VISCA_PAYLOAD_SIZE = 14;
-    constexpr uint32_t VISCA_SOCKET_NUM = 0;
-    constexpr std::byte VISCA_START_BYTE{0x80};
-    constexpr std::byte VISCA_RESPONSE_START_BYTE{0x90};
-    constexpr std::byte VISCA_BROADCAST_RESPONSE_BYTE{0x88};
-    constexpr std::byte VISCA_COMMAND{0x01};
-    constexpr std::byte VISCA_INQUIRY{0x09};
-    constexpr std::byte VISCA_TERMINATOR{0xFF};
-    constexpr std::byte VISCA_CATEGORY_INTERFACE{0x00};
-    constexpr std::byte VISCA_CATEGORY_CAMERA1{0x04};
-    constexpr std::byte VISCA_CATEGORY_PAN_TILTER{0x06};
-    constexpr std::byte VISCA_CATEGORY_CAMERA2{0x07};
-    constexpr std::byte VISCA_POWER{0x00};
-    constexpr std::byte VISCA_ADDRESS{0x30};
-    constexpr std::byte VISCA_DEVICE_INFO{0x02};
-    constexpr std::byte VISCA_KEYLOCK{0x17};
-    constexpr std::byte VISCA_ID{0x22};
-    constexpr std::byte VISCA_ZOOM{0x07};
-    constexpr std::byte VISCA_ZOOM_STOP{0x00};
-    constexpr std::byte VISCA_ZOOM_TELE{0x02};
-    constexpr std::byte VISCA_ZOOM_WIDE{0x03};
-    constexpr std::byte VISCA_ZOOM_TELE_SPEED{0x20};
-    constexpr std::byte VISCA_ZOOM_WIDE_SPEED{0x30};
-    constexpr std::byte VISCA_ZOOM_VALUE{0x47};
-    constexpr std::byte VISCA_ZOOM_FOCUS_VALUE{0x47};
-    constexpr std::byte VISCA_DZOOM{0x06};
-    constexpr std::byte VISCA_DZOOM_VALUE{0x46};
-    constexpr std::byte VISCA_DZOOM_LIMIT{0x26};
-    constexpr std::byte VISCA_DZOOM_1X{0x00};
-    constexpr std::byte VISCA_DZOOM_1_5X{0x01};
-    constexpr std::byte VISCA_DZOOM_2X{0x02};
-    constexpr std::byte VISCA_DZOOM_4X{0x03};
-    constexpr std::byte VISCA_DZOOM_8X{0x04};
-    constexpr std::byte VISCA_DZOOM_12X{0x05};
-    constexpr std::byte VISCA_DZOOM_MODE{0x36};
-    constexpr std::byte VISCA_DZOOM_COMBINE{0x00};
-    constexpr std::byte VISCA_DZOOM_SEPARATE{0x01};
-    constexpr std::byte VISCA_FOCUS{0x08};
-    constexpr std::byte VISCA_FOCUS_STOP{0x00};
-    constexpr std::byte VISCA_FOCUS_FAR{0x02};
-    constexpr std::byte VISCA_FOCUS_NEAR{0x03};
-    constexpr std::byte VISCA_FOCUS_FAR_SPEED{0x20};
-    constexpr std::byte VISCA_FOCUS_NEAR_SPEED{0x30};
-    constexpr std::byte VISCA_FOCUS_VALUE{0x48};
-    constexpr std::byte VISCA_FOCUS_AUTO{0x38};
-    constexpr std::byte VISCA_FOCUS_AUTO_MAN{0x10};
-    constexpr std::byte VISCA_FOCUS_ONE_PUSH{0x18};
-    constexpr std::byte VISCA_FOCUS_ONE_PUSH_TRIG{0x01};
-    constexpr std::byte VISCA_FOCUS_ONE_PUSH_INF{0x02};
-    constexpr std::byte VISCA_FOCUS_AUTO_SENSE{0x58};
-    constexpr std::byte VISCA_FOCUS_AUTO_SENSE_HIGH{0x02};
-    constexpr std::byte VISCA_FOCUS_AUTO_SENSE_LOW{0x03};
-    constexpr std::byte VISCA_FOCUS_NEAR_LIMIT{0x28};
-    constexpr std::byte VISCA_WB{0x35};
-    constexpr std::byte VISCA_WB_AUTO{0x00};
-    constexpr std::byte VISCA_WB_INDOOR{0x01};
-    constexpr std::byte VISCA_WB_OUTDOOR{0x02};
-    constexpr std::byte VISCA_WB_ONE_PUSH{0x03};
-    constexpr std::byte VISCA_WB_ATW{0x04};
-    constexpr std::byte VISCA_WB_MANUAL{0x05};
-    constexpr std::byte VISCA_WB_TRIGGER{0x10};
-    constexpr std::byte VISCA_WB_ONE_PUSH_TRIG{0x05};
-    constexpr std::byte VISCA_RGAIN{0x03};
-    constexpr std::byte VISCA_RGAIN_VALUE{0x43};
-    constexpr std::byte VISCA_BGAIN{0x04};
-    constexpr std::byte VISCA_BGAIN_VALUE{0x44};
-    constexpr std::byte VISCA_AUTO_EXP{0x39};
-    constexpr std::byte VISCA_AUTO_EXP_FULL_AUTO{0x00};
-    constexpr std::byte VISCA_AUTO_EXP_MANUAL{0x03};
-    constexpr std::byte VISCA_AUTO_EXP_SHUTTER_PRIORITY{0x0A};
-    constexpr std::byte VISCA_AUTO_EXP_IRIS_PRIORITY{0x0B};
-    constexpr std::byte VISCA_AUTO_EXP_GAIN_PRIORITY{0x0C};
-    constexpr std::byte VISCA_AUTO_EXP_BRIGHT{0x0D};
-    constexpr std::byte VISCA_AUTO_EXP_SHUTTER_AUTO{0x1A};
-    constexpr std::byte VISCA_AUTO_EXP_IRIS_AUTO{0x1B};
-    constexpr std::byte VISCA_AUTO_EXP_GAIN_AUTO{0x1C};
-    constexpr std::byte VISCA_SLOW_SHUTTER{0x5A};
-    constexpr std::byte VISCA_SLOW_SHUTTER_AUTO{0x02};
-    constexpr std::byte VISCA_SLOW_SHUTTER_MANUAL{0x03};
-    constexpr std::byte VISCA_SHUTTER{0x0A};
-    constexpr std::byte VISCA_SHUTTER_VALUE{0x4A};
-    constexpr std::byte VISCA_IRIS{0x0B};
-    constexpr std::byte VISCA_IRIS_VALUE{0x4B};
-    constexpr std::byte VISCA_GAIN{0x0C};
-    constexpr std::byte VISCA_GAIN_VALUE{0x4C};
-    constexpr std::byte VISCA_BRIGHT{0x0D};
-    constexpr std::byte VISCA_BRIGHT_VALUE{0x4D};
-    constexpr std::byte VISCA_EXP_COMP{0x0E};
-    constexpr std::byte VISCA_EXP_COMP_POWER{0x3E};
-    constexpr std::byte VISCA_EXP_COMP_VALUE{0x4E};
-    constexpr std::byte VISCA_BACKLIGHT_COMP{0x33};
-    constexpr std::byte VISCA_SPOT_AE{0x59};
-    constexpr std::byte VISCA_SPOT_AE_POSITION{0x29};
-    constexpr std::byte VISCA_APERTURE{0x02};
-    constexpr std::byte VISCA_APERTURE_VALUE{0x42};
-    constexpr std::byte VISCA_ZERO_LUX{0x01};
-    constexpr std::byte VISCA_IR_LED{0x31};
-    constexpr std::byte VISCA_WIDE_MODE{0x60};
-    constexpr std::byte VISCA_WIDE_MODE_OFF{0x00};
-    constexpr std::byte VISCA_WIDE_MODE_CINEMA{0x01};
-    constexpr std::byte VISCA_WIDE_MODE_16_9{0x02};
-    constexpr std::byte VISCA_MIRROR{0x61};
-    constexpr std::byte VISCA_FREEZE{0x62};
-    constexpr std::byte VISCA_PICTURE_EFFECT{0x63};
-    constexpr std::byte VISCA_PICTURE_EFFECT_OFF{0x00};
-    constexpr std::byte VISCA_PICTURE_EFFECT_PASTEL{0x01};
-    constexpr std::byte VISCA_PICTURE_EFFECT_NEGATIVE{0x02};
-    constexpr std::byte VISCA_PICTURE_EFFECT_SEPIA{0x03};
-    constexpr std::byte VISCA_PICTURE_EFFECT_BW{0x04};
-    constexpr std::byte VISCA_PICTURE_EFFECT_SOLARIZE{0x05};
-    constexpr std::byte VISCA_PICTURE_EFFECT_MOSAIC{0x06};
-    constexpr std::byte VISCA_PICTURE_EFFECT_SLIM{0x07};
-    constexpr std::byte VISCA_PICTURE_EFFECT_STRETCH{0x08};
-    constexpr std::byte VISCA_DIGITAL_EFFECT{0x64};
-    constexpr std::byte VISCA_DIGITAL_EFFECT_OFF{0x00};
-    constexpr std::byte VISCA_DIGITAL_EFFECT_STILL{0x01};
-    constexpr std::byte VISCA_DIGITAL_EFFECT_FLASH{0x02};
-    constexpr std::byte VISCA_DIGITAL_EFFECT_LUMI{0x03};
-    constexpr std::byte VISCA_DIGITAL_EFFECT_TRAIL{0x04};
-    constexpr std::byte VISCA_DIGITAL_EFFECT_LEVEL{0x65};
-    constexpr std::byte VISCA_CAM_STABILIZER{0x34};
-    constexpr std::byte VISCA_MEMORY{0x3F};
-    constexpr std::byte VISCA_MEMORY_RESET{0x00};
-    constexpr std::byte VISCA_MEMORY_SET{0x01};
-    constexpr std::byte VISCA_MEMORY_RECALL{0x02};
-    constexpr std::byte VISCA_MEMORY_0{0x00};
-    constexpr std::byte VISCA_MEMORY_1{0x01};
-    constexpr std::byte VISCA_MEMORY_2{0x02};
-    constexpr std::byte VISCA_MEMORY_3{0x03};
-    constexpr std::byte VISCA_MEMORY_4{0x04};
-    constexpr std::byte VISCA_MEMORY_5{0x05};
-    constexpr std::byte VISCA_MEMORY_CUSTOM{0x7F};
-    constexpr std::byte VISCA_DISPLAY{0x15};
-    constexpr std::byte VISCA_DISPLAY_TOGGLE{0x10};
-    constexpr std::byte VISCA_DATE_TIME_SET{0x70};
-    constexpr std::byte VISCA_DATE_DISPLAY{0x71};
-    constexpr std::byte VISCA_TIME_DISPLAY{0x72};
-    constexpr std::byte VISCA_TITLE_DISPLAY{0x74};
-    constexpr std::byte VISCA_TITLE_DISPLAY_CLEAR{0x00};
-    constexpr std::byte VISCA_TITLE_SET{0x73};
-    constexpr std::byte VISCA_TITLE_SET_PARAMS{0x00};
-    constexpr std::byte VISCA_TITLE_SET_PART1{0x01};
-    constexpr std::byte VISCA_TITLE_SET_PART2{0x02};
-    constexpr std::byte VISCA_IRRECEIVE{0x08};
-    constexpr std::byte VISCA_IRRECEIVE_ONOFF{0x10};
-    constexpr std::byte VISCA_PT_DRIVE{0x01};
-    constexpr std::byte VISCA_PT_DRIVE_HORIZ_LEFT{0x01};
-    constexpr std::byte VISCA_PT_DRIVE_HORIZ_RIGHT{0x02};
-    constexpr std::byte VISCA_PT_DRIVE_HORIZ_STOP{0x03};
-    constexpr std::byte VISCA_PT_DRIVE_VERT_UP{0x01};
-    constexpr std::byte VISCA_PT_DRIVE_VERT_DOWN{0x02};
-    constexpr std::byte VISCA_PT_DRIVE_VERT_STOP{0x03};
-    constexpr std::byte VISCA_PT_ABSOLUTE_POSITION{0x02};
-    constexpr std::byte VISCA_PT_RELATIVE_POSITION{0x03};
-    constexpr std::byte VISCA_PT_HOME{0x04};
-    constexpr std::byte VISCA_PT_RESET{0x05};
-    constexpr std::byte VISCA_PT_LIMITSET{0x07};
-    constexpr std::byte VISCA_PT_LIMITSET_SET{0x00};
-    constexpr std::byte VISCA_PT_LIMITSET_CLEAR{0x01};
-    constexpr std::byte VISCA_PT_LIMITSET_SET_UR{0x01};
-    constexpr std::byte VISCA_PT_LIMITSET_SET_DL{0x00};
-    constexpr std::byte VISCA_PT_DATASCREEN{0x06};
-    constexpr std::byte VISCA_PT_DATASCREEN_ONOFF{0x10};
-    constexpr std::byte VISCA_PT_VIDEOSYSTEM_INQ{0x23};
-    constexpr std::byte VISCA_PT_MODE_INQ{0x10};
-    constexpr std::byte VISCA_PT_MAXSPEED_INQ{0x11};
-    constexpr std::byte VISCA_PT_POSITION_INQ{0x12};
-    constexpr std::byte VISCA_PT_DATASCREEN_INQ{0x06};
-    /**************************/
-    /* DIRECT REGISTER ACCESS */
-    /**************************/
-    constexpr std::byte VISCA_REGISTER_VALUE{0x24};
-    constexpr std::byte VISCA_REGISTER_VISCA_BAUD{0x00};
-    constexpr std::byte VISCA_REGISTER_BD9600{0x00};
-    constexpr std::byte VISCA_REGISTER_BD19200{0x01};
-    constexpr std::byte VISCA_REGISTER_BD38400{0x02};
-    /* FCB-H10: Video Standard */
-    constexpr std::byte VISCA_REGISTER_VIDEO_SIGNAL{0x70};
-    constexpr std::byte VISCA_REGISTER_VIDEO_1080I_60{0x01};
-    constexpr std::byte VISCA_REGISTER_VIDEO_720P_60{0x02};
-    constexpr std::byte VISCA_REGISTER_VIDEO_D1_CROP_60{0x03};
-    constexpr std::byte VISCA_REGISTER_VIDEO_D1_SQ_60{0x04};
-    constexpr std::byte VISCA_REGISTER_VIDEO_1080I_50{0x11};
-    constexpr std::byte VISCA_REGISTER_VIDEO_720P_50{0x12};
-    constexpr std::byte VISCA_REGISTER_VIDEO_D1_CROP_50{0x13};
-    constexpr std::byte VISCA_REGISTER_VIDEO_D1_SQ_50{0x14};
-    /*****************/
-    /* D30/D31 CODES */
-    /*****************/
-    constexpr std::byte VISCA_WIDE_CON_LENS{0x26};
-    constexpr std::byte VISCA_WIDE_CON_LENS_SET{0x00};
-    constexpr std::byte VISCA_AT_MODE{0x01};
-    constexpr std::byte VISCA_AT_ONOFF{0x10};
-    constexpr std::byte VISCA_AT_AE{0x02};
-    constexpr std::byte VISCA_AT_AUTOZOOM{0x03};
-    constexpr std::byte VISCA_ATMD_FRAMEDISPLAY{0x04};
-    constexpr std::byte VISCA_AT_FRAMEOFFSET{0x05};
-    constexpr std::byte VISCA_ATMD_STARTSTOP{0x06};
-    constexpr std::byte VISCA_AT_CHASE{0x07};
-    constexpr std::byte VISCA_AT_CHASE_NEXT{0x10};
-    constexpr std::byte VISCA_MD_MODE{0x08};
-    constexpr std::byte VISCA_MD_ONOFF{0x10};
-    constexpr std::byte VISCA_MD_FRAME{0x09};
-    constexpr std::byte VISCA_MD_DETECT{0x0A};
-    constexpr std::byte VISCA_MD_ADJUST{0x00};
-    constexpr std::byte VISCA_MD_ADJUST_YLEVEL{0x0B};
-    constexpr std::byte VISCA_MD_ADJUST_HUELEVEL{0x0C};
-    constexpr std::byte VISCA_MD_ADJUST_SIZE{0x0D};
-    constexpr std::byte VISCA_MD_ADJUST_DISPTIME{0x0F};
-    constexpr std::byte VISCA_MD_ADJUST_REFTIME{0x0B};
-    constexpr std::byte VISCA_MD_ADJUST_REFMODE{0x10};
-    constexpr std::byte VISCA_AT_ENTRY{0x15};
-    constexpr std::byte VISCA_AT_LOSTINFO{0x20};
-    constexpr std::byte VISCA_MD_LOSTINFO{0x21};
-    constexpr std::byte VISCA_ATMD_LOSTINFO1{0x20};
-    constexpr std::byte VISCA_ATMD_LOSTINFO2{0x07};
-    constexpr std::byte VISCA_MD_MEASURE_MODE_1{0x27};
-    constexpr std::byte VISCA_MD_MEASURE_MODE_2{0x28};
-    constexpr std::byte VISCA_ATMD_MODE{0x22};
-    constexpr std::byte VISCA_AT_MODE_QUERY{0x23}; // CAM_MemSave
-    constexpr std::byte VISCA_MD_MODE_QUERY{0x24};
-    constexpr std::byte VISCA_MD_REFTIME_QUERY{0x11};
-    constexpr std::byte VISCA_AT_POSITION{0x20};
-    constexpr std::byte VISCA_MD_POSITION{0x21};
-    /* Generic definitions */
-    constexpr std::byte VISCA_ON{0x02};
-    constexpr std::byte VISCA_OFF{0x03};
-    constexpr std::byte VISCA_RESET{0x00};
-    constexpr std::byte VISCA_UP{0x02};
-    constexpr std::byte VISCA_DOWN{0x03};
-
-    enum class ResponseType : uint32_t {
-        Clear = 0x40,
-        Address = 0x30,
-        Ack = 0x40,
-        Completed = 0x50,
-        Error = 0x60
-    };
-
-    enum class ResultCode : uint8_t {
-        Success = 0x00,
-        Failure = 0xFF,
-        ErrorMessageLength = 0x01,
-        ErrorSyntax = 0x02,
-        ErrorCmdBufferFull = 0x03,
-        ErrorCmdCancelled = 0x04,
-        ErrorNoSocket = 0x05,
-        ErrorCmdNotExecutable = 0x41
-    };
-
-    enum class CameraVendors : uint16_t {
-        Sony = 0x0020
-    };
-
-    enum class CameraModels : uint16_t {
-        EW9500H = 0x070F
-    };
-}
-
 namespace service::infrastructure {
+    // ViscaPayload definition
     struct ViscaProtocol::ViscaPayload {
-        std::array<std::byte, VISCA_PAYLOAD_SIZE> data{};
-        size_t size = 0;
+        std::array<std::byte, 14> data{};
+        uint8_t size = 0;
     };
 
-    std::string_view getViscaErrorMessage(const ResultCode error_code) {
-        switch (error_code) {
-            case ResultCode::ErrorMessageLength:
-                return "Invalid message length";
-            case ResultCode::ErrorSyntax:
-                return "Syntax error";
-            case ResultCode::ErrorCmdBufferFull:
-                return "Command buffer full";
-            case ResultCode::ErrorCmdCancelled:
-                return "Command cancelled";
-            case ResultCode::ErrorNoSocket:
-                return "No socket available";
-            case ResultCode::ErrorCmdNotExecutable:
-                return "Command not executable";
-            default: {
-                return "Unknown error";
+    namespace {
+        // Protocol configuration
+        constexpr uint32_t VISCA_PAYLOAD_SIZE = 14;
+        constexpr uint32_t VISCA_MAX_INPUT_BUFFER_SIZE = 16;
+        constexpr uint32_t VISCA_MIN_INPUT_BUFFER_SIZE = 3;
+        constexpr uint32_t VISCA_SOCKET_NUM = 0;
+
+        // Protocol control bytes
+        constexpr std::byte VISCA_START_BYTE{0x80};
+        constexpr std::byte VISCA_RESPONSE_START_BYTE{0x90};
+        constexpr std::byte VISCA_BROADCAST_RESPONSE_BYTE{0x88};
+        constexpr std::byte VISCA_COMMAND{0x01};
+        constexpr std::byte VISCA_INQUIRY{0x09};
+        constexpr std::byte VISCA_TERMINATOR{0xFF};
+
+        // Command categories
+        constexpr std::byte VISCA_CATEGORY_INTERFACE{0x00};
+        constexpr std::byte VISCA_CATEGORY_CAMERA1{0x04};
+        constexpr std::byte VISCA_CATEGORY_PAN_TILTER{0x06};
+        constexpr std::byte VISCA_CATEGORY_CAMERA2{0x07};
+
+        // Basic camera commands
+        constexpr std::byte VISCA_POWER{0x00};
+        constexpr std::byte VISCA_ADDRESS{0x30};
+        constexpr std::byte VISCA_DEVICE_INFO{0x02};
+        constexpr std::byte VISCA_KEYLOCK{0x17};
+        constexpr std::byte VISCA_ID{0x22};
+
+        // Zoom commands
+        constexpr std::byte VISCA_ZOOM{0x07};
+        constexpr std::byte VISCA_ZOOM_STOP{0x00};
+        constexpr std::byte VISCA_ZOOM_TELE{0x02};
+        constexpr std::byte VISCA_ZOOM_WIDE{0x03};
+        constexpr std::byte VISCA_ZOOM_TELE_SPEED{0x20};
+        constexpr std::byte VISCA_ZOOM_WIDE_SPEED{0x30};
+        constexpr std::byte VISCA_ZOOM_VALUE{0x47};
+        constexpr std::byte VISCA_ZOOM_FOCUS_VALUE{0x47};
+
+        // Digital zoom commands
+        constexpr std::byte VISCA_DZOOM{0x06};
+        constexpr std::byte VISCA_DZOOM_VALUE{0x46};
+        constexpr std::byte VISCA_DZOOM_LIMIT{0x26};
+        constexpr std::byte VISCA_DZOOM_1X{0x00};
+        constexpr std::byte VISCA_DZOOM_1_5X{0x01};
+        constexpr std::byte VISCA_DZOOM_2X{0x02};
+        constexpr std::byte VISCA_DZOOM_4X{0x03};
+        constexpr std::byte VISCA_DZOOM_8X{0x04};
+        constexpr std::byte VISCA_DZOOM_12X{0x05};
+        constexpr std::byte VISCA_DZOOM_MODE{0x36};
+        constexpr std::byte VISCA_DZOOM_COMBINE{0x00};
+        constexpr std::byte VISCA_DZOOM_SEPARATE{0x01};
+
+        // Focus commands
+        constexpr std::byte VISCA_FOCUS{0x08};
+        constexpr std::byte VISCA_FOCUS_STOP{0x00};
+        constexpr std::byte VISCA_FOCUS_FAR{0x02};
+        constexpr std::byte VISCA_FOCUS_NEAR{0x03};
+        constexpr std::byte VISCA_FOCUS_FAR_SPEED{0x20};
+        constexpr std::byte VISCA_FOCUS_NEAR_SPEED{0x30};
+        constexpr std::byte VISCA_FOCUS_VALUE{0x48};
+        constexpr std::byte VISCA_FOCUS_AUTO{0x38};
+        constexpr std::byte VISCA_FOCUS_AUTO_MAN{0x10};
+        constexpr std::byte VISCA_FOCUS_ONE_PUSH{0x18};
+        constexpr std::byte VISCA_FOCUS_ONE_PUSH_TRIG{0x01};
+        constexpr std::byte VISCA_FOCUS_ONE_PUSH_INF{0x02};
+        constexpr std::byte VISCA_FOCUS_AUTO_SENSE{0x58};
+        constexpr std::byte VISCA_FOCUS_AUTO_SENSE_HIGH{0x02};
+        constexpr std::byte VISCA_FOCUS_AUTO_SENSE_LOW{0x03};
+        constexpr std::byte VISCA_FOCUS_NEAR_LIMIT{0x28};
+
+        // White balance commands
+        constexpr std::byte VISCA_WB{0x35};
+        constexpr std::byte VISCA_WB_AUTO{0x00};
+        constexpr std::byte VISCA_WB_INDOOR{0x01};
+        constexpr std::byte VISCA_WB_OUTDOOR{0x02};
+        constexpr std::byte VISCA_WB_ONE_PUSH{0x03};
+        constexpr std::byte VISCA_WB_ATW{0x04};
+        constexpr std::byte VISCA_WB_MANUAL{0x05};
+        constexpr std::byte VISCA_WB_TRIGGER{0x10};
+        constexpr std::byte VISCA_WB_ONE_PUSH_TRIG{0x05};
+
+        // Gain commands
+        constexpr std::byte VISCA_RGAIN{0x03};
+        constexpr std::byte VISCA_RGAIN_VALUE{0x43};
+        constexpr std::byte VISCA_BGAIN{0x04};
+        constexpr std::byte VISCA_BGAIN_VALUE{0x44};
+        constexpr std::byte VISCA_GAIN{0x0C};
+        constexpr std::byte VISCA_GAIN_VALUE{0x4C};
+
+        // Exposure commands
+        constexpr std::byte VISCA_AUTO_EXP{0x39};
+        constexpr std::byte VISCA_AUTO_EXP_FULL_AUTO{0x00};
+        constexpr std::byte VISCA_AUTO_EXP_MANUAL{0x03};
+        constexpr std::byte VISCA_AUTO_EXP_SHUTTER_PRIORITY{0x0A};
+        constexpr std::byte VISCA_AUTO_EXP_IRIS_PRIORITY{0x0B};
+        constexpr std::byte VISCA_AUTO_EXP_GAIN_PRIORITY{0x0C};
+        constexpr std::byte VISCA_AUTO_EXP_BRIGHT{0x0D};
+        constexpr std::byte VISCA_AUTO_EXP_SHUTTER_AUTO{0x1A};
+        constexpr std::byte VISCA_AUTO_EXP_IRIS_AUTO{0x1B};
+        constexpr std::byte VISCA_AUTO_EXP_GAIN_AUTO{0x1C};
+        constexpr std::byte VISCA_SLOW_SHUTTER{0x5A};
+        constexpr std::byte VISCA_SLOW_SHUTTER_AUTO{0x02};
+        constexpr std::byte VISCA_SLOW_SHUTTER_MANUAL{0x03};
+
+        // Shutter, iris, brightness commands
+        constexpr std::byte VISCA_SHUTTER{0x0A};
+        constexpr std::byte VISCA_SHUTTER_VALUE{0x4A};
+        constexpr std::byte VISCA_IRIS{0x0B};
+        constexpr std::byte VISCA_IRIS_VALUE{0x4B};
+        constexpr std::byte VISCA_BRIGHT{0x0D};
+        constexpr std::byte VISCA_BRIGHT_VALUE{0x4D};
+
+        // Exposure compensation commands
+        constexpr std::byte VISCA_EXP_COMP{0x0E};
+        constexpr std::byte VISCA_EXP_COMP_POWER{0x3E};
+        constexpr std::byte VISCA_EXP_COMP_VALUE{0x4E};
+        constexpr std::byte VISCA_BACKLIGHT_COMP{0x33};
+        constexpr std::byte VISCA_SPOT_AE{0x59};
+        constexpr std::byte VISCA_SPOT_AE_POSITION{0x29};
+
+        // Aperture commands
+        constexpr std::byte VISCA_APERTURE{0x02};
+        constexpr std::byte VISCA_APERTURE_VALUE{0x42};
+
+        // Special imaging modes
+        constexpr std::byte VISCA_ZERO_LUX{0x01};
+        constexpr std::byte VISCA_IR_LED{0x31};
+        constexpr std::byte VISCA_WIDE_MODE{0x60};
+        constexpr std::byte VISCA_WIDE_MODE_OFF{0x00};
+        constexpr std::byte VISCA_WIDE_MODE_CINEMA{0x01};
+        constexpr std::byte VISCA_WIDE_MODE_16_9{0x02};
+        constexpr std::byte VISCA_MIRROR{0x61};
+        constexpr std::byte VISCA_FREEZE{0x62};
+
+        // Picture effects
+        constexpr std::byte VISCA_PICTURE_EFFECT{0x63};
+        constexpr std::byte VISCA_PICTURE_EFFECT_OFF{0x00};
+        constexpr std::byte VISCA_PICTURE_EFFECT_PASTEL{0x01};
+        constexpr std::byte VISCA_PICTURE_EFFECT_NEGATIVE{0x02};
+        constexpr std::byte VISCA_PICTURE_EFFECT_SEPIA{0x03};
+        constexpr std::byte VISCA_PICTURE_EFFECT_BW{0x04};
+        constexpr std::byte VISCA_PICTURE_EFFECT_SOLARIZE{0x05};
+        constexpr std::byte VISCA_PICTURE_EFFECT_MOSAIC{0x06};
+        constexpr std::byte VISCA_PICTURE_EFFECT_SLIM{0x07};
+        constexpr std::byte VISCA_PICTURE_EFFECT_STRETCH{0x08};
+
+        // Digital effects
+        constexpr std::byte VISCA_DIGITAL_EFFECT{0x64};
+        constexpr std::byte VISCA_DIGITAL_EFFECT_OFF{0x00};
+        constexpr std::byte VISCA_DIGITAL_EFFECT_STILL{0x01};
+        constexpr std::byte VISCA_DIGITAL_EFFECT_FLASH{0x02};
+        constexpr std::byte VISCA_DIGITAL_EFFECT_LUMI{0x03};
+        constexpr std::byte VISCA_DIGITAL_EFFECT_TRAIL{0x04};
+        constexpr std::byte VISCA_DIGITAL_EFFECT_LEVEL{0x65};
+
+        // Camera stabilizer
+        constexpr std::byte VISCA_CAM_STABILIZER{0x34};
+
+        // Memory commands
+        constexpr std::byte VISCA_MEMORY{0x3F};
+        constexpr std::byte VISCA_MEMORY_RESET{0x00};
+        constexpr std::byte VISCA_MEMORY_SET{0x01};
+        constexpr std::byte VISCA_MEMORY_RECALL{0x02};
+        constexpr std::byte VISCA_MEMORY_0{0x00};
+        constexpr std::byte VISCA_MEMORY_1{0x01};
+        constexpr std::byte VISCA_MEMORY_2{0x02};
+        constexpr std::byte VISCA_MEMORY_3{0x03};
+        constexpr std::byte VISCA_MEMORY_4{0x04};
+        constexpr std::byte VISCA_MEMORY_5{0x05};
+        constexpr std::byte VISCA_MEMORY_CUSTOM{0x7F};
+
+        // Display commands
+        constexpr std::byte VISCA_DISPLAY{0x15};
+        constexpr std::byte VISCA_DISPLAY_TOGGLE{0x10};
+        constexpr std::byte VISCA_DATE_TIME_SET{0x70};
+        constexpr std::byte VISCA_DATE_DISPLAY{0x71};
+        constexpr std::byte VISCA_TIME_DISPLAY{0x72};
+        constexpr std::byte VISCA_TITLE_DISPLAY{0x74};
+        constexpr std::byte VISCA_TITLE_DISPLAY_CLEAR{0x00};
+        constexpr std::byte VISCA_TITLE_SET{0x73};
+        constexpr std::byte VISCA_TITLE_SET_PARAMS{0x00};
+        constexpr std::byte VISCA_TITLE_SET_PART1{0x01};
+        constexpr std::byte VISCA_TITLE_SET_PART2{0x02};
+
+        // IR receive commands
+        constexpr std::byte VISCA_IRRECEIVE{0x08};
+        constexpr std::byte VISCA_IRRECEIVE_ONOFF{0x10};
+
+        // Pan/tilt commands
+        constexpr std::byte VISCA_PT_DRIVE{0x01};
+        constexpr std::byte VISCA_PT_DRIVE_HORIZ_LEFT{0x01};
+        constexpr std::byte VISCA_PT_DRIVE_HORIZ_RIGHT{0x02};
+        constexpr std::byte VISCA_PT_DRIVE_HORIZ_STOP{0x03};
+        constexpr std::byte VISCA_PT_DRIVE_VERT_UP{0x01};
+        constexpr std::byte VISCA_PT_DRIVE_VERT_DOWN{0x02};
+        constexpr std::byte VISCA_PT_DRIVE_VERT_STOP{0x03};
+        constexpr std::byte VISCA_PT_ABSOLUTE_POSITION{0x02};
+        constexpr std::byte VISCA_PT_RELATIVE_POSITION{0x03};
+        constexpr std::byte VISCA_PT_HOME{0x04};
+        constexpr std::byte VISCA_PT_RESET{0x05};
+        constexpr std::byte VISCA_PT_LIMITSET{0x07};
+        constexpr std::byte VISCA_PT_LIMITSET_SET{0x00};
+        constexpr std::byte VISCA_PT_LIMITSET_CLEAR{0x01};
+        constexpr std::byte VISCA_PT_LIMITSET_SET_UR{0x01};
+        constexpr std::byte VISCA_PT_LIMITSET_SET_DL{0x00};
+        constexpr std::byte VISCA_PT_DATASCREEN{0x06};
+        constexpr std::byte VISCA_PT_DATASCREEN_ONOFF{0x10};
+        constexpr std::byte VISCA_PT_VIDEOSYSTEM_INQ{0x23};
+        constexpr std::byte VISCA_PT_MODE_INQ{0x10};
+        constexpr std::byte VISCA_PT_MAXSPEED_INQ{0x11};
+        constexpr std::byte VISCA_PT_POSITION_INQ{0x12};
+        constexpr std::byte VISCA_PT_DATASCREEN_INQ{0x06};
+
+        // Direct register access
+        constexpr std::byte VISCA_REGISTER_VALUE{0x24};
+        constexpr std::byte VISCA_REGISTER_VISCA_BAUD{0x00};
+        constexpr std::byte VISCA_REGISTER_BD9600{0x00};
+        constexpr std::byte VISCA_REGISTER_BD19200{0x01};
+        constexpr std::byte VISCA_REGISTER_BD38400{0x02};
+        constexpr std::byte VISCA_REGISTER_VIDEO_SIGNAL{0x70};
+        constexpr std::byte VISCA_REGISTER_VIDEO_1080I_60{0x01};
+        constexpr std::byte VISCA_REGISTER_VIDEO_720P_60{0x02};
+        constexpr std::byte VISCA_REGISTER_VIDEO_D1_CROP_60{0x03};
+        constexpr std::byte VISCA_REGISTER_VIDEO_D1_SQ_60{0x04};
+        constexpr std::byte VISCA_REGISTER_VIDEO_1080I_50{0x11};
+        constexpr std::byte VISCA_REGISTER_VIDEO_720P_50{0x12};
+        constexpr std::byte VISCA_REGISTER_VIDEO_D1_CROP_50{0x13};
+        constexpr std::byte VISCA_REGISTER_VIDEO_D1_SQ_50{0x14};
+
+        // D30/D31 specific commands
+        constexpr std::byte VISCA_WIDE_CON_LENS{0x26};
+        constexpr std::byte VISCA_WIDE_CON_LENS_SET{0x00};
+        constexpr std::byte VISCA_AT_MODE{0x01};
+        constexpr std::byte VISCA_AT_ONOFF{0x10};
+        constexpr std::byte VISCA_AT_AE{0x02};
+        constexpr std::byte VISCA_AT_AUTOZOOM{0x03};
+        constexpr std::byte VISCA_ATMD_FRAMEDISPLAY{0x04};
+        constexpr std::byte VISCA_AT_FRAMEOFFSET{0x05};
+        constexpr std::byte VISCA_ATMD_STARTSTOP{0x06};
+        constexpr std::byte VISCA_AT_CHASE{0x07};
+        constexpr std::byte VISCA_AT_CHASE_NEXT{0x10};
+        constexpr std::byte VISCA_MD_MODE{0x08};
+        constexpr std::byte VISCA_MD_ONOFF{0x10};
+        constexpr std::byte VISCA_MD_FRAME{0x09};
+        constexpr std::byte VISCA_MD_DETECT{0x0A};
+        constexpr std::byte VISCA_MD_ADJUST{0x00};
+        constexpr std::byte VISCA_MD_ADJUST_YLEVEL{0x0B};
+        constexpr std::byte VISCA_MD_ADJUST_HUELEVEL{0x0C};
+        constexpr std::byte VISCA_MD_ADJUST_SIZE{0x0D};
+        constexpr std::byte VISCA_MD_ADJUST_DISPTIME{0x0F};
+        constexpr std::byte VISCA_MD_ADJUST_REFTIME{0x0B};
+        constexpr std::byte VISCA_MD_ADJUST_REFMODE{0x10};
+        constexpr std::byte VISCA_AT_ENTRY{0x15};
+        constexpr std::byte VISCA_AT_LOSTINFO{0x20};
+        constexpr std::byte VISCA_MD_LOSTINFO{0x21};
+        constexpr std::byte VISCA_ATMD_LOSTINFO1{0x20};
+        constexpr std::byte VISCA_ATMD_LOSTINFO2{0x07};
+        constexpr std::byte VISCA_MD_MEASURE_MODE_1{0x27};
+        constexpr std::byte VISCA_MD_MEASURE_MODE_2{0x28};
+        constexpr std::byte VISCA_ATMD_MODE{0x22};
+        constexpr std::byte VISCA_AT_MODE_QUERY{0x23};
+        constexpr std::byte VISCA_MD_MODE_QUERY{0x24};
+        constexpr std::byte VISCA_MD_REFTIME_QUERY{0x11};
+        constexpr std::byte VISCA_AT_POSITION{0x20};
+        constexpr std::byte VISCA_MD_POSITION{0x21};
+
+        // Generic control values
+        constexpr std::byte VISCA_ON{0x02};
+        constexpr std::byte VISCA_OFF{0x03};
+        constexpr std::byte VISCA_RESET{0x00};
+        constexpr std::byte VISCA_UP{0x02};
+        constexpr std::byte VISCA_DOWN{0x03};
+
+        // Response and error types
+        enum class ResponseType : uint8_t {
+            Clear = 0x40,
+            Address = 0x30,
+            Ack = 0x40,
+            Completed = 0x50,
+            Error = 0x60
+        };
+
+        enum class ResultCode : uint8_t {
+            Success = 0x00,
+            Failure = 0xFF,
+            ErrorMessageLength = 0x01,
+            ErrorSyntax = 0x02,
+            ErrorCmdBufferFull = 0x03,
+            ErrorCmdCancelled = 0x04,
+            ErrorNoSocket = 0x05,
+            ErrorCmdNotExecutable = 0x41
+        };
+
+        enum class CameraVendors : uint16_t {
+            Sony = 0x0020
+        };
+
+        enum class CameraModels : uint16_t {
+            EW9500H = 0x070F
+        };
+
+        // Helper functions
+        std::string_view getViscaErrorMessage(const ResultCode error_code) {
+            switch (error_code) {
+                case ResultCode::ErrorMessageLength:
+                    return "Invalid message length";
+                case ResultCode::ErrorSyntax:
+                    return "Syntax error";
+                case ResultCode::ErrorCmdBufferFull:
+                    return "Command buffer full";
+                case ResultCode::ErrorCmdCancelled:
+                    return "Command canceled";
+                case ResultCode::ErrorNoSocket:
+                    return "No socket available";
+                case ResultCode::ErrorCmdNotExecutable:
+                    return "Command not executable";
+                default:
+                    return "Unknown error";
             }
         }
-    }
 
-    std::string_view getCameraVendor(const uint16_t vendor) {
-        switch (static_cast<CameraVendors>(vendor)) {
-            case CameraVendors::Sony:
-                return "Sony";
-            default:
-                return "Unknown";
-        }
-    }
-
-    std::string_view getCameraModel(const uint16_t model) {
-        switch (static_cast<CameraModels>(model)) {
-            case CameraModels::EW9500H:
-                return "EW9500H";
-            default:
-                return "Unknown";
-        }
-    }
-
-    std::vector<std::byte> decode(const std::span<const std::byte> buffer) {
-        if (buffer.size() < 2) {
-            return {};
+        std::string_view getCameraVendor(uint16_t vendor) {
+            switch (static_cast<CameraVendors>(vendor)) {
+                case CameraVendors::Sony:
+                    return "Sony";
+                default:
+                    return "Unknown";
+            }
         }
 
-        if (buffer.front() != VISCA_RESPONSE_START_BYTE && buffer.front() != VISCA_BROADCAST_RESPONSE_BYTE) {
-            return {};
+        std::string_view getCameraModel(uint16_t model) {
+            switch (static_cast<CameraModels>(model)) {
+                case CameraModels::EW9500H:
+                    return "EW9500H";
+                default:
+                    return "Unknown";
+            }
         }
 
-        const auto terminator_it = std::ranges::find(buffer, VISCA_TERMINATOR);
-        if (terminator_it == buffer.end()) {
-            return {};
+        std::vector<std::byte> decode(const std::span<const std::byte> buffer) {
+            if (buffer.size() < 2) {
+                return {};
+            }
+
+            if (buffer.front() != VISCA_RESPONSE_START_BYTE && buffer.front() != VISCA_BROADCAST_RESPONSE_BYTE) {
+                return {};
+            }
+
+            const auto terminator_it = std::ranges::find(buffer, VISCA_TERMINATOR);
+            if (terminator_it == buffer.end()) {
+                return {};
+            }
+
+            const auto buffer_size = std::distance(buffer.begin(), terminator_it) + 1;
+            if (const auto payload_size = buffer_size - 3; payload_size <= 0) {
+                return {};
+            }
+
+            return {buffer.begin() + 2, buffer.begin() + buffer_size - 1};
         }
 
-        const auto buffer_size = std::distance(buffer.begin(), terminator_it) + 1;
-        if (const auto payload_size = buffer_size - 3; payload_size <= 0) {
-            return {};
+        constexpr std::byte getNibble(uint16_t value, unsigned shift) {
+            const auto unsigned_value = static_cast<std::uint32_t>(value);
+            return static_cast<std::byte>((unsigned_value >> shift) & 0x0FU);
         }
 
-        return {buffer.begin() + 2, buffer.begin() + buffer_size - 1};
+        void pack8Bit(ViscaProtocol::ViscaPayload* payload, const std::byte byte) {
+            payload->data.at(payload->size++) = byte;
+        }
+
+        void pack16BitAsNibbles(ViscaProtocol::ViscaPayload* payload, uint16_t value) {
+            pack8Bit(payload, getNibble(value, 12));
+            pack8Bit(payload, getNibble(value, 8));
+            pack8Bit(payload, getNibble(value, 4));
+            pack8Bit(payload, getNibble(value, 0));
+        }
+
+        uint16_t unpack16BitFromNibbles(const ViscaProtocol::ViscaPayload& payload, uint8_t index) {
+            if (static_cast<size_t>(index) + 3 >= payload.size) {
+                return 0U;
+            }
+            const auto byte0 = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index])) << 12U;
+            const auto byte1 = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index + 1U])) << 8U;
+            const auto byte2 = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index + 2U])) << 4U;
+            const auto byte3 = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index + 3U]));
+            return static_cast<uint16_t>(byte0 | byte1 | byte2 | byte3);
+        }
+
+        uint8_t unpack8Bit(const ViscaProtocol::ViscaPayload& payload, uint8_t index) {
+            if (static_cast<size_t>(index) >= payload.size) {
+                return 0U;
+            }
+            return std::to_integer<uint8_t>(payload.data[index]);
+        }
+
+        uint8_t unpack8BitFromNibbles(const ViscaProtocol::ViscaPayload& payload, uint8_t index) {
+            if (static_cast<size_t>(index) + 1 >= payload.size) {
+                return 0U;
+            }
+            const auto high = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index]) << 4U);
+            const auto low = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index + 1U]));
+            return static_cast<uint8_t>(high | low);
+        }
+
+        uint16_t unpack16Bit(const ViscaProtocol::ViscaPayload& payload, uint8_t index) {
+            if (static_cast<size_t>(index) + 1 >= payload.size) {
+                return 0U;
+            }
+            const auto high = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index]) << 8U);
+            const auto low = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index + 1U]));
+            return static_cast<uint16_t>(high | low);
+        }
+
+        std::span<std::byte> serialize(ViscaProtocol::ViscaPayload* payload) {
+            return {payload->data.data(), payload->size};
+        }
+
+        ViscaProtocol::ViscaPayload deserialize(std::span<const std::byte> buffer) {
+            ViscaProtocol::ViscaPayload payload{};
+            payload.size = buffer.size();
+            std::ranges::copy(buffer, payload.data.begin());
+            return payload;
+        }
+    } // unnamed namespace
+
+    ViscaProtocol::ViscaProtocol(std::unique_ptr<ITransport> transport) : transport_(std::move(transport)) {
     }
 
-    void pack8Bit(ViscaProtocol::ViscaPayload* payload, const std::byte byte) {
-        payload->data[payload->size++] = byte;
-    }
-
-    void pack16BitAsNibbles(ViscaProtocol::ViscaPayload* payload, const uint16_t value) {
-        pack8Bit(payload, static_cast<std::byte>((value & 0xF000) >> 12));
-        pack8Bit(payload, static_cast<std::byte>((value & 0x0F00) >> 8));
-        pack8Bit(payload, static_cast<std::byte>((value & 0x00F0) >> 4));
-        pack8Bit(payload, static_cast<std::byte>(value & 0x000F));
-    }
-
-    uint16_t unpack16BitFromNibbles(const ViscaProtocol::ViscaPayload& payload, const size_t index) {
-        const auto b0 = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index])) << 12;
-        const auto b1 = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index + 1])) << 8;
-        const auto b2 = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index + 2])) << 4;
-        const auto b3 = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index + 3]));
-        return static_cast<uint16_t>(b0 | b1 | b2 | b3);
-    }
-
-    uint8_t unpack8Bit(const ViscaProtocol::ViscaPayload& payload, const size_t index) {
-        return std::to_integer<uint8_t>(payload.data[index]);
-    }
-
-    uint8_t unpack8BitFromNibbles(const ViscaProtocol::ViscaPayload& payload, const size_t index) {
-        const auto high = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index])) << 4;
-        const auto low = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index + 1]));
-        return static_cast<uint8_t>(high | low);
-    }
-
-    uint16_t unpack16Bit(const ViscaProtocol::ViscaPayload& payload, const size_t index) {
-        const auto high = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index])) << 8;
-        const auto low = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index + 1]));
-        return static_cast<uint16_t>(high | low);
-    }
-
-    std::span<std::byte> serialize(ViscaProtocol::ViscaPayload* payload) {
-        return {payload->data.data(), payload->size};
-    }
-
-    ViscaProtocol::ViscaPayload deserialize(std::span<const std::byte> buffer) {
-        ViscaProtocol::ViscaPayload payload{};
-        payload.size = buffer.size();
-        std::ranges::copy(buffer, payload.data.begin());
-        return payload;
-    }
-
-    ViscaProtocol::ViscaProtocol(std::unique_ptr<ITransport> transport)
-        : transport_(std::move(transport)) {
-    }
-
-    ViscaProtocol::~ViscaProtocol() = default;
+    ViscaProtocol::~ViscaProtocol() noexcept = default;
 
     Result<void> ViscaProtocol::setAddress() {
         ViscaPayload tx_payload{};
@@ -416,7 +475,9 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<std::string_view> ViscaProtocol::getCameraInfo() const {
+    Result<std::string> ViscaProtocol::getCameraInfo() const {
+        // Decoded payload should be: vendor(2) + model(2) + rom(2) + socket(1) = 7 bytes minimum
+        constexpr size_t min_payload_size = 7;
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_INQUIRY);
@@ -425,7 +486,12 @@ namespace service::infrastructure {
 
         const auto rx_payload = writeRead(&tx_payload);
         if (rx_payload.isError()) {
-            return Result<std::string_view>::error(rx_payload.error());
+            return Result<std::string>::error(rx_payload.error());
+        }
+
+        // Validate payload size before attempting to read
+        if (rx_payload.value().size < min_payload_size) {
+            return Result<std::string>::error("Invalid camera response - payload too small");
         }
 
         const auto vendor = unpack16Bit(rx_payload.value(), 0);
@@ -433,19 +499,19 @@ namespace service::infrastructure {
         const auto model = unpack16Bit(rx_payload.value(), 2);
         const auto model_str = getCameraModel(model);
 
-        if (vendor_str == "Unknown" || model_str == "Unknown") {
-            return Result<std::string_view>::error("Unknown camera");
+        if (vendor_str == "Unknown" && model_str == "Unknown") {
+            return Result<std::string>::error("Unknown camera");
         }
 
         const auto rom_version = unpack16Bit(rx_payload.value(), 4);
         const auto socket_num = unpack8Bit(rx_payload.value(), 6);
 
-        thread_local std::array<char, 256> buffer{};
-        const auto size = std::snprintf(buffer.data(), buffer.size(),
-                                       "%s %s, ROM Version: 0x%04X, Socket: 0x%02X, Address: 0x%02X",
-                                       vendor_str.data(), model_str.data(), rom_version, socket_num, cam_address_);
+        std::ostringstream oss;
+        oss << vendor_str << " " << model_str << ", ROM Version: 0x" << std::hex << std::uppercase << std::setw(4) <<
+            std::setfill('0') << rom_version << ", Socket: 0x" << std::setw(2) << static_cast<unsigned int>(socket_num)
+            << ", Address: 0x" << std::setw(2) << static_cast<unsigned int>(cam_address_);
 
-        return Result<std::string_view>::success(std::string_view{buffer.data(), static_cast<std::size_t>(size)});
+        return Result<std::string>::success(oss.str());
     }
 
     Result<void> ViscaProtocol::open() const {
@@ -456,7 +522,7 @@ namespace service::infrastructure {
         return transport_->close();
     }
 
-    Result<void> ViscaProtocol::setPower(const uint8_t power) const {
+    Result<void> ViscaProtocol::setPower(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -471,7 +537,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setKeylock(const uint8_t power) const {
+    Result<void> ViscaProtocol::setKeylock(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -486,7 +552,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setCameraId(const uint16_t id) const {
+    Result<void> ViscaProtocol::setCameraId(uint16_t id) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -546,7 +612,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setZoomTeleSpeed(const uint32_t speed) const {
+    Result<void> ViscaProtocol::setZoomTeleSpeed(uint32_t speed) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -561,7 +627,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setZoomWideSpeed(const uint32_t speed) const {
+    Result<void> ViscaProtocol::setZoomWideSpeed(uint32_t speed) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -576,7 +642,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setZoomValue(const uint16_t zoom) const {
+    Result<void> ViscaProtocol::setZoomValue(uint16_t zoom) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -591,7 +657,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setZoomAndFocusValue(const uint16_t zoom, const uint16_t focus) const {
+    Result<void> ViscaProtocol::setZoomAndFocusValue(uint16_t zoom, uint16_t focus) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -607,7 +673,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setDzoomValue(const uint8_t value) const {
+    Result<void> ViscaProtocol::setDzoomValue(uint8_t value) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -622,7 +688,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setDzoomLimit(const uint8_t limit) const {
+    Result<void> ViscaProtocol::setDzoomLimit(uint8_t limit) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -637,7 +703,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setDzoomMode(const uint8_t power) const {
+    Result<void> ViscaProtocol::setDzoomMode(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -697,7 +763,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setFocusFarSpeed(const uint32_t speed) const {
+    Result<void> ViscaProtocol::setFocusFarSpeed(uint32_t speed) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -712,7 +778,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setFocusNearSpeed(const uint32_t speed) const {
+    Result<void> ViscaProtocol::setFocusNearSpeed(uint32_t speed) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -727,7 +793,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setFocusValue(const uint16_t focus) const {
+    Result<void> ViscaProtocol::setFocusValue(uint16_t focus) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -817,7 +883,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setFocusNearLimit(const uint16_t limit) const {
+    Result<void> ViscaProtocol::setFocusNearLimit(uint16_t limit) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -832,7 +898,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setWhitebalMode(const uint8_t mode) const {
+    Result<void> ViscaProtocol::setWhitebalMode(uint8_t mode) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -907,7 +973,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setRgainValue(const uint8_t value) const {
+    Result<void> ViscaProtocol::setRgainValue(uint8_t value) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -967,7 +1033,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setBgainValue(const uint8_t value) const {
+    Result<void> ViscaProtocol::setBgainValue(uint8_t value) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1027,7 +1093,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setShutterValue(const uint8_t value) const {
+    Result<void> ViscaProtocol::setShutterValue(uint8_t value) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1087,7 +1153,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setIrisValue(const uint8_t value) const {
+    Result<void> ViscaProtocol::setIrisValue(uint8_t value) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1147,7 +1213,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setGainValue(const uint8_t value) const {
+    Result<void> ViscaProtocol::setGainValue(uint8_t value) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1207,7 +1273,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setBrightValue(const uint16_t value) const {
+    Result<void> ViscaProtocol::setBrightValue(uint16_t value) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1267,7 +1333,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setApertureValue(const uint8_t value) const {
+    Result<void> ViscaProtocol::setApertureValue(uint8_t value) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1327,7 +1393,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setExpCompValue(const uint8_t value) const {
+    Result<void> ViscaProtocol::setExpCompValue(uint8_t value) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1342,7 +1408,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setExpCompPower(const uint8_t power) const {
+    Result<void> ViscaProtocol::setExpCompPower(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1357,7 +1423,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAutoExpMode(const uint8_t mode) const {
+    Result<void> ViscaProtocol::setAutoExpMode(uint8_t mode) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1372,7 +1438,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setSlowShutterAuto(const uint8_t power) const {
+    Result<void> ViscaProtocol::setSlowShutterAuto(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1406,7 +1472,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setZeroLuxShot(const uint8_t power) const {
+    Result<void> ViscaProtocol::setZeroLuxShot(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1421,7 +1487,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setIrLed(const uint8_t power) const {
+    Result<void> ViscaProtocol::setIrLed(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1436,7 +1502,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setWideMode(const uint8_t mode) const {
+    Result<void> ViscaProtocol::setWideMode(uint8_t mode) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1451,7 +1517,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMirror(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMirror(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1466,7 +1532,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setFreeze(const uint8_t power) const {
+    Result<void> ViscaProtocol::setFreeze(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1481,7 +1547,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPictureEffect(const uint8_t mode) const {
+    Result<void> ViscaProtocol::setPictureEffect(uint8_t mode) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1496,7 +1562,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setDigitalEffect(const uint8_t mode) const {
+    Result<void> ViscaProtocol::setDigitalEffect(uint8_t mode) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1511,7 +1577,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setDigitalEffectLevel(const uint8_t level) const {
+    Result<void> ViscaProtocol::setDigitalEffectLevel(uint8_t level) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1546,7 +1612,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::memorySet(const uint8_t channel) const {
+    Result<void> ViscaProtocol::memorySet(uint8_t channel) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1562,7 +1628,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::memoryRecall(const uint8_t channel) const {
+    Result<void> ViscaProtocol::memoryRecall(uint8_t channel) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1578,7 +1644,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::memoryReset(const uint8_t channel) const {
+    Result<void> ViscaProtocol::memoryReset(uint8_t channel) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1594,7 +1660,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setDisplay(const uint8_t power) const {
+    Result<void> ViscaProtocol::setDisplay(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1609,8 +1675,8 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setDateTime(const uint16_t year, const uint16_t month, const uint16_t day,
-                                            const uint16_t hour, const uint16_t minute) const {
+    Result<void> ViscaProtocol::setDateTime(uint16_t year, uint16_t month, uint16_t day, uint16_t hour,
+                                            uint16_t minute) const {
         if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59) {
             return Result<void>::error("Invalid input");
         }
@@ -1638,7 +1704,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setDateDisplay(const uint8_t power) const {
+    Result<void> ViscaProtocol::setDateDisplay(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1653,7 +1719,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setTimeDisplay(const uint8_t power) const {
+    Result<void> ViscaProtocol::setTimeDisplay(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1668,7 +1734,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setTitleDisplay(const uint8_t power) const {
+    Result<void> ViscaProtocol::setTitleDisplay(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1800,7 +1866,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltUp(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltUp(uint8_t pan_speed, uint8_t tilt_speed) const {
         if (pan_speed < 1 || pan_speed > 18) {
             return Result<void>::error("Pan speed should be in the range 01 - 18");
         }
@@ -1824,7 +1890,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltDown(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltDown(uint8_t pan_speed, uint8_t tilt_speed) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1841,7 +1907,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltLeft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltLeft(uint8_t pan_speed, uint8_t tilt_speed) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1858,7 +1924,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltRight(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltRight(uint8_t pan_speed, uint8_t tilt_speed) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1875,7 +1941,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltUpleft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltUpleft(uint8_t pan_speed, uint8_t tilt_speed) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1892,7 +1958,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltUpright(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltUpright(uint8_t pan_speed, uint8_t tilt_speed) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1909,7 +1975,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltDownleft(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltDownleft(uint8_t pan_speed, uint8_t tilt_speed) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1926,7 +1992,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltDownright(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltDownright(uint8_t pan_speed, uint8_t tilt_speed) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1943,7 +2009,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltStop(const uint8_t pan_speed, const uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltStop(uint8_t pan_speed, uint8_t tilt_speed) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -1960,9 +2026,8 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltAbsolutePosition(const uint8_t pan_speed, const uint8_t tilt_speed,
-                                                           const uint16_t pan_position,
-                                                           const uint16_t tilt_position) const {
+    Result<void> ViscaProtocol::setPanTiltAbsolutePosition(uint8_t pan_speed, uint8_t tilt_speed, uint16_t pan_position,
+                                                           uint16_t tilt_position) const {
         if (pan_speed < 1 || pan_speed > 18) {
             return Result<void>::error("Pan speed should be in the range 01 - 18");
         }
@@ -1993,8 +2058,8 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltRelativePosition(const uint8_t pan_speed, const uint8_t tilt_speed,
-                                                           const uint16_t pan_pos, const uint16_t tilt_pos) const {
+    Result<void> ViscaProtocol::setPanTiltRelativePosition(uint8_t pan_speed, uint8_t tilt_speed, uint16_t pan_pos,
+                                                           uint16_t tilt_pos) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -2003,15 +2068,15 @@ namespace service::infrastructure {
         pack8Bit(&tx_payload, static_cast<std::byte>(pan_speed));
         pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
 
-        pack8Bit(&tx_payload, static_cast<std::byte>((pan_pos & 0xF000) >> 12));
-        pack8Bit(&tx_payload, static_cast<std::byte>((pan_pos & 0x0F00) >> 8));
-        pack8Bit(&tx_payload, static_cast<std::byte>((pan_pos & 0x00F0) >> 4));
-        pack8Bit(&tx_payload, static_cast<std::byte>(pan_pos & 0x000F));
+        pack8Bit(&tx_payload, getNibble(pan_pos, 12));
+        pack8Bit(&tx_payload, getNibble(pan_pos, 8));
+        pack8Bit(&tx_payload, getNibble(pan_pos, 4));
+        pack8Bit(&tx_payload, getNibble(pan_pos, 0));
 
-        pack8Bit(&tx_payload, static_cast<std::byte>((tilt_pos & 0xF000) >> 12));
-        pack8Bit(&tx_payload, static_cast<std::byte>((tilt_pos & 0x0F00) >> 8));
-        pack8Bit(&tx_payload, static_cast<std::byte>((tilt_pos & 0x00F0) >> 4));
-        pack8Bit(&tx_payload, static_cast<std::byte>(tilt_pos & 0x000F));
+        pack8Bit(&tx_payload, getNibble(tilt_pos, 12));
+        pack8Bit(&tx_payload, getNibble(tilt_pos, 8));
+        pack8Bit(&tx_payload, getNibble(tilt_pos, 4));
+        pack8Bit(&tx_payload, getNibble(tilt_pos, 0));
 
         if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
@@ -2046,7 +2111,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltLimitUpright(const uint16_t pan_limit, const uint16_t tilt_limit) const {
+    Result<void> ViscaProtocol::setPanTiltLimitUpright(uint16_t pan_limit, uint16_t tilt_limit) const {
         if (pan_limit < 0xFC90 || pan_limit > 0x370) {
             return Result<void>::error("Pan limit should be in the range -880 - 880");
         }
@@ -2071,7 +2136,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltLimitDownleft(const uint16_t pan_limit, const uint16_t tilt_limit) const {
+    Result<void> ViscaProtocol::setPanTiltLimitDownleft(uint16_t pan_limit, uint16_t tilt_limit) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -2206,16 +2271,16 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setSpotAePosition(const uint8_t x_position, const uint8_t y_position) const {
+    Result<void> ViscaProtocol::setSpotAePosition(uint8_t x_position, uint8_t y_position) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_SPOT_AE_POSITION);
-        pack8Bit(&tx_payload, static_cast<std::byte>((x_position & 0xF0) >> 4));
-        pack8Bit(&tx_payload, static_cast<std::byte>(x_position & 0x0F));
-        pack8Bit(&tx_payload, static_cast<std::byte>((y_position & 0xF0) >> 4));
-        pack8Bit(&tx_payload, static_cast<std::byte>(y_position & 0x0F));
+        pack8Bit(&tx_payload, getNibble(x_position, 4));
+        pack8Bit(&tx_payload, getNibble(x_position, 0));
+        pack8Bit(&tx_payload, getNibble(y_position, 4));
+        pack8Bit(&tx_payload, getNibble(y_position, 0));
 
         if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
@@ -2754,15 +2819,15 @@ namespace service::infrastructure {
         return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
     }
 
-    Result<void> ViscaProtocol::setRegister(const uint8_t reg_num, const uint8_t reg_val) const {
+    Result<void> ViscaProtocol::setRegister(uint8_t reg_num, uint8_t reg_val) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
         pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
         pack8Bit(&tx_payload, VISCA_REGISTER_VALUE);
         pack8Bit(&tx_payload, static_cast<std::byte>(reg_num));
-        pack8Bit(&tx_payload, static_cast<std::byte>((reg_val & 0xF0) >> 4));
-        pack8Bit(&tx_payload, static_cast<std::byte>(reg_val & 0x0F));
+        pack8Bit(&tx_payload, getNibble(reg_val, 4));
+        pack8Bit(&tx_payload, getNibble(reg_val, 0));
         if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
@@ -2770,7 +2835,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<uint8_t> ViscaProtocol::getRegister(const uint8_t reg_num) const {
+    Result<uint8_t> ViscaProtocol::getRegister(uint8_t reg_num) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_INQUIRY);
@@ -2793,46 +2858,74 @@ namespace service::infrastructure {
         return transport_->write(frame);
     }
 
-    Result<ViscaProtocol::ViscaPayload> ViscaProtocol::read() const{
+    Result<ViscaProtocol::ViscaPayload> ViscaProtocol::read() const {
         std::array<std::byte, VISCA_MAX_INPUT_BUFFER_SIZE> rx_buffer{};
 
-        if (const auto result = transport_->read(rx_buffer); result.isError()) {
+        auto result = transport_->read(rx_buffer);
+        if (result.isError()) {
             return Result<ViscaPayload>::error(result.error());
-        } else if (result.value() < VISCA_MIN_INPUT_BUFFER_SIZE) {
+        }
+        if (result.value() < VISCA_MIN_INPUT_BUFFER_SIZE) {
             return Result<ViscaPayload>::error("Received response is too short");
         }
 
-        auto response = static_cast<ResponseType>(std::to_integer<uint8_t>(rx_buffer.at(1)) & 0xF0);
+        auto response = static_cast<ResponseType>(std::to_integer<uint8_t>(rx_buffer.at(1)) & 0xF0U);
+        std::span<std::byte> decode_buffer{rx_buffer};
 
-        while (response == ResponseType::Ack) {
-            if (rx_buffer[4] != static_cast<std::byte>(0)) {
-                response = static_cast<ResponseType>(std::to_integer<uint8_t>(rx_buffer.at(1)) & 0xF0);
-                LOG_TRACE("2 responces in one buffer");
-                break;
+        if (response == ResponseType::Ack) {
+            // Find the ACK terminator
+            const auto ack_terminator_it = std::ranges::find(rx_buffer, VISCA_TERMINATOR);
+            if (ack_terminator_it == rx_buffer.end()) {
+                return Result<ViscaPayload>::error("ACK response missing terminator");
+            }
+
+            const auto ack_end_index = std::distance(rx_buffer.begin(), ack_terminator_it) + 1;
+
+            // Check if there's another response after the ACK (at least 3 bytes: start + type + terminator)
+            if (static_cast<size_t>(ack_end_index) + VISCA_MIN_INPUT_BUFFER_SIZE <= result.value()) {
+                // Check if next byte is a valid response start byte
+                if (rx_buffer[ack_end_index] == VISCA_RESPONSE_START_BYTE ||
+                    rx_buffer[ack_end_index] == VISCA_BROADCAST_RESPONSE_BYTE) {
+                    LOG_TRACE("2 responses in one buffer");
+                    // Skip past the ACK to decode the actual response
+                    decode_buffer = std::span<std::byte>{rx_buffer.data() + ack_end_index,
+                                                          VISCA_MAX_INPUT_BUFFER_SIZE - static_cast<size_t>(ack_end_index)};
+                    response = static_cast<ResponseType>(std::to_integer<uint8_t>(decode_buffer[1]) & 0xF0U);
+                } else {
+                    return Result<ViscaPayload>::error("Invalid data after ACK response");
+                }
             } else {
-                if (const auto result = transport_->read(rx_buffer); result.isError()) {
+                // ACK only, need to read the actual response separately
+                rx_buffer.fill(std::byte{0});
+                result = transport_->read(rx_buffer);
+                if (result.isError()) {
                     return Result<ViscaPayload>::error(result.error());
-                } else if (result.value() < VISCA_MIN_INPUT_BUFFER_SIZE) {
+                }
+                if (result.value() < VISCA_MIN_INPUT_BUFFER_SIZE) {
                     return Result<ViscaPayload>::error("Received response is too short");
                 }
-                response = static_cast<ResponseType>(std::to_integer<uint8_t>(rx_buffer.at(1)) & 0xF0);
+                response = static_cast<ResponseType>(std::to_integer<uint8_t>(rx_buffer.at(1)) & 0xF0U);
+                decode_buffer = std::span<std::byte>{rx_buffer};
             }
         }
 
         if (response == ResponseType::Error) {
             const auto error_msg = getViscaErrorMessage(
-                static_cast<ResultCode>(std::to_integer<uint8_t>(rx_buffer.at(2))));
+                static_cast<ResultCode>(std::to_integer<uint8_t>(decode_buffer[2])));
             return Result<ViscaPayload>::error(std::string(error_msg));
         }
 
-        if (response != ResponseType::Completed && response != ResponseType::Address && response != ResponseType::Clear) {
+        if (response != ResponseType::Completed && response != ResponseType::Address && response !=
+            ResponseType::Clear) {
             return Result<ViscaPayload>::error("Unexpected response type from camera");
         }
 
-        return Result<ViscaPayload>::success(deserialize(decode(rx_buffer)));
+        return Result<ViscaPayload>::success(deserialize(decode(decode_buffer)));
     }
 
     Result<ViscaProtocol::ViscaPayload> ViscaProtocol::writeRead(ViscaPayload* payload) const {
+        std::scoped_lock lock(mutex_);
+
         if (const auto result = write(payload); result.isError()) {
             return Result<ViscaPayload>::error(result.error());
         }
@@ -2867,7 +2960,7 @@ namespace service::infrastructure {
     /* SPECIAL FUNCTIONS FOR D30/31 */
     /********************************/
 
-    Result<void> ViscaProtocol::setWideConLens(const uint8_t power) const {
+    Result<void> ViscaProtocol::setWideConLens(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -2898,7 +2991,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtMode(const uint8_t power) const {
+    Result<void> ViscaProtocol::setAtMode(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -2928,7 +3021,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtAe(const uint8_t power) const {
+    Result<void> ViscaProtocol::setAtAe(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -2958,7 +3051,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtAutozoom(const uint8_t power) const {
+    Result<void> ViscaProtocol::setAtAutozoom(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -2988,7 +3081,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtmdFramedisplay(const uint8_t power) const {
+    Result<void> ViscaProtocol::setAtmdFramedisplay(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -3018,7 +3111,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtFrameoffset(const uint8_t power) const {
+    Result<void> ViscaProtocol::setAtFrameoffset(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -3048,7 +3141,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtChase(const uint8_t power) const {
+    Result<void> ViscaProtocol::setAtChase(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -3093,7 +3186,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdMode(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMdMode(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -3137,7 +3230,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtEntry(const uint8_t power) const {
+    Result<void> ViscaProtocol::setAtEntry(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -3184,7 +3277,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdAdjustYlevel(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMdAdjustYlevel(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -3200,7 +3293,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdAdjustHuelevel(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMdAdjustHuelevel(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -3216,7 +3309,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdAdjustSize(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMdAdjustSize(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -3232,7 +3325,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdAdjustDisptime(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMdAdjustDisptime(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -3248,7 +3341,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdAdjustRefmode(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMdAdjustRefmode(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -3263,7 +3356,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdAdjustReftime(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMdAdjustReftime(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -3294,7 +3387,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdMeasureMode1(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMdMeasureMode1(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -3324,7 +3417,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdMeasureMode2(const uint8_t power) const {
+    Result<void> ViscaProtocol::setMdMeasureMode2(uint8_t power) const {
         ViscaPayload tx_payload{};
 
         pack8Bit(&tx_payload, VISCA_COMMAND);
@@ -3509,4 +3602,4 @@ namespace service::infrastructure {
         const uint8_t power = unpack8BitFromNibbles(rx_payload.value(), 0);
         return Result<uint8_t>::success(power);
     }
-}
+} // namespace service::infrastructure

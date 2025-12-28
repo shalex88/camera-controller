@@ -84,3 +84,4 @@ grpcui -plaintext 0.0.0.0:50051
 - Set Nagle's algorithm on TCP sockets?
 - Core still does almost nothing, it's config file is also unnecessary
 - Create an API request for camera capabilities list
+- Add noexcept contract on boundary methods
