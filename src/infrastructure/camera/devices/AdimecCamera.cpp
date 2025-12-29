@@ -35,7 +35,7 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
-    Result<types::info> AdimecCamera::getInfo() const {
+    Result<common::types::info> AdimecCamera::getInfo() const {
         std::string info;
 
         if (const auto vendor = camera_protocol_->getDeviceVendorName(); vendor.isSuccess()) {
@@ -55,9 +55,9 @@ namespace service::infrastructure {
         }
 
         if (info.empty()) {
-            return Result<types::info>::error("Failed to retrieve camera information");
+            return Result<common::types::info>::error("Failed to retrieve camera information");
         }
 
-        return Result<types::info>::success(info);
+        return Result<common::types::info>::success(info);
     }
-}
+} // namespace service::infrastructure

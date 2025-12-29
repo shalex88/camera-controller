@@ -4,6 +4,40 @@
 #include <yaml-cpp/yaml.h>
 
 namespace service::common {
+    namespace {
+        EndpointConfig parseEndpointNode(const YAML::Node& node) {
+            EndpointConfig endpoint;
+
+            if (!node) {
+                return endpoint;
+            }
+
+            if (node.IsScalar()) {
+                endpoint.address = node.as<std::string>();
+                return endpoint;
+            }
+
+            if (node["address"]) {
+                endpoint.address = node["address"].as<std::string>();
+            }
+
+            if (node["configuration"]) {
+                const auto& configuration_node = node["configuration"];
+                if (!configuration_node.IsMap()) {
+                    throw std::runtime_error("Endpoint configuration must be a key/value map");
+                }
+
+                for (const auto& entry : configuration_node) {
+                    const auto key = entry.first.as<std::string>();
+                    const auto value = entry.second.as<std::string>();
+                    endpoint.configuration.emplace(key, value);
+                }
+            }
+
+            return endpoint;
+        }
+    } // unnamed namespace
+
     void ApiConfig::validate() const {
         static const std::set<std::string> valid_apis{"grpc"};
 
@@ -119,40 +153,6 @@ namespace service::common {
         }
     }
 
-    namespace {
-        EndpointConfig parseEndpointNode(const YAML::Node& node) {
-            EndpointConfig endpoint;
-
-            if (!node) {
-                return endpoint;
-            }
-
-            if (node.IsScalar()) {
-                endpoint.address = node.as<std::string>();
-                return endpoint;
-            }
-
-            if (node["address"]) {
-                endpoint.address = node["address"].as<std::string>();
-            }
-
-            if (node["configuration"]) {
-                const auto& configuration_node = node["configuration"];
-                if (!configuration_node.IsMap()) {
-                    throw std::runtime_error("Endpoint configuration must be a key/value map");
-                }
-
-                for (const auto& entry : configuration_node) {
-                    const auto key = entry.first.as<std::string>();
-                    const auto value = entry.second.as<std::string>();
-                    endpoint.configuration.emplace(key, value);
-                }
-            }
-
-            return endpoint;
-        }
-    }
-
     void ConfigManager::loadInfrastructureConfig(const YAML::Node& app_node) const {
         if (!app_node["infrastructure"]) {
             return;
@@ -219,4 +219,4 @@ namespace service::common {
         }
         app_config_->validate();
     }
-}
+} // namespace service::common

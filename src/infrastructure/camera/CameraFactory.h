@@ -4,7 +4,7 @@
 
 namespace service::common {
     struct InfrastructureConfig;
-}
+} // namespace service::common
 
 namespace service::infrastructure {
     class ICamera;
@@ -13,4 +13,4 @@ namespace service::infrastructure {
     public:
         static std::unique_ptr<ICamera> createCamera(const common::InfrastructureConfig& config);
     };
-}
+} // namespace service::infrastructure

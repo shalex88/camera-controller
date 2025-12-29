@@ -85,3 +85,4 @@ grpcui -plaintext 0.0.0.0:50051
 - Core still does almost nothing, it's config file is also unnecessary
 - Create an API request for camera capabilities list
 - Add noexcept contract on boundary methods
+- Print the server real address instead of 0.0.0.0 on start

@@ -174,8 +174,8 @@ namespace service::common {
         inline ScopedLogger& loggerFor(const char* file) {
             return LoggerRegistry::instance().getLogger(scopeFromFile(file));
         }
-    }
-}
+    } // namespace detail
+} // namespace service::common
 
 #define CONFIGURE_LOGGER(name, level) do { \
     service::common::LoggerRegistry::instance().initialize((name), (level)); \

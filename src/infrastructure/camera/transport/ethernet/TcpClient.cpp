@@ -1,13 +1,13 @@
 #include "TcpClient.h"
 
 #include <cstring>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdexcept>
 #include <unistd.h>
 #include <arpa/inet.h>
-#include <sys/socket.h>
-#include <fcntl.h>
-#include <errno.h>
 #include <sys/select.h>
+#include <sys/socket.h>
 
 namespace service::infrastructure {
     TcpClient::TcpClient(const std::string& device_path) {
@@ -200,4 +200,4 @@ namespace service::infrastructure {
             return Result<void>::success(static_cast<size_t>(bytes_read));
         }
     }
-}
+} // namespace service::infrastructure

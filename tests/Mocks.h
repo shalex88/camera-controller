@@ -26,12 +26,12 @@ public:
     MOCK_METHOD(Result<void>, start, (), (override));
     MOCK_METHOD(Result<void>, stop, (), (override));
     MOCK_METHOD(bool, isRunning, (), (const, override));
-    MOCK_METHOD(Result<void>, setZoom, (types::zoom), (const, override));
-    MOCK_METHOD(Result<types::zoom>, getZoom, (), (const, override));
-    MOCK_METHOD(Result<void>, setFocus, (types::focus), (const, override));
-    MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
+    MOCK_METHOD(Result<void>, setZoom, (common::types::zoom), (const, override));
+    MOCK_METHOD(Result<common::types::zoom>, getZoom, (), (const, override));
+    MOCK_METHOD(Result<void>, setFocus, (common::types::focus), (const, override));
+    MOCK_METHOD(Result<common::types::focus>, getFocus, (), (const, override));
     MOCK_METHOD(Result<void>, enableAutoFocus, (bool), (const, override));
-    MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
+    MOCK_METHOD(Result<common::types::info>, getInfo, (), (const, override));
     MOCK_METHOD(Result<void>, goToMinZoom, (), (const, override));
     MOCK_METHOD(Result<void>, goToMaxZoom, (), (const, override));
     MOCK_METHOD(Result<void>, stabilize, (bool), (const, override));
@@ -42,13 +42,13 @@ public:
     MOCK_METHOD(Result<void>, start, (), (override));
     MOCK_METHOD(Result<void>, stop, (), (override));
 
-    MOCK_METHOD(Result<void>, setZoom, (types::zoom), (const, override));
-    MOCK_METHOD(Result<types::zoom>, getZoom, (), (const, override));
+    MOCK_METHOD(Result<void>, setZoom, (common::types::zoom), (const, override));
+    MOCK_METHOD(Result<common::types::zoom>, getZoom, (), (const, override));
     MOCK_METHOD(Result<void>, goToMinZoom, (), (const, override));
     MOCK_METHOD(Result<void>, goToMaxZoom, (), (const, override));
-    MOCK_METHOD(Result<void>, setFocus, (types::focus), (const, override));
-    MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
-    MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
+    MOCK_METHOD(Result<void>, setFocus, (common::types::focus), (const, override));
+    MOCK_METHOD(Result<common::types::focus>, getFocus, (), (const, override));
+    MOCK_METHOD(Result<common::types::info>, getInfo, (), (const, override));
     MOCK_METHOD(Result<void>, enableAutoFocus, (bool), (const, override));
     MOCK_METHOD(Result<void>, stabilize, (bool), (const, override));
 };
@@ -60,36 +60,36 @@ public:
     MOCK_METHOD(bool, isConnected, (), (const, override));
 
     // IZoomCapable implementation
-    MOCK_METHOD(Result<void>, setZoom, (types::zoom), (const, override));
-    MOCK_METHOD(Result<types::zoom>, getZoom, (), (const, override));
-    MOCK_METHOD(types::ZoomRange, getZoomLimits, (), (const, override));
+    MOCK_METHOD(Result<void>, setZoom, (common::types::zoom), (const, override));
+    MOCK_METHOD(Result<common::types::zoom>, getZoom, (), (const, override));
+    MOCK_METHOD(common::types::ZoomRange, getZoomLimits, (), (const, override));
 
     // IFocusCapable implementation
-    MOCK_METHOD(Result<void>, setFocus, (types::focus), (const, override));
-    MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
-    MOCK_METHOD(types::FocusRange, getFocusLimits, (), (const, override));
+    MOCK_METHOD(Result<void>, setFocus, (common::types::focus), (const, override));
+    MOCK_METHOD(Result<common::types::focus>, getFocus, (), (const, override));
+    MOCK_METHOD(common::types::FocusRange, getFocusLimits, (), (const, override));
 
     // IAutoFocusCapable implementation
     MOCK_METHOD(Result<void>, enableAutoFocus, (bool), (const, override));
 
     // IInfoCapable implementation
-    MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
+    MOCK_METHOD(Result<common::types::info>, getInfo, (), (const, override));
 
     // IStabilizationCapable implementation
     MOCK_METHOD(Result<void>, stabilize, (bool), (const, override));
 };
 
 class MockCameraHw: public infrastructure::ICameraHw,
-                     public capabilities::IZoomCapable,
-                     public capabilities::IFocusCapable,
-                     public capabilities::IAutoFocusCapable,
-                     public capabilities::IStabilizeCapable,
-                     public capabilities::IInfoCapable {
+                     public common::capabilities::IZoomCapable,
+                     public common::capabilities::IFocusCapable,
+                     public common::capabilities::IAutoFocusCapable,
+                     public common::capabilities::IStabilizeCapable,
+                     public common::capabilities::IInfoCapable {
 public:
     MockCameraHw() {
         // Set up default behavior for zoom and focus limits to prevent constructor validation failures
-        const types::ZoomRange default_zoom_limits{.min = 0, .max = 1000};
-        const types::FocusRange default_focus_limits{.min = 0, .max = 1000};
+        const common::types::ZoomRange default_zoom_limits{.min = 0, .max = 1000};
+        const common::types::FocusRange default_focus_limits{.min = 0, .max = 1000};
 
         ON_CALL(*this, getZoomLimits())
             .WillByDefault(Return(default_zoom_limits));
@@ -101,20 +101,20 @@ public:
     MOCK_METHOD(Result<void>, close, (), (override));
 
     // IZoomCapable implementation
-    MOCK_METHOD(Result<void>, setZoom, (types::zoom), (const, override));
-    MOCK_METHOD(Result<types::zoom>, getZoom, (), (const, override));
-    MOCK_METHOD(types::ZoomRange, getZoomLimits, (), (const, override));
+    MOCK_METHOD(Result<void>, setZoom, (common::types::zoom), (const, override));
+    MOCK_METHOD(Result<common::types::zoom>, getZoom, (), (const, override));
+    MOCK_METHOD(common::types::ZoomRange, getZoomLimits, (), (const, override));
 
     // IFocusCapable implementation
-    MOCK_METHOD(Result<void>, setFocus, (types::focus), (const, override));
-    MOCK_METHOD(Result<types::focus>, getFocus, (), (const, override));
-    MOCK_METHOD(types::FocusRange, getFocusLimits, (), (const, override));
+    MOCK_METHOD(Result<void>, setFocus, (common::types::focus), (const, override));
+    MOCK_METHOD(Result<common::types::focus>, getFocus, (), (const, override));
+    MOCK_METHOD(common::types::FocusRange, getFocusLimits, (), (const, override));
 
     // IAutoFocusCapable implementation
     MOCK_METHOD(Result<void>, enableAutoFocus, (bool), (const, override));
 
     // IInfoCapable implementation
-    MOCK_METHOD(Result<types::info>, getInfo, (), (const, override));
+    MOCK_METHOD(Result<common::types::info>, getInfo, (), (const, override));
 
     // IStabilizationCapable implementation
     MOCK_METHOD(Result<void>, stabilize, (bool), (const, override));

@@ -99,7 +99,7 @@ TEST_F(CameraTests, GetFocusWhenNotConnectedFail) {
 TEST_F(CameraTests, SetValidZoomSuccess) {
     constexpr auto normalized_zoom = 50;
 
-    constexpr types::ZoomRange zoom_limits{.min = 0, .max = 100};
+    constexpr common::types::ZoomRange zoom_limits{.min = 0, .max = 100};
     EXPECT_CALL(*camera_hw_, getZoomLimits())
         .WillRepeatedly(Return(zoom_limits));
 
@@ -133,7 +133,7 @@ TEST_F(CameraTests, SetInvalidZoomFail) {
 TEST_F(CameraTests, SetValidZoomWhenCameraErrorFails) {
     constexpr auto normalized_zoom = 2;
 
-    constexpr types::ZoomRange zoom_limits{.min = 0, .max = 1000};
+    constexpr common::types::ZoomRange zoom_limits{.min = 0, .max = 1000};
     EXPECT_CALL(*camera_hw_, getZoomLimits())
         .WillRepeatedly(Return(zoom_limits));
 
@@ -155,7 +155,7 @@ TEST_F(CameraTests, GetValidZoomWhenCameraErrorFails) {
     EXPECT_CALL(*camera_hw_, open())
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera_hw_, getZoom())
-        .WillOnce(Return(Result<types::zoom>::error("error")));
+        .WillOnce(Return(Result<common::types::zoom>::error("error")));
 
     const auto connect_result = camera_->open();
     EXPECT_TRUE(connect_result.isSuccess());
@@ -167,14 +167,14 @@ TEST_F(CameraTests, GetValidZoomWhenCameraErrorFails) {
 TEST_F(CameraTests, GetValidZoomSuccess) {
     constexpr auto hardware_zoom_value = 200u;
 
-    constexpr types::ZoomRange zoom_limits{.min = 0, .max = 1000};
+    constexpr common::types::ZoomRange zoom_limits{.min = 0, .max = 1000};
     EXPECT_CALL(*camera_hw_, getZoomLimits())
         .WillRepeatedly(Return(zoom_limits));
 
     EXPECT_CALL(*camera_hw_, open())
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera_hw_, getZoom())
-        .WillOnce(Return(Result<types::zoom>::success(hardware_zoom_value)));
+        .WillOnce(Return(Result<common::types::zoom>::success(hardware_zoom_value)));
 
     const auto connect_result = camera_->open();
     EXPECT_TRUE(connect_result.isSuccess());
@@ -183,7 +183,7 @@ TEST_F(CameraTests, GetValidZoomSuccess) {
     EXPECT_TRUE(get_result.isSuccess());
 
     constexpr auto expected_normalized_value = 20u;
-    ASSERT_EQ(get_result.value<types::zoom>(), expected_normalized_value);
+    ASSERT_EQ(get_result.value<common::types::zoom>(), expected_normalized_value);
 }
 
 TEST_F(CameraTests, GetInvalidZoomFail) {
@@ -192,7 +192,7 @@ TEST_F(CameraTests, GetInvalidZoomFail) {
     EXPECT_CALL(*camera_hw_, open())
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera_hw_, getZoom())
-        .WillOnce(Return(Result<types::zoom>::success(expected_value)));
+        .WillOnce(Return(Result<common::types::zoom>::success(expected_value)));
 
     const auto connect_result = camera_->open();
     EXPECT_TRUE(connect_result.isSuccess());
@@ -204,7 +204,7 @@ TEST_F(CameraTests, GetInvalidZoomFail) {
 TEST_F(CameraTests, SetValidFocusSuccess) {
     constexpr auto normalized_focus = 2u;
 
-    constexpr types::FocusRange focus_limits{.min = 0, .max = 1000};
+    constexpr common::types::FocusRange focus_limits{.min = 0, .max = 1000};
     EXPECT_CALL(*camera_hw_, getFocusLimits())
         .WillRepeatedly(Return(focus_limits));
 
@@ -225,14 +225,14 @@ TEST_F(CameraTests, SetValidFocusSuccess) {
 TEST_F(CameraTests, GetValidFocusSuccess) {
     constexpr auto hardware_focus_value = 200u;
 
-    constexpr types::FocusRange focus_limits{.min = 0, .max = 1000};
+    constexpr common::types::FocusRange focus_limits{.min = 0, .max = 1000};
     EXPECT_CALL(*camera_hw_, getFocusLimits())
         .WillRepeatedly(Return(focus_limits));
 
     EXPECT_CALL(*camera_hw_, open())
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera_hw_, getFocus())
-        .WillOnce(Return(Result<types::focus>::success(hardware_focus_value)));
+        .WillOnce(Return(Result<common::types::focus>::success(hardware_focus_value)));
 
     const auto connect_result = camera_->open();
     EXPECT_TRUE(connect_result.isSuccess());
@@ -241,13 +241,13 @@ TEST_F(CameraTests, GetValidFocusSuccess) {
     EXPECT_TRUE(get_result.isSuccess());
 
     constexpr auto expected_normalized_value = 20u;
-    ASSERT_EQ(get_result.value<types::focus>(), expected_normalized_value);
+    ASSERT_EQ(get_result.value<common::types::focus>(), expected_normalized_value);
 }
 
 TEST_F(CameraTests, SetValidFocusWhenCameraErrorFails) {
     constexpr auto normalized_focus = 2u;
 
-    constexpr types::FocusRange focus_limits{.min = 0, .max = 1000};
+    constexpr common::types::FocusRange focus_limits{.min = 0, .max = 1000};
     EXPECT_CALL(*camera_hw_, getFocusLimits())
         .WillRepeatedly(Return(focus_limits));
 
@@ -269,7 +269,7 @@ TEST_F(CameraTests, GetValidFocusWhenCameraErrorFails) {
     EXPECT_CALL(*camera_hw_, open())
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera_hw_, getFocus())
-        .WillOnce(Return(Result<types::focus>::error("error")));
+        .WillOnce(Return(Result<common::types::focus>::error("error")));
 
     const auto connect_result = camera_->open();
     EXPECT_TRUE(connect_result.isSuccess());
@@ -298,7 +298,7 @@ TEST_F(CameraTests, GetInvalidFocusFail) {
     EXPECT_CALL(*camera_hw_, open())
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera_hw_, getFocus())
-        .WillOnce(Return(Result<types::focus>::success(expected_value)));
+        .WillOnce(Return(Result<common::types::focus>::success(expected_value)));
 
     const auto connect_result = camera_->open();
     EXPECT_TRUE(connect_result.isSuccess());

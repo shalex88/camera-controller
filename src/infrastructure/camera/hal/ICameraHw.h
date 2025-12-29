@@ -9,4 +9,4 @@ namespace service::infrastructure {
         virtual Result<void> open() = 0;
         virtual Result<void> close() = 0;
     };
-}
+} // namespace service::infrastructure

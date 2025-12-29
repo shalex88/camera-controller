@@ -62,7 +62,7 @@ TEST_F(GrpcIntegrationTests, SetZoomAndGetZoomSuccess) {
     EXPECT_CALL(*core, setZoom(test_zoom))
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*core, getZoom())
-        .WillOnce(Return(Result<types::zoom>::success(test_zoom)));
+        .WillOnce(Return(Result<common::types::zoom>::success(test_zoom)));
 
     std::cout << "Test SetZoom " << test_zoom << " getZoom" << "\n";
     ASSERT_TRUE(client->setZoom(test_zoom).isSuccess());

@@ -4,11 +4,11 @@
 
 namespace service::common {
     struct ApiConfig;
-}
+} // namespace service::common
 
 namespace service::core {
     class ICore;
-}
+} // namespace service::core
 
 namespace service::api {
     class ApiController;
@@ -18,5 +18,5 @@ namespace service::api {
         static std::unique_ptr<ApiController> createController(
             std::unique_ptr<core::ICore> core, const common::ApiConfig& config);
     };
-}
+} // namespace service::api
 

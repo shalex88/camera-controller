@@ -29,4 +29,4 @@ namespace service::infrastructure {
         std::unique_ptr<IRegisterImpl> register_;
         mutable std::mutex mutex_;
     };
-}
+} // namespace service::infrastructure

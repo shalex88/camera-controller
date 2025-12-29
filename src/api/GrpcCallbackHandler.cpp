@@ -157,4 +157,4 @@ namespace service::api {
                 return request_handler_.stabilize(req->enable());
             });
     }
-}
+} // namespace service::api

@@ -2,10 +2,10 @@
 
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <optional>
 #include <yaml-cpp/yaml.h>
 
 namespace service::common {
@@ -68,4 +68,4 @@ namespace service::common {
 
         std::unique_ptr<AppConfig> app_config_;
     };
-}
+} // namespace service::common

@@ -8,32 +8,32 @@
 
 #include "common/logger/Logger.h"
 
-namespace {
-    constexpr uint32_t FPGA_BASE_ADDR = 0x90000000;
-    constexpr uint32_t FPGA_MEMORY_SIZE = 0x4000000;
-
-    enum class FpgaRegs : uint32_t {
-        StartStop = 0x00,
-        ReadWrite = 0x04,
-        ReadLastData = 0x08,
-        WriteData = 0x0C,
-        WriteCounter = 0x10,
-        NumOfWrites = 0x14,
-    };
-
-    enum class HostReg : uint32_t {
-        SelectChannel = 0x0,
-        WorkingSpeed = 0x4,
-        LinkStatus = 0x8,
-        Reset = 0x2000,
-        StreamId = 0x2018,
-        CameraIndex = 0x40,
-        CameraArbitration = 0x3C,
-        HostDecoder = 0x2034
-    };
-}
-
 namespace service::infrastructure {
+    namespace {
+        constexpr uint32_t FPGA_BASE_ADDR = 0x90000000;
+        constexpr uint32_t FPGA_MEMORY_SIZE = 0x4000000;
+
+        enum class FpgaRegs : uint32_t {
+            StartStop = 0x00,
+            ReadWrite = 0x04,
+            ReadLastData = 0x08,
+            WriteData = 0x0C,
+            WriteCounter = 0x10,
+            NumOfWrites = 0x14,
+        };
+
+        enum class HostReg : uint32_t {
+            SelectChannel = 0x0,
+            WorkingSpeed = 0x4,
+            LinkStatus = 0x8,
+            Reset = 0x2000,
+            StreamId = 0x2018,
+            CameraIndex = 0x40,
+            CameraArbitration = 0x3C,
+            HostDecoder = 0x2034
+        };
+    } // unnamed namespace
+
     FpgaTransport::FpgaTransport(std::string device)
         : device_(std::move(device)), base_address_(FPGA_BASE_ADDR), memory_size_(FPGA_MEMORY_SIZE)  {
         if (!open() || !mapMemory()) {

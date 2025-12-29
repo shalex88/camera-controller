@@ -17,20 +17,20 @@
 #include "infrastructure/camera/transport/uart/Uart.h"
 #include "infrastructure/fpga/VideoChannel.h"
 
-namespace {
-    std::string formatConfiguration(const std::unordered_map<std::string, std::string>& configuration) {
-        std::string result;
-        for (const auto& [key, value] : configuration) {
-            if (!result.empty()) {
-                result.append(", ");
-            }
-            result.append(key).append("=").append(value);
-        }
-        return result;
-    }
-}
-
 namespace service::infrastructure {
+    namespace {
+        std::string formatConfiguration(const std::unordered_map<std::string, std::string>& configuration) {
+            std::string result;
+            for (const auto& [key, value] : configuration) {
+                if (!result.empty()) {
+                    result.append(", ");
+                }
+                result.append(key).append("=").append(value);
+            }
+            return result;
+        }
+    } // unnamed namespace
+
     std::unique_ptr<ICamera> CameraFactory::createCamera(const common::InfrastructureConfig& config) {
         LOG_DEBUG("Creating camera: {}", config.camera);
         for (size_t i = 0; i < config.endpoints.size(); ++i) {
@@ -105,4 +105,4 @@ namespace service::infrastructure {
 
         throw std::invalid_argument("Unknown camera type: " + config.camera);
     }
-}
+} // namespace service::infrastructure

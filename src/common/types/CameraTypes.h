@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <string>
 
-namespace service::types {
+namespace service::common::types {
     using zoom = uint32_t;
     using focus = uint32_t;
     using info = std::string;
@@ -23,4 +23,4 @@ namespace service::types {
         focus min;
         focus max;
     };
-}
+} // namespace service::common::types

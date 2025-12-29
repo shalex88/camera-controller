@@ -2,7 +2,7 @@
 
 #include "common/logger/Logger.h"
 
-namespace service::infrastructure::uart {
+namespace service::infrastructure {
     FakeUart::FakeUart() {
         if (open().isError()) {
             LOG_ERROR("Failed to open Fake UART interface");
@@ -73,4 +73,4 @@ namespace service::infrastructure::uart {
         std::shared_lock lock(data_mutex_);
         return is_open_;
     }
-}
+} // namespace service::infrastructure

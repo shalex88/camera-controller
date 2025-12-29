@@ -108,7 +108,7 @@ TEST_F(SonyCameraTests, ZoomOperationsBasic) {
 TEST_F(SonyCameraTests, ZoomOperationsMultipleValues) {
     ASSERT_TRUE(camera_->open().isSuccess());
 
-    const std::vector<types::zoom> test_values = {0, 10, 20, 50, 100};
+    const std::vector<common::types::zoom> test_values = {0, 10, 20, 50, 100};
 
     for (const auto zoom : test_values) {
         const auto set_result = camera_->setZoom(zoom);
@@ -190,7 +190,7 @@ TEST_F(SonyCameraTests, FocusOperationsMultipleValues) {
     ASSERT_TRUE(camera_->enableAutoFocus(false).isSuccess());
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    const std::vector<types::focus> test_values = {10, 20, 30, 50, 80};
+    const std::vector<common::types::focus> test_values = {10, 20, 30, 50, 80};
 
     for (const auto focus : test_values) {
         const auto set_result = camera_->setFocus(focus);
@@ -360,7 +360,7 @@ TEST_F(SonyCameraTests, RapidZoomChanges) {
     ASSERT_TRUE(camera_->open().isSuccess());
 
     // Rapidly change zoom values
-    for (types::zoom zoom = 0; zoom <= 100; zoom += 20) {
+    for (common::types::zoom zoom = 0; zoom <= 100; zoom += 20) {
         ASSERT_TRUE(camera_->setZoom(zoom).isSuccess()) << "Failed at zoom " << zoom;
         // Small delay between commands
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -402,7 +402,7 @@ TEST_F(SonyCameraTests, ZoomAtBoundaries) {
     ASSERT_TRUE(camera_->open().isSuccess());
 
     // Test minimum zoom (0 is normalized minimum)
-    constexpr types::zoom min_zoom = 0u;
+    constexpr common::types::zoom min_zoom = 0u;
 
     // Test minimum
     ASSERT_TRUE(camera_->setZoom(min_zoom).isSuccess());
@@ -412,7 +412,7 @@ TEST_F(SonyCameraTests, ZoomAtBoundaries) {
     EXPECT_EQ(min_zoom, min_result.value());
 
     // Test maximum (100 is normalized maximum)
-    constexpr types::zoom max_zoom = 100u;
+    constexpr common::types::zoom max_zoom = 100u;
     ASSERT_TRUE(camera_->setZoom(max_zoom).isSuccess());
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     const auto max_result = camera_->getZoom();

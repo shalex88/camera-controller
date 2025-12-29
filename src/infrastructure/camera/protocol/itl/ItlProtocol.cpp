@@ -1,7 +1,6 @@
 #include "ItlProtocol.h"
 
-#include <cstdio>
-#include <cstring>
+#include <string>
 
 #include "infrastructure/camera/transport/ITransport.h"
 
@@ -171,10 +170,10 @@ namespace service::infrastructure {
     }
 
     std::array<std::byte, 2> ItlProtocol::calculateMessageChecksum(const ItlMessage& message) {
-        ItlMessage temp_message = message;
-        temp_message.header.checksum = {std::byte{0}, std::byte{0}};
+        auto [header, payload] = message;
+        header.checksum = {std::byte{0}, std::byte{0}};
 
-        auto data_for_checksum = serializeHeader(temp_message.header);
+        auto data_for_checksum = serializeHeader(header);
         data_for_checksum.resize(data_for_checksum.size() - 2);
         data_for_checksum.insert(data_for_checksum.end(), message.payload.begin(), message.payload.end());
 
@@ -198,4 +197,4 @@ namespace service::infrastructure {
         return static_cast<uint16_t>(bytes[0]) |
                (static_cast<uint16_t>(bytes[1]) << 8);
     }
-}
+} // namespace service::infrastructure

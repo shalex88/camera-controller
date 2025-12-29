@@ -118,4 +118,4 @@ namespace service::app {
     void Application::requestShutdown() {
         shutdown_requested_.store(true);
     }
-}
+} // namespace service::app

@@ -69,7 +69,7 @@ TEST_F(CoreTests, ZoomOperationsSuccess) {
     EXPECT_CALL(*camera, setZoom(2))
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera, getZoom())
-        .WillOnce(Return(Result<types::zoom>::success(2u)));
+        .WillOnce(Return(Result<common::types::zoom>::success(2u)));
     EXPECT_CALL(*camera, close())
         .WillOnce(Return(Result<void>::success()));
 
@@ -110,7 +110,7 @@ TEST_F(CoreTests, FocusOperations) {
     EXPECT_CALL(*camera, setFocus(1))
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera, getFocus())
-        .WillOnce(Return(Result<types::focus>::success(1u)));
+        .WillOnce(Return(Result<common::types::focus>::success(1u)));
     EXPECT_CALL(*camera, close())
         .WillOnce(Return(Result<void>::success()));
 
@@ -188,7 +188,7 @@ TEST_F(CoreTests, GetInfoSuccess) {
     EXPECT_CALL(*camera, open())
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*camera, getInfo())
-        .WillOnce(Return(Result<types::info>::success(std::string("Test Camera Info"))));
+        .WillOnce(Return(Result<common::types::info>::success(std::string("Test Camera Info"))));
     EXPECT_CALL(*camera, close())
         .WillOnce(Return(Result<void>::success()));
 

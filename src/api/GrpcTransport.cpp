@@ -78,4 +78,4 @@ namespace service::api {
         server_->Wait();
         return Result<void>::success();
     }
-}
+} // namespace service::api

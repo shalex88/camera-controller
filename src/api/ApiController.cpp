@@ -79,4 +79,4 @@ namespace service::api {
     bool ApiController::isRunning() const {
         return is_running_;
     }
-}
+} // namespace service::api

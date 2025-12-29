@@ -23,4 +23,4 @@ namespace service::infrastructure {
         int socket_fd_ = -1;
         bool is_connected_ = false;
     };
-}
+} // namespace service::infrastructure

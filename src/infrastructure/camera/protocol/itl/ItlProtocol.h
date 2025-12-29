@@ -48,8 +48,8 @@ namespace service::infrastructure {
         static std::array<std::byte, 2> calculateMessageChecksum(const ItlMessage& message);
         static bool isValidChecksum(const ItlMessage& message);
 
-        // Helper functions for converting between multi-byte values and byte arrays
+        // Helper functions for converting between multibyte values and byte arrays
         static std::array<std::byte, 2> toBytes(uint16_t value);
         static uint16_t fromBytes(std::span<const std::byte, 2> bytes);
     };
-}
+} // namespace service::infrastructure

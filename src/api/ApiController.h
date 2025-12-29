@@ -28,4 +28,4 @@ namespace service::api {
         std::atomic<bool> is_running_;
         std::jthread service_thread_;
     };
-}
+} // namespace service::api

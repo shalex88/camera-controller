@@ -1,7 +1,9 @@
 #pragma once
 
-class VideoChannel {
-public:
-    explicit VideoChannel(const int channel_num);
-    virtual ~VideoChannel();
-};
+namespace service::infrastructure {
+    class VideoChannel {
+    public:
+        explicit VideoChannel(int channel_num);
+        ~VideoChannel() noexcept;
+    };
+} // namespace service::infrastructure

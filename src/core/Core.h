@@ -1,4 +1,5 @@
 #pragma once
+
 #include <memory>
 
 #include "common/types/CameraTypes.h"
@@ -20,18 +21,18 @@ namespace service::core {
         Result<void> stop() override;
 
         // Business methods for zoom operations
-        Result<void> setZoom(types::zoom zoom_level) const override;
-        Result<types::zoom> getZoom() const override;
+        Result<void> setZoom(common::types::zoom zoom_level) const override;
+        Result<common::types::zoom> getZoom() const override;
         Result<void> goToMinZoom() const override;
         Result<void> goToMaxZoom() const override;
 
         // Business methods for focus operations
-        Result<void> setFocus(types::focus focus_value) const override;
-        Result<types::focus> getFocus() const override;
+        Result<void> setFocus(common::types::focus focus_value) const override;
+        Result<common::types::focus> getFocus() const override;
         Result<void> enableAutoFocus(bool on) const override;
 
         // Business methods for info operations
-        Result<types::info> getInfo() const override;
+        Result<common::types::info> getInfo() const override;
 
         // Business methods for advanced operations
         Result<void> stabilize(bool on) const override;
@@ -41,4 +42,4 @@ namespace service::core {
         std::unique_ptr<infrastructure::ICamera> camera_;
         bool is_running_;
     };
-}
+} // namespace service::core

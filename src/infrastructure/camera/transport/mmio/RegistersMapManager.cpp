@@ -122,4 +122,4 @@ namespace service::infrastructure {
         }
         return Result<void>::success();
     }
-}
+} // namespace service::infrastructure

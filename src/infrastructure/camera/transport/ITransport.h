@@ -32,4 +32,4 @@ namespace service::infrastructure {
             return read(bytes);
         }
     };
-}
+} // namespace service::infrastructure

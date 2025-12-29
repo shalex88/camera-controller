@@ -1,5 +1,7 @@
 #pragma once
+
 #include <string>
+
 #include "common/types/Result.h"
 
 namespace service::api {
@@ -11,4 +13,4 @@ namespace service::api {
         virtual Result<void> stop() = 0;
         virtual Result<void> runLoop() = 0;
     };
-}
+} // namespace service::api

@@ -21,4 +21,4 @@ namespace service::api {
 
         throw std::invalid_argument("Unknown API controller type: " + config.api);
     }
-}
+} // namespace service::api

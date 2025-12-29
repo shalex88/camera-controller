@@ -190,4 +190,4 @@ namespace service::infrastructure {
     bool Uart::isOpen() const {
         return port_fd_ > 0;
     }
-}
+} // namespace service::infrastructure

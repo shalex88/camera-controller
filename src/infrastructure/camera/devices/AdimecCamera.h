@@ -10,17 +10,17 @@ namespace service::infrastructure {
     class ItlProtocol;
 
     class AdimecCamera final : public ICameraHw,
-                               public capabilities::IInfoCapable {
+                               public common::capabilities::IInfoCapable {
     public:
         explicit AdimecCamera(std::unique_ptr<GenicamProtocol> camera_protocol, std::unique_ptr<ItlProtocol> lens_protocol);
         ~AdimecCamera() override = default;
 
         Result<void> open() override;
         Result<void> close() override;
-        Result<types::info> getInfo() const override;
+        Result<common::types::info> getInfo() const override;
 
     private:
         std::unique_ptr<GenicamProtocol> camera_protocol_;
         std::unique_ptr<ItlProtocol> lens_protocol_;
     };
-}
+} // namespace service::infrastructure

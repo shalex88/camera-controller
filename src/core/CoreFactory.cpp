@@ -17,4 +17,4 @@ namespace service::core {
 
         throw std::invalid_argument("Unknown core type");
     }
-}
+} // namespace service::core

@@ -57,4 +57,4 @@ namespace service::api {
     private:
         IRequestHandler& request_handler_;
     };
-}
+} // namespace service::api

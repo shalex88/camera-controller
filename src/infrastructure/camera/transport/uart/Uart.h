@@ -24,4 +24,4 @@ namespace service::infrastructure {
         termios options_{};
         speed_t baud_rate_{};
     };
-}
+} // namespace service::infrastructure

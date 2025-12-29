@@ -54,7 +54,7 @@ namespace service::core {
         return is_running_;
     }
 
-    Result<void> Core::setZoom(const types::zoom zoom_level) const {
+    Result<void> Core::setZoom(const common::types::zoom zoom_level) const {
         if (!isRunning()) {
             return Result<void>::error("Core is not initialized");
         }
@@ -62,23 +62,23 @@ namespace service::core {
         return camera_->setZoom(zoom_level);
     }
 
-    Result<types::zoom> Core::getZoom() const {
+    Result<common::types::zoom> Core::getZoom() const {
         if (!isRunning()) {
-            return Result<types::zoom>::error("Core is not initialized");
+            return Result<common::types::zoom>::error("Core is not initialized");
         }
 
         return camera_->getZoom();
     }
 
     Result<void> Core::goToMinZoom() const {
-        return setZoom(types::MIN_NORMALIZED_ZOOM);
+        return setZoom(common::types::MIN_NORMALIZED_ZOOM);
     }
 
     Result<void> Core::goToMaxZoom() const {
-        return setZoom(types::MAX_NORMALIZED_ZOOM);
+        return setZoom(common::types::MAX_NORMALIZED_ZOOM);
     }
 
-    Result<void> Core::setFocus(const types::focus focus_value) const {
+    Result<void> Core::setFocus(const common::types::focus focus_value) const {
         if (!isRunning()) {
             return Result<void>::error("Core is not initialized");
         }
@@ -86,9 +86,9 @@ namespace service::core {
         return camera_->setFocus(focus_value);
     }
 
-    Result<types::focus> Core::getFocus() const {
+    Result<common::types::focus> Core::getFocus() const {
         if (!isRunning()) {
-            return Result<types::focus>::error("Core is not initialized");
+            return Result<common::types::focus>::error("Core is not initialized");
         }
 
         return camera_->getFocus();
@@ -102,9 +102,9 @@ namespace service::core {
         return camera_->enableAutoFocus(on);
     }
 
-    Result<types::info> Core::getInfo() const {
+    Result<common::types::info> Core::getInfo() const {
         if (!isRunning()) {
-            return Result<types::info>::error("Core is not initialized");
+            return Result<common::types::info>::error("Core is not initialized");
         }
 
         return camera_->getInfo();
@@ -117,4 +117,4 @@ namespace service::core {
 
         return camera_->stabilize(on);
     }
-}
+} // namespace service::core

@@ -22,4 +22,4 @@ namespace service::api {
         std::unique_ptr<grpc::Server> server_;
         bool is_running_{false};
     };
-}
+} // namespace service::api
