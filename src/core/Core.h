@@ -37,6 +37,9 @@ namespace service::core {
         // Business methods for advanced operations
         Result<void> stabilize(bool on) const override;
 
+        // Capability inquiry
+        Result<common::capabilities::CapabilityList> getCapabilities() const override;
+
     private:
         bool isRunning() const;
         std::unique_ptr<infrastructure::ICamera> camera_;

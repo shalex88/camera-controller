@@ -3,6 +3,7 @@
 /* Add your project include files here */
 #include "../../Mocks.h"
 #include "common/types/Result.h"
+#include "common/types/CameraCapabilities.h"
 #include "infrastructure/camera/hal/ICamera.h"
 #include "infrastructure/camera/hal/Camera.h"
 #include "infrastructure/camera/devices/FakeAdvancedCamera.h"
@@ -92,6 +93,12 @@ TEST_F(CameraTests, SetFocusWhenNotConnectedFail) {
 
 TEST_F(CameraTests, GetFocusWhenNotConnectedFail) {
     const auto result = camera_->getFocus();
+    ASSERT_TRUE(result.isError());
+    EXPECT_EQ(result.error(), "Camera not connected");
+}
+
+TEST_F(CameraTests, GetCapabilitiesWhenNotConnectedFail) {
+    const auto result = camera_->getCapabilities();
     ASSERT_TRUE(result.isError());
     EXPECT_EQ(result.error(), "Camera not connected");
 }
@@ -263,6 +270,24 @@ TEST_F(CameraTests, SetValidFocusWhenCameraErrorFails) {
 
     const auto set_result = camera_->setFocus(normalized_focus);
     ASSERT_TRUE(set_result.isError());
+}
+
+TEST_F(CameraTests, GetCapabilitiesReturnsAllSupported) {
+    EXPECT_CALL(*camera_hw_, open())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(camera_->open().isSuccess());
+
+    const auto result = camera_->getCapabilities();
+    ASSERT_TRUE(result.isSuccess());
+
+    const auto& capabilities = result.value();
+    EXPECT_THAT(capabilities, UnorderedElementsAre(
+        common::capabilities::Capability::Zoom,
+        common::capabilities::Capability::Focus,
+        common::capabilities::Capability::AutoFocus,
+        common::capabilities::Capability::Info,
+        common::capabilities::Capability::Stabilization));
 }
 
 TEST_F(CameraTests, GetValidFocusWhenCameraErrorFails) {

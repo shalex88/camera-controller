@@ -25,6 +25,8 @@ namespace service::infrastructure {
 
         Result<void> stabilize(bool on) const override;
 
+        Result<common::capabilities::CapabilityList> getCapabilities() const override;
+
         Result<void> open() override;
         Result<void> close() override;
         bool isConnected() const override;

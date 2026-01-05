@@ -3,6 +3,7 @@
 #include <string>
 
 #include "common/types/CameraTypes.h"
+#include "common/types/CameraCapabilities.h"
 #include "common/types/Result.h"
 
 namespace service::core {
@@ -29,5 +30,8 @@ namespace service::core {
 
         // Business methods for advanced operations
         virtual Result<void> stabilize(bool on) const = 0;
+
+        // Capability inquiry
+        virtual Result<common::capabilities::CapabilityList> getCapabilities() const = 0;
     };
 } // namespace service::core

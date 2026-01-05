@@ -15,5 +15,6 @@ namespace service::infrastructure {
         virtual Result<void> open() = 0;
         virtual Result<void> close() = 0;
         virtual bool isConnected() const = 0;
+        virtual Result<common::capabilities::CapabilityList> getCapabilities() const = 0;
     };
 } // namespace service::infrastructure

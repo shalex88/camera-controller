@@ -2,6 +2,7 @@
 
 #include "common/types/Result.h"
 #include "common/types/CameraTypes.h"
+#include "common/types/CameraCapabilities.h"
 
 namespace service::api {
     class IRequestHandler {
@@ -24,5 +25,7 @@ namespace service::api {
         virtual Result<common::types::info> getInfo() const = 0;
 
         virtual Result<void> stabilize(bool on) const = 0;
+
+        virtual Result<common::capabilities::CapabilityList> getCapabilities() const = 0;
     };
 }

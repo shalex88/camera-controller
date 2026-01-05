@@ -4,6 +4,7 @@
 #include "core/Core.h"
 #include "../../Mocks.h"
 #include "common/types/Result.h"
+#include "common/types/CameraCapabilities.h"
 
 class CoreTests : public Test {
 protected:
@@ -256,6 +257,39 @@ TEST_F(CoreTests, StabilizeFailsWhenNotInitialized) {
     const core::Core core(std::move(camera));
 
     const auto result = core.stabilize(true);
+    ASSERT_TRUE(result.isError());
+    EXPECT_THAT(result.error(), ::testing::HasSubstr("not initialized"));
+}
+
+TEST_F(CoreTests, GetCapabilitiesSuccess) {
+    EXPECT_CALL(*camera, isConnected())
+        .WillOnce(Return(false))
+        .WillOnce(Return(true));
+    EXPECT_CALL(*camera, open())
+        .WillOnce(Return(Result<void>::success()));
+
+    const common::capabilities::CapabilityList expected {
+        common::capabilities::Capability::Zoom,
+        common::capabilities::Capability::Focus};
+
+    EXPECT_CALL(*camera, getCapabilities())
+        .WillOnce(Return(Result<common::capabilities::CapabilityList>::success(expected)));
+
+    EXPECT_CALL(*camera, close())
+        .WillOnce(Return(Result<void>::success()));
+
+    core::Core core(std::move(camera));
+    ASSERT_TRUE(core.start().isSuccess());
+
+    const auto result = core.getCapabilities();
+    ASSERT_TRUE(result.isSuccess());
+    EXPECT_EQ(result.value(), expected);
+}
+
+TEST_F(CoreTests, GetCapabilitiesFailsWhenNotInitialized) {
+    const core::Core core(std::move(camera));
+
+    const auto result = core.getCapabilities();
     ASSERT_TRUE(result.isError());
     EXPECT_THAT(result.error(), ::testing::HasSubstr("not initialized"));
 }

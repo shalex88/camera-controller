@@ -34,6 +34,11 @@ namespace service::api {
             const google::protobuf::Empty* request,
             camera::v1::GetInfoResponse* response) override;
 
+        grpc::ServerUnaryReactor* GetCapabilities(
+            grpc::CallbackServerContext* context,
+            const google::protobuf::Empty* request,
+            camera::v1::GetCapabilitiesResponse* response) override;
+
         grpc::ServerUnaryReactor* GoToMinZoom(
             grpc::CallbackServerContext* context,
             const google::protobuf::Empty* request,

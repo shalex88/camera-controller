@@ -19,6 +19,9 @@ service CameraService {
   // Device info
   rpc GetInfo (google.protobuf.Empty) returns (GetInfoResponse) {}
 
+  // Capabilities
+  rpc GetCapabilities (google.protobuf.Empty) returns (GetCapabilitiesResponse) {}
+
   // Advanced operations
   rpc SetStabilization (SetStabilizationRequest) returns (google.protobuf.Empty) {}
 }
@@ -60,6 +63,20 @@ message SetAutoFocusRequest {
 // Device info
 message GetInfoResponse {
   string info = 1;
+}
+
+// Capabilities
+message GetCapabilitiesResponse {
+  repeated Capability capabilities = 1;
+}
+
+enum Capability {
+  CAPABILITY_UNSPECIFIED = 0;
+  CAPABILITY_ZOOM = 1;
+  CAPABILITY_FOCUS = 2;
+  CAPABILITY_AUTO_FOCUS = 3;
+  CAPABILITY_INFO = 4;
+  CAPABILITY_STABILIZATION = 5;
 }
 
 // Advanced operations

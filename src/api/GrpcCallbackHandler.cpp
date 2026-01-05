@@ -5,6 +5,7 @@
 
 #include "api/IRequestHandler.h"
 #include "common/logger/Logger.h"
+#include "common/types/CameraCapabilities.h"
 
 namespace service::api {
     namespace {
@@ -40,6 +41,23 @@ namespace service::api {
             }
 
             return reactor;
+        }
+
+        camera::v1::Capability toProto(const common::capabilities::Capability capability) {
+            switch (capability) {
+            case common::capabilities::Capability::Zoom:
+                return camera::v1::CAPABILITY_ZOOM;
+            case common::capabilities::Capability::Focus:
+                return camera::v1::CAPABILITY_FOCUS;
+            case common::capabilities::Capability::AutoFocus:
+                return camera::v1::CAPABILITY_AUTO_FOCUS;
+            case common::capabilities::Capability::Info:
+                return camera::v1::CAPABILITY_INFO;
+            case common::capabilities::Capability::Stabilization:
+                return camera::v1::CAPABILITY_STABILIZATION;
+            default:
+                return camera::v1::CAPABILITY_UNSPECIFIED;
+            }
         }
     } // unnamed namespace
 
@@ -109,6 +127,25 @@ namespace service::api {
                     return Result<void>::success();
                 }
                 return Result<void>::error(result.error());
+            });
+    }
+
+    grpc::ServerUnaryReactor* GrpcCallbackHandler::GetCapabilities(
+        grpc::CallbackServerContext* context,
+        const google::protobuf::Empty* request,
+        camera::v1::GetCapabilitiesResponse* response) {
+        return handleGrpcRequest(context, request, response,
+            [this](const google::protobuf::Empty*, camera::v1::GetCapabilitiesResponse* resp) {
+                const auto result = request_handler_.getCapabilities();
+                if (result.isError()) {
+                    return Result<void>::error(result.error());
+                }
+
+                for (const auto capability : result.value()) {
+                    resp->add_capabilities(toProto(capability));
+                }
+
+                return Result<void>::success();
             });
     }
 

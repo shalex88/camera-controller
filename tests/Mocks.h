@@ -35,6 +35,7 @@ public:
     MOCK_METHOD(Result<void>, goToMinZoom, (), (const, override));
     MOCK_METHOD(Result<void>, goToMaxZoom, (), (const, override));
     MOCK_METHOD(Result<void>, stabilize, (bool), (const, override));
+    MOCK_METHOD(Result<common::capabilities::CapabilityList>, getCapabilities, (), (const, override));
 };
 
 class CoreMock: public core::ICore {
@@ -51,6 +52,7 @@ public:
     MOCK_METHOD(Result<common::types::info>, getInfo, (), (const, override));
     MOCK_METHOD(Result<void>, enableAutoFocus, (bool), (const, override));
     MOCK_METHOD(Result<void>, stabilize, (bool), (const, override));
+    MOCK_METHOD(Result<common::capabilities::CapabilityList>, getCapabilities, (), (const, override));
 };
 
 class MockCameraHal : public infrastructure::ICamera {
@@ -77,6 +79,9 @@ public:
 
     // IStabilizationCapable implementation
     MOCK_METHOD(Result<void>, stabilize, (bool), (const, override));
+
+    // Capability enumeration
+    MOCK_METHOD(Result<common::capabilities::CapabilityList>, getCapabilities, (), (const, override));
 };
 
 class MockCameraHw: public infrastructure::ICameraHw,

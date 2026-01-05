@@ -3,6 +3,7 @@
 /* Add your project include files here */
 #include "api/RequestHandler.h"
 #include "common/types/Result.h"
+#include "common/types/CameraCapabilities.h"
 #include "../../Mocks.h"
 
 class RequestHandlerTests : public Test {
@@ -235,6 +236,35 @@ TEST_F(RequestHandlerTests, StabilizeSuccess) {
 
 TEST_F(RequestHandlerTests, StabilizeFailsIfNotRunning) {
     const auto result = request_handler->stabilize(true);
+    ASSERT_TRUE(result.isError());
+}
+
+TEST_F(RequestHandlerTests, GetCapabilitiesSuccess) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+
+    const common::capabilities::CapabilityList expected {
+        common::capabilities::Capability::Zoom,
+        common::capabilities::Capability::Focus,
+        common::capabilities::Capability::Stabilization};
+
+    EXPECT_CALL(*core, getCapabilities())
+        .WillOnce(Return(Result<common::capabilities::CapabilityList>::success(expected)));
+
+    EXPECT_CALL(*core, stop())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+
+    const auto result = request_handler->getCapabilities();
+    ASSERT_TRUE(result.isSuccess());
+    EXPECT_EQ(result.value(), expected);
+
+    ASSERT_TRUE(request_handler->stop().isSuccess());
+}
+
+TEST_F(RequestHandlerTests, GetCapabilitiesFailsIfNotRunning) {
+    const auto result = request_handler->getCapabilities();
     ASSERT_TRUE(result.isError());
 }
 

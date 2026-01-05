@@ -8,6 +8,7 @@
 #include "api/GrpcTransport.h"
 #include "api/RequestHandler.h"
 #include "common/logger/Logger.h"
+#include "common/types/CameraCapabilities.h"
 #include "../../utils/GrpcClient.h"
 #include "../Mocks.h"
 
@@ -92,4 +93,17 @@ TEST_F(GrpcIntegrationTests, RequestFailOnTimeout) {
     const auto result = client->setZoom(test_zoom);
     ASSERT_TRUE(result.isError());
     ASSERT_TRUE(result.error().find("Deadline") != std::string::npos);
+}
+
+TEST_F(GrpcIntegrationTests, GetCapabilitiesSuccess) {
+    const common::capabilities::CapabilityList expected {
+        common::capabilities::Capability::Zoom,
+        common::capabilities::Capability::Focus};
+
+    EXPECT_CALL(*core, getCapabilities())
+        .WillOnce(Return(Result<common::capabilities::CapabilityList>::success(expected)));
+
+    const auto result = client->getCapabilities();
+    ASSERT_TRUE(result.isSuccess());
+    EXPECT_EQ(result.value(), expected);
 }

@@ -4,6 +4,7 @@
 #include "api/proto/camera_service.grpc.pb.h"
 #include "api/proto/camera_service.pb.h"
 #include "common/types/CameraTypes.h"
+#include "common/types/CameraCapabilities.h"
 #include "common/types/Result.h"
 
 using namespace service;
@@ -82,6 +83,45 @@ public:
             return Result<void>::error(status.error_message());
         }
         return Result<void>::success();
+    }
+
+    Result<common::capabilities::CapabilityList> getCapabilities(const std::chrono::milliseconds timeout = NFOV_CAMERA_LOCK_TIMEOUT_MS) const {
+        const google::protobuf::Empty request;
+        camera::v1::GetCapabilitiesResponse response;
+        grpc::ClientContext context;
+
+        context.set_deadline(std::chrono::system_clock::now() + timeout);
+
+        if (const grpc::Status status = stub_->GetCapabilities(&context, request, &response); !status.ok()) {
+            return Result<common::capabilities::CapabilityList>::error(status.error_message());
+        }
+
+        common::capabilities::CapabilityList capabilities;
+        capabilities.reserve(response.capabilities_size());
+
+        for (const auto capability : response.capabilities()) {
+            switch (capability) {
+            case camera::v1::CAPABILITY_ZOOM:
+                capabilities.emplace_back(common::capabilities::Capability::Zoom);
+                break;
+            case camera::v1::CAPABILITY_FOCUS:
+                capabilities.emplace_back(common::capabilities::Capability::Focus);
+                break;
+            case camera::v1::CAPABILITY_AUTO_FOCUS:
+                capabilities.emplace_back(common::capabilities::Capability::AutoFocus);
+                break;
+            case camera::v1::CAPABILITY_INFO:
+                capabilities.emplace_back(common::capabilities::Capability::Info);
+                break;
+            case camera::v1::CAPABILITY_STABILIZATION:
+                capabilities.emplace_back(common::capabilities::Capability::Stabilization);
+                break;
+            default:
+                break;
+            }
+        }
+
+        return Result<common::capabilities::CapabilityList>::success(capabilities);
     }
 
 private:

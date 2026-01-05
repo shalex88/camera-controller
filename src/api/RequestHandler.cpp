@@ -209,4 +209,21 @@ namespace service::api {
 
         return operation;
     }
+
+    Result<common::capabilities::CapabilityList> RequestHandler::getCapabilities() const {
+        if (!isRunning()) {
+            return Result<common::capabilities::CapabilityList>::error("Request Handler is not running");
+        }
+
+        LOG_INFO("Request: {}", __func__);
+
+        auto operation = core_->getCapabilities();
+        if (operation.isError()) {
+            LOG_ERROR("Response: {}", operation.error());
+        } else {
+            LOG_INFO("Response: {} capabilities", operation.value().size());
+        }
+
+        return operation;
+    }
 } // namespace service::api

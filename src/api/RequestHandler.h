@@ -35,6 +35,8 @@ namespace service::api {
 
         Result<void> stabilize(bool on) const override;
 
+        Result<common::capabilities::CapabilityList> getCapabilities() const override;
+
     private:
         std::unique_ptr<core::ICore> core_;
         std::atomic<bool> running_;

@@ -1,9 +1,21 @@
 #pragma once
 
+#include <vector>
+
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
 
 namespace service::common::capabilities {
+    enum class Capability {
+        Zoom,
+        Focus,
+        AutoFocus,
+        Info,
+        Stabilization
+    };
+
+    using CapabilityList = std::vector<Capability>;
+
     class IZoomCapable {
     public:
         virtual ~IZoomCapable() = default;

@@ -117,4 +117,12 @@ namespace service::core {
 
         return camera_->stabilize(on);
     }
+
+    Result<common::capabilities::CapabilityList> Core::getCapabilities() const {
+        if (!isRunning()) {
+            return Result<common::capabilities::CapabilityList>::error("Core is not initialized");
+        }
+
+        return camera_->getCapabilities();
+    }
 } // namespace service::core

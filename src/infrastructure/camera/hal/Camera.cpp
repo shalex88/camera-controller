@@ -180,6 +180,36 @@ namespace service::infrastructure {
         return stabilize_capable->stabilize(on);
     }
 
+    Result<common::capabilities::CapabilityList> Camera::getCapabilities() const {
+        if (!isConnected()) {
+            return Result<common::capabilities::CapabilityList>::error("Camera not connected");
+        }
+
+        common::capabilities::CapabilityList capabilities;
+
+        if (hasZoomCapability()) {
+            capabilities.emplace_back(common::capabilities::Capability::Zoom);
+        }
+
+        if (hasFocusCapability()) {
+            capabilities.emplace_back(common::capabilities::Capability::Focus);
+        }
+
+        if (getCapability<common::capabilities::IAutoFocusCapable>() != nullptr) {
+            capabilities.emplace_back(common::capabilities::Capability::AutoFocus);
+        }
+
+        if (getCapability<common::capabilities::IInfoCapable>() != nullptr) {
+            capabilities.emplace_back(common::capabilities::Capability::Info);
+        }
+
+        if (getCapability<common::capabilities::IStabilizeCapable>() != nullptr) {
+            capabilities.emplace_back(common::capabilities::Capability::Stabilization);
+        }
+
+        return Result<common::capabilities::CapabilityList>::success(capabilities);
+    }
+
     Result<void> Camera::open() {
         if (connected_) {
             return Result<void>::error("Camera already connected");

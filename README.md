@@ -83,6 +83,5 @@ grpcui -plaintext 0.0.0.0:50051
 - Add monitoring for lower layers to be able to stop execution requested by lower layers
 - Set Nagle's algorithm on TCP sockets?
 - Core still does almost nothing, it's config file is also unnecessary
-- Create an API request for camera capabilities list
 - Add noexcept contract for public methods
 -
