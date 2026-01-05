@@ -6,13 +6,13 @@ import "google/protobuf/empty.proto";
 
 service CameraService {
   // Zoom operations
-  rpc SetZoom (SetZoomRequest) returns (SetZoomResponse) {}
+  rpc SetZoom (SetZoomRequest) returns (SetZoomResponse) {} //TODO: return current value after setting?
   rpc GetZoom (google.protobuf.Empty) returns (GetZoomResponse) {}
-  rpc GoToMinZoom (google.protobuf.Empty) returns (GoToMinZoomResponse) {}
-  rpc GoToMaxZoom (google.protobuf.Empty) returns (GoToMaxZoomResponse) {}
+  rpc GoToMinZoom (google.protobuf.Empty) returns (GoToMinZoomResponse) {} //TODO: return current value after setting?
+  rpc GoToMaxZoom (google.protobuf.Empty) returns (GoToMaxZoomResponse) {} //TODO: return current value after setting?
 
   // Focus operations
-  rpc SetFocus (SetFocusRequest) returns (SetFocusResponse) {}
+  rpc SetFocus (SetFocusRequest) returns (SetFocusResponse) {} //TODO: return current value after setting?
   rpc GetFocus (google.protobuf.Empty) returns (GetFocusResponse) {}
   rpc SetAutoFocus (SetAutoFocusRequest) returns (google.protobuf.Empty) {}
 
