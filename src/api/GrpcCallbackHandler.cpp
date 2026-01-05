@@ -84,7 +84,7 @@ namespace service::api {
         grpc::CallbackServerContext* context,
         const camera::v1::SetZoomRequest* request,
         camera::v1::SetZoomResponse* response) {
-        return handleGrpcAsyncRequest(context, request, response,
+        return handleGrpcSyncRequest(context, request, response,
             [this](const camera::v1::SetZoomRequest* req, camera::v1::SetZoomResponse*) {
                 return request_handler_.setZoom(req->zoom());
             });
@@ -94,7 +94,7 @@ namespace service::api {
         grpc::CallbackServerContext* context,
         const camera::v1::SetFocusRequest* request,
         camera::v1::SetFocusResponse* response) {
-        return handleGrpcAsyncRequest(context, request, response,
+        return handleGrpcSyncRequest(context, request, response,
             [this](const camera::v1::SetFocusRequest* req, camera::v1::SetFocusResponse*) {
                 return request_handler_.setFocus(req->focus());
             });
@@ -104,7 +104,7 @@ namespace service::api {
         grpc::CallbackServerContext* context,
         const google::protobuf::Empty* request,
         camera::v1::GetZoomResponse* response) {
-        return handleGrpcAsyncRequest(context, request, response,
+        return handleGrpcSyncRequest(context, request, response,
             [this](const google::protobuf::Empty*, camera::v1::GetZoomResponse* resp) {
                 const auto result = request_handler_.getZoom();
                 if (result.isSuccess()) {
@@ -119,7 +119,7 @@ namespace service::api {
         grpc::CallbackServerContext* context,
         const google::protobuf::Empty* request,
         camera::v1::GetFocusResponse* response) {
-        return handleGrpcAsyncRequest(context, request, response,
+        return handleGrpcSyncRequest(context, request, response,
             [this](const google::protobuf::Empty*, camera::v1::GetFocusResponse* resp) {
                 const auto result = request_handler_.getFocus();
                 if (result.isSuccess()) {
@@ -134,7 +134,7 @@ namespace service::api {
         grpc::CallbackServerContext* context,
         const google::protobuf::Empty* request,
         camera::v1::GetInfoResponse* response) {
-        return handleGrpcAsyncRequest(context, request, response,
+        return handleGrpcSyncRequest(context, request, response,
             [this](const google::protobuf::Empty*, camera::v1::GetInfoResponse* resp) {
                 const auto result = request_handler_.getInfo();
                 if (result.isSuccess()) {
@@ -168,7 +168,7 @@ namespace service::api {
         grpc::CallbackServerContext* context,
         const google::protobuf::Empty* request,
         camera::v1::GoToMinZoomResponse* response) {
-        return handleGrpcAsyncRequest(context, request, response,
+        return handleGrpcSyncRequest(context, request, response,
             [this](const google::protobuf::Empty*, camera::v1::GoToMinZoomResponse*) {
                 const auto result = request_handler_.goToMinZoom();
                 if (result.isSuccess()) {
@@ -182,7 +182,7 @@ namespace service::api {
         grpc::CallbackServerContext* context,
         const google::protobuf::Empty* request,
         camera::v1::GoToMaxZoomResponse* response) {
-        return handleGrpcAsyncRequest(context, request, response,
+        return handleGrpcSyncRequest(context, request, response,
             [this](const google::protobuf::Empty*, camera::v1::GoToMaxZoomResponse*) {
                 const auto result = request_handler_.goToMaxZoom();
                 if (result.isSuccess()) {
@@ -196,7 +196,7 @@ namespace service::api {
     grpc::CallbackServerContext* context,
     const camera::v1::SetAutoFocusRequest* request,
     google::protobuf::Empty* response) {
-        return handleGrpcAsyncRequest(context, request, response,
+        return handleGrpcSyncRequest(context, request, response,
             [this](const camera::v1::SetAutoFocusRequest* req, google::protobuf::Empty*) {
                 return request_handler_.enableAutoFocus(req->enable());
             });
@@ -206,7 +206,7 @@ namespace service::api {
     grpc::CallbackServerContext* context,
     const camera::v1::SetStabilizationRequest* request,
     google::protobuf::Empty* response) {
-        return handleGrpcAsyncRequest(context, request, response,
+        return handleGrpcSyncRequest(context, request, response,
             [this](const camera::v1::SetStabilizationRequest* req, google::protobuf::Empty*) {
                 return request_handler_.stabilize(req->enable());
             });
