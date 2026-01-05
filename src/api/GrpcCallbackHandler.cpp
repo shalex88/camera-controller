@@ -10,7 +10,25 @@
 namespace service::api {
     namespace {
         template<typename RequestType, typename ResponseType, typename ProcessFunc>
-        grpc::ServerUnaryReactor* handleGrpcRequest(
+        grpc::ServerUnaryReactor* handleGrpcSyncRequest(
+            grpc::CallbackServerContext* context,
+            const RequestType* request,
+            ResponseType* response,
+            ProcessFunc process_function) {
+            auto* const reactor = context->DefaultReactor();
+            const auto status = [&]() {
+                if (auto result = process_function(request, response); result.isError()) {
+                    return grpc::Status(grpc::StatusCode::INTERNAL, result.error());
+                }
+                return grpc::Status::OK;
+            }();
+
+            reactor->Finish(status);
+            return reactor;
+        }
+
+        template<typename RequestType, typename ResponseType, typename ProcessFunc>
+        grpc::ServerUnaryReactor* handleGrpcAsyncRequest(
             grpc::CallbackServerContext* context,
             const RequestType* request,
             ResponseType* response,
@@ -18,12 +36,10 @@ namespace service::api {
             auto* const reactor = context->DefaultReactor();
             const auto deadline = grpc::Timespec2Timepoint(context->raw_deadline());
 
-            // Calculate the remaining time before the deadline
             const auto now = std::chrono::system_clock::now();
             const auto remaining_time = deadline > now ? deadline - now : std::chrono::seconds(0);
 
-            // Launch the processing task asynchronously
-            std::future<grpc::Status> future = std::async(std::launch::async, [request, response, process_function] { //TODO: consider not running in async
+            std::future<grpc::Status> future = std::async(std::launch::async, [request, response, process_function] {
                 if (auto result = process_function(request, response); result.isError()) {
                     return grpc::Status(grpc::StatusCode::INTERNAL, result.error());
                 }
@@ -32,7 +48,6 @@ namespace service::api {
 
             //TODO: handle task execution abort if deadline exceeds, think of a way to cancel and undo the task
 
-            // Wait for the processing to complete or timeout
             if (future.wait_for(remaining_time) == std::future_status::timeout) {
                 LOG_ERROR("Request exceeded deadline during processing.");
                 reactor->Finish(grpc::Status(grpc::StatusCode::DEADLINE_EXCEEDED, "Processing exceeded deadline"));
@@ -69,7 +84,7 @@ namespace service::api {
         grpc::CallbackServerContext* context,
         const camera::v1::SetZoomRequest* request,
         camera::v1::SetZoomResponse* response) {
-        return handleGrpcRequest(context, request, response,
+        return handleGrpcAsyncRequest(context, request, response,
             [this](const camera::v1::SetZoomRequest* req, camera::v1::SetZoomResponse*) {
                 return request_handler_.setZoom(req->zoom());
             });
@@ -79,7 +94,7 @@ namespace service::api {
         grpc::CallbackServerContext* context,
         const camera::v1::SetFocusRequest* request,
         camera::v1::SetFocusResponse* response) {
-        return handleGrpcRequest(context, request, response,
+        return handleGrpcAsyncRequest(context, request, response,
             [this](const camera::v1::SetFocusRequest* req, camera::v1::SetFocusResponse*) {
                 return request_handler_.setFocus(req->focus());
             });
@@ -89,7 +104,7 @@ namespace service::api {
         grpc::CallbackServerContext* context,
         const google::protobuf::Empty* request,
         camera::v1::GetZoomResponse* response) {
-        return handleGrpcRequest(context, request, response,
+        return handleGrpcAsyncRequest(context, request, response,
             [this](const google::protobuf::Empty*, camera::v1::GetZoomResponse* resp) {
                 const auto result = request_handler_.getZoom();
                 if (result.isSuccess()) {
@@ -104,7 +119,7 @@ namespace service::api {
         grpc::CallbackServerContext* context,
         const google::protobuf::Empty* request,
         camera::v1::GetFocusResponse* response) {
-        return handleGrpcRequest(context, request, response,
+        return handleGrpcAsyncRequest(context, request, response,
             [this](const google::protobuf::Empty*, camera::v1::GetFocusResponse* resp) {
                 const auto result = request_handler_.getFocus();
                 if (result.isSuccess()) {
@@ -119,7 +134,7 @@ namespace service::api {
         grpc::CallbackServerContext* context,
         const google::protobuf::Empty* request,
         camera::v1::GetInfoResponse* response) {
-        return handleGrpcRequest(context, request, response,
+        return handleGrpcAsyncRequest(context, request, response,
             [this](const google::protobuf::Empty*, camera::v1::GetInfoResponse* resp) {
                 const auto result = request_handler_.getInfo();
                 if (result.isSuccess()) {
@@ -134,7 +149,7 @@ namespace service::api {
         grpc::CallbackServerContext* context,
         const google::protobuf::Empty* request,
         camera::v1::GetCapabilitiesResponse* response) {
-        return handleGrpcRequest(context, request, response,
+        return handleGrpcSyncRequest(context, request, response,
             [this](const google::protobuf::Empty*, camera::v1::GetCapabilitiesResponse* resp) {
                 const auto result = request_handler_.getCapabilities();
                 if (result.isError()) {
@@ -153,7 +168,7 @@ namespace service::api {
         grpc::CallbackServerContext* context,
         const google::protobuf::Empty* request,
         camera::v1::GoToMinZoomResponse* response) {
-        return handleGrpcRequest(context, request, response,
+        return handleGrpcAsyncRequest(context, request, response,
             [this](const google::protobuf::Empty*, camera::v1::GoToMinZoomResponse*) {
                 const auto result = request_handler_.goToMinZoom();
                 if (result.isSuccess()) {
@@ -167,7 +182,7 @@ namespace service::api {
         grpc::CallbackServerContext* context,
         const google::protobuf::Empty* request,
         camera::v1::GoToMaxZoomResponse* response) {
-        return handleGrpcRequest(context, request, response,
+        return handleGrpcAsyncRequest(context, request, response,
             [this](const google::protobuf::Empty*, camera::v1::GoToMaxZoomResponse*) {
                 const auto result = request_handler_.goToMaxZoom();
                 if (result.isSuccess()) {
@@ -181,7 +196,7 @@ namespace service::api {
     grpc::CallbackServerContext* context,
     const camera::v1::SetAutoFocusRequest* request,
     google::protobuf::Empty* response) {
-        return handleGrpcRequest(context, request, response,
+        return handleGrpcAsyncRequest(context, request, response,
             [this](const camera::v1::SetAutoFocusRequest* req, google::protobuf::Empty*) {
                 return request_handler_.enableAutoFocus(req->enable());
             });
@@ -191,7 +206,7 @@ namespace service::api {
     grpc::CallbackServerContext* context,
     const camera::v1::SetStabilizationRequest* request,
     google::protobuf::Empty* response) {
-        return handleGrpcRequest(context, request, response,
+        return handleGrpcAsyncRequest(context, request, response,
             [this](const camera::v1::SetStabilizationRequest* req, google::protobuf::Empty*) {
                 return request_handler_.stabilize(req->enable());
             });

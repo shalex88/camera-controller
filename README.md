@@ -84,4 +84,3 @@ grpcui -plaintext 0.0.0.0:50051
 - Set Nagle's algorithm on TCP sockets?
 - Core still does almost nothing, it's config file is also unnecessary
 - Add noexcept contract for public methods
--
