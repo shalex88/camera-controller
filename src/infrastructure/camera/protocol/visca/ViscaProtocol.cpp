@@ -352,7 +352,7 @@ namespace service::infrastructure {
             }
         }
 
-        std::vector<std::byte> decode(const std::span<const std::byte> buffer) {
+        std::span<const std::byte> decode(const std::span<const std::byte> buffer) {
             if (buffer.size() < 2) {
                 return {};
             }
@@ -371,7 +371,7 @@ namespace service::infrastructure {
                 return {};
             }
 
-            return {buffer.begin() + 2, buffer.begin() + buffer_size - 1};
+            return buffer.subspan(2, static_cast<size_t>(buffer_size) - 3);
         }
 
         constexpr std::byte getNibble(uint16_t value, unsigned shift) {
@@ -379,55 +379,55 @@ namespace service::infrastructure {
             return static_cast<std::byte>((unsigned_value >> shift) & 0x0FU);
         }
 
-        void pack8Bit(ViscaProtocol::ViscaPayload* payload, const std::byte byte) {
-            payload->data.at(payload->size++) = byte;
+        void pack8Bit(ViscaProtocol::ViscaPayload& payload, std::byte byte) {
+            payload.data.at(payload.size++) = byte;
         }
 
-        void pack16BitAsNibbles(ViscaProtocol::ViscaPayload* payload, uint16_t value) {
+        void pack16BitAsNibbles(ViscaProtocol::ViscaPayload& payload, uint16_t value) {
             pack8Bit(payload, getNibble(value, 12));
             pack8Bit(payload, getNibble(value, 8));
             pack8Bit(payload, getNibble(value, 4));
             pack8Bit(payload, getNibble(value, 0));
         }
 
-        uint16_t unpack16BitFromNibbles(const ViscaProtocol::ViscaPayload& payload, uint8_t index) {
+        Result<uint16_t> unpack16BitFromNibbles(const ViscaProtocol::ViscaPayload& payload, uint8_t index) {
             if (static_cast<size_t>(index) + 3 >= payload.size) {
-                return 0U;
+                return Result<uint16_t>::error("Payload too small to unpack 16-bit value from nibbles");
             }
-            const auto byte0 = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index])) << 12U;
-            const auto byte1 = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index + 1U])) << 8U;
-            const auto byte2 = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index + 2U])) << 4U;
-            const auto byte3 = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index + 3U]));
-            return static_cast<uint16_t>(byte0 | byte1 | byte2 | byte3);
+            const auto byte0 = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data.at(index))) << 12U;
+            const auto byte1 = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data.at(index + 1U))) << 8U;
+            const auto byte2 = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data.at(index + 2U))) << 4U;
+            const auto byte3 = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data.at(index + 3U)));
+            return Result<uint16_t>::success(static_cast<uint16_t>(byte0 | byte1 | byte2 | byte3));
         }
 
-        uint8_t unpack8Bit(const ViscaProtocol::ViscaPayload& payload, uint8_t index) {
+        Result<uint8_t> unpack8Bit(const ViscaProtocol::ViscaPayload& payload, uint8_t index) {
             if (static_cast<size_t>(index) >= payload.size) {
-                return 0U;
+                return Result<uint8_t>::error("Payload too small to unpack 8-bit value");
             }
-            return std::to_integer<uint8_t>(payload.data[index]);
+            return Result<uint8_t>::success(std::to_integer<uint8_t>(payload.data.at(index)));
         }
 
-        uint8_t unpack8BitFromNibbles(const ViscaProtocol::ViscaPayload& payload, uint8_t index) {
+        Result<uint8_t> unpack8BitFromNibbles(const ViscaProtocol::ViscaPayload& payload, uint8_t index) {
             if (static_cast<size_t>(index) + 1 >= payload.size) {
-                return 0U;
+                return Result<uint8_t>::error("Payload too small to unpack 8-bit value from nibbles");
             }
-            const auto high = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index]) << 4U);
-            const auto low = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index + 1U]));
-            return static_cast<uint8_t>(high | low);
+            const auto high = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data.at(index)) << 4U);
+            const auto low = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data.at(index + 1U)));
+            return Result<uint8_t>::success(static_cast<uint8_t>(high | low));
         }
 
-        uint16_t unpack16Bit(const ViscaProtocol::ViscaPayload& payload, uint8_t index) {
+        Result<uint16_t> unpack16Bit(const ViscaProtocol::ViscaPayload& payload, uint8_t index) {
             if (static_cast<size_t>(index) + 1 >= payload.size) {
-                return 0U;
+                return Result<uint16_t>::error("Payload too small to unpack 16-bit value");
             }
-            const auto high = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index]) << 8U);
-            const auto low = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data[index + 1U]));
-            return static_cast<uint16_t>(high | low);
+            const auto high = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data.at(index)) << 8U);
+            const auto low = static_cast<uint16_t>(std::to_integer<uint8_t>(payload.data.at(index + 1U)));
+            return Result<uint16_t>::success(static_cast<uint16_t>(high | low));
         }
 
-        std::span<std::byte> serialize(ViscaProtocol::ViscaPayload* payload) {
-            return {payload->data.data(), payload->size};
+        std::span<std::byte> serialize(ViscaProtocol::ViscaPayload& payload) {
+            return {payload.data.data(), payload.size};
         }
 
         ViscaProtocol::ViscaPayload deserialize(std::span<const std::byte> buffer) {
@@ -446,45 +446,49 @@ namespace service::infrastructure {
     Result<void> ViscaProtocol::setAddress() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_ADDRESS);
-        pack8Bit(&tx_payload, std::byte{0x01});
+        pack8Bit(tx_payload, VISCA_ADDRESS);
+        pack8Bit(tx_payload, std::byte{0x01});
 
         const auto backup = broadcast_;
         broadcast_ = 1;
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
-        cam_address_ = unpack8Bit(rx_payload.value(), 0) - 1;
+        const auto address_result = unpack8Bit(rx_payload.value(), 0);
+        if (address_result.isError()) {
+            return Result<void>::error(address_result.error());
+        }
+        cam_address_ = address_result.value() - 1;
         broadcast_ = backup;
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::clear() const {
+    Result<void> ViscaProtocol::clear() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, std::byte{0x00});
-        pack8Bit(&tx_payload, std::byte{0x01});
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, std::byte{0x00});
+        pack8Bit(tx_payload, std::byte{0x01});
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
         return Result<void>::success();
     }
 
-    Result<std::string> ViscaProtocol::getCameraInfo() const {
+    Result<std::string> ViscaProtocol::getCameraInfo() {
         // Decoded payload should be: vendor(2) + model(2) + rom(2) + socket(1) = 7 bytes minimum
         constexpr size_t min_payload_size = 7;
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_INTERFACE);
-        pack8Bit(&tx_payload, VISCA_DEVICE_INFO);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_INTERFACE);
+        pack8Bit(tx_payload, VISCA_DEVICE_INFO);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<std::string>::error(rx_payload.error());
         }
@@ -494,17 +498,35 @@ namespace service::infrastructure {
             return Result<std::string>::error("Invalid camera response - payload too small");
         }
 
-        const auto vendor = unpack16Bit(rx_payload.value(), 0);
+        const auto vendor_result = unpack16Bit(rx_payload.value(), 0);
+        if (vendor_result.isError()) {
+            return Result<std::string>::error(vendor_result.error());
+        }
+        const auto vendor = vendor_result.value();
         const auto vendor_str = getCameraVendor(vendor);
-        const auto model = unpack16Bit(rx_payload.value(), 2);
+
+        const auto model_result = unpack16Bit(rx_payload.value(), 2);
+        if (model_result.isError()) {
+            return Result<std::string>::error(model_result.error());
+        }
+        const auto model = model_result.value();
         const auto model_str = getCameraModel(model);
 
         if (vendor_str == "Unknown" && model_str == "Unknown") {
             return Result<std::string>::error("Unknown camera");
         }
 
-        const auto rom_version = unpack16Bit(rx_payload.value(), 4);
-        const auto socket_num = unpack8Bit(rx_payload.value(), 6);
+        const auto rom_version_result = unpack16Bit(rx_payload.value(), 4);
+        if (rom_version_result.isError()) {
+            return Result<std::string>::error(rom_version_result.error());
+        }
+        const auto rom_version = rom_version_result.value();
+
+        const auto socket_num_result = unpack8Bit(rx_payload.value(), 6);
+        if (socket_num_result.isError()) {
+            return Result<std::string>::error(socket_num_result.error());
+        }
+        const auto socket_num = socket_num_result.value();
 
         std::ostringstream oss;
         oss << vendor_str << " " << model_str << ", ROM Version: 0x" << std::hex << std::uppercase << std::setw(4) <<
@@ -522,1153 +544,1138 @@ namespace service::infrastructure {
         return transport_->close();
     }
 
-    Result<void> ViscaProtocol::setPower(uint8_t power) const {
+    Result<void> ViscaProtocol::setPower(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_POWER);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_POWER);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setKeylock(uint8_t power) const {
+    Result<void> ViscaProtocol::setKeylock(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_KEYLOCK);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_KEYLOCK);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setCameraId(uint16_t id) const {
+    Result<void> ViscaProtocol::setCameraId(uint16_t id) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_ID);
-        pack16BitAsNibbles(&tx_payload, id);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_ID);
+        pack16BitAsNibbles(tx_payload, id);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setZoomTele() const {
+    Result<void> ViscaProtocol::setZoomTele() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_ZOOM);
-        pack8Bit(&tx_payload, VISCA_ZOOM_TELE);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_ZOOM);
+        pack8Bit(tx_payload, VISCA_ZOOM_TELE);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setZoomWide() const {
+    Result<void> ViscaProtocol::setZoomWide() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_ZOOM);
-        pack8Bit(&tx_payload, VISCA_ZOOM_WIDE);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_ZOOM);
+        pack8Bit(tx_payload, VISCA_ZOOM_WIDE);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setZoomStop() const {
+    Result<void> ViscaProtocol::setZoomStop() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_ZOOM);
-        pack8Bit(&tx_payload, VISCA_ZOOM_STOP);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_ZOOM);
+        pack8Bit(tx_payload, VISCA_ZOOM_STOP);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setZoomTeleSpeed(uint32_t speed) const {
+    Result<void> ViscaProtocol::setZoomTeleSpeed(uint32_t speed) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_ZOOM);
-        pack8Bit(&tx_payload, VISCA_ZOOM_TELE_SPEED | static_cast<std::byte>(speed & 0x7));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_ZOOM);
+        pack8Bit(tx_payload, VISCA_ZOOM_TELE_SPEED | static_cast<std::byte>(speed & 0x7));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setZoomWideSpeed(uint32_t speed) const {
+    Result<void> ViscaProtocol::setZoomWideSpeed(uint32_t speed) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_ZOOM);
-        pack8Bit(&tx_payload, VISCA_ZOOM_WIDE_SPEED | static_cast<std::byte>(speed & 0x7));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_ZOOM);
+        pack8Bit(tx_payload, VISCA_ZOOM_WIDE_SPEED | static_cast<std::byte>(speed & 0x7));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setZoomValue(uint16_t zoom) const {
+    Result<void> ViscaProtocol::setZoomValue(uint16_t zoom) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_ZOOM_VALUE);
-        pack16BitAsNibbles(&tx_payload, zoom);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_ZOOM_VALUE);
+        pack16BitAsNibbles(tx_payload, zoom);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setZoomAndFocusValue(uint16_t zoom, uint16_t focus) const {
+    Result<void> ViscaProtocol::setZoomAndFocusValue(uint16_t zoom, uint16_t focus) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_ZOOM_FOCUS_VALUE);
-        pack16BitAsNibbles(&tx_payload, zoom);
-        pack16BitAsNibbles(&tx_payload, focus);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_ZOOM_FOCUS_VALUE);
+        pack16BitAsNibbles(tx_payload, zoom);
+        pack16BitAsNibbles(tx_payload, focus);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setDzoomValue(uint8_t value) const {
+    Result<void> ViscaProtocol::setDzoomValue(uint8_t value) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_DZOOM_VALUE);
-        pack16BitAsNibbles(&tx_payload, value);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_DZOOM_VALUE);
+        pack16BitAsNibbles(tx_payload, value);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setDzoomLimit(uint8_t limit) const {
+    Result<void> ViscaProtocol::setDzoomLimit(uint8_t limit) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_DZOOM_LIMIT);
-        pack8Bit(&tx_payload, static_cast<std::byte>(limit));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_DZOOM_LIMIT);
+        pack8Bit(tx_payload, static_cast<std::byte>(limit));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setDzoomMode(uint8_t power) const {
+    Result<void> ViscaProtocol::setDzoomMode(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_DZOOM_MODE);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_DZOOM_MODE);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setFocusFar() const {
+    Result<void> ViscaProtocol::setFocusFar() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_FOCUS);
-        pack8Bit(&tx_payload, VISCA_FOCUS_FAR);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_FOCUS);
+        pack8Bit(tx_payload, VISCA_FOCUS_FAR);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setFocusNear() const {
+    Result<void> ViscaProtocol::setFocusNear() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_FOCUS);
-        pack8Bit(&tx_payload, VISCA_FOCUS_NEAR);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_FOCUS);
+        pack8Bit(tx_payload, VISCA_FOCUS_NEAR);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setFocusStop() const {
+    Result<void> ViscaProtocol::setFocusStop() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_FOCUS);
-        pack8Bit(&tx_payload, VISCA_FOCUS_STOP);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_FOCUS);
+        pack8Bit(tx_payload, VISCA_FOCUS_STOP);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setFocusFarSpeed(uint32_t speed) const {
+    Result<void> ViscaProtocol::setFocusFarSpeed(uint32_t speed) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_FOCUS);
-        pack8Bit(&tx_payload, VISCA_FOCUS_FAR_SPEED | static_cast<std::byte>(speed & 0x7));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_FOCUS);
+        pack8Bit(tx_payload, VISCA_FOCUS_FAR_SPEED | static_cast<std::byte>(speed & 0x7));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setFocusNearSpeed(uint32_t speed) const {
+    Result<void> ViscaProtocol::setFocusNearSpeed(uint32_t speed) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_FOCUS);
-        pack8Bit(&tx_payload, VISCA_FOCUS_NEAR_SPEED | static_cast<std::byte>(speed & 0x7));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_FOCUS);
+        pack8Bit(tx_payload, VISCA_FOCUS_NEAR_SPEED | static_cast<std::byte>(speed & 0x7));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setFocusValue(uint16_t focus) const {
+    Result<void> ViscaProtocol::setFocusValue(uint16_t focus) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_FOCUS_VALUE);
-        pack16BitAsNibbles(&tx_payload, focus);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_FOCUS_VALUE);
+        pack16BitAsNibbles(tx_payload, focus);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setFocusAuto(const bool on) const {
+    Result<void> ViscaProtocol::setFocusAuto(const bool on) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_FOCUS_AUTO);
-        pack8Bit(&tx_payload, on ? VISCA_ON : VISCA_OFF);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_FOCUS_AUTO);
+        pack8Bit(tx_payload, on ? VISCA_ON : VISCA_OFF);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setFocusOnePush() const {
+    Result<void> ViscaProtocol::setFocusOnePush() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_FOCUS_ONE_PUSH);
-        pack8Bit(&tx_payload, VISCA_FOCUS_ONE_PUSH_TRIG);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_FOCUS_ONE_PUSH);
+        pack8Bit(tx_payload, VISCA_FOCUS_ONE_PUSH_TRIG);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setFocusInfinity() const {
+    Result<void> ViscaProtocol::setFocusInfinity() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_FOCUS_ONE_PUSH);
-        pack8Bit(&tx_payload, VISCA_FOCUS_ONE_PUSH_INF);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_FOCUS_ONE_PUSH);
+        pack8Bit(tx_payload, VISCA_FOCUS_ONE_PUSH_INF);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setFocusAutosenseHigh() const {
+    Result<void> ViscaProtocol::setFocusAutosenseHigh() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_FOCUS_AUTO_SENSE);
-        pack8Bit(&tx_payload, VISCA_FOCUS_AUTO_SENSE_HIGH);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_FOCUS_AUTO_SENSE);
+        pack8Bit(tx_payload, VISCA_FOCUS_AUTO_SENSE_HIGH);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setFocusAutosenseLow() const {
+    Result<void> ViscaProtocol::setFocusAutosenseLow() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_FOCUS_AUTO_SENSE);
-        pack8Bit(&tx_payload, VISCA_FOCUS_AUTO_SENSE_LOW);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_FOCUS_AUTO_SENSE);
+        pack8Bit(tx_payload, VISCA_FOCUS_AUTO_SENSE_LOW);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setFocusNearLimit(uint16_t limit) const {
+    Result<void> ViscaProtocol::setFocusNearLimit(uint16_t limit) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_FOCUS_NEAR_LIMIT);
-        pack16BitAsNibbles(&tx_payload, limit);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_FOCUS_NEAR_LIMIT);
+        pack16BitAsNibbles(tx_payload, limit);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setWhitebalMode(uint8_t mode) const {
+    Result<void> ViscaProtocol::setWhitebalMode(uint8_t mode) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_WB);
-        pack8Bit(&tx_payload, static_cast<std::byte>(mode));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_WB);
+        pack8Bit(tx_payload, static_cast<std::byte>(mode));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setWhitebalOnePush() const {
+    Result<void> ViscaProtocol::setWhitebalOnePush() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_WB_TRIGGER);
-        pack8Bit(&tx_payload, VISCA_WB_ONE_PUSH_TRIG);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_WB_TRIGGER);
+        pack8Bit(tx_payload, VISCA_WB_ONE_PUSH_TRIG);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setRgainUp() const {
+    Result<void> ViscaProtocol::setRgainUp() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_RGAIN);
-        pack8Bit(&tx_payload, VISCA_UP);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_RGAIN);
+        pack8Bit(tx_payload, VISCA_UP);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setRgainDown() const {
+    Result<void> ViscaProtocol::setRgainDown() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_RGAIN);
-        pack8Bit(&tx_payload, VISCA_DOWN);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_RGAIN);
+        pack8Bit(tx_payload, VISCA_DOWN);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setRgainReset() const {
+    Result<void> ViscaProtocol::setRgainReset() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_RGAIN);
-        pack8Bit(&tx_payload, VISCA_RESET);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_RGAIN);
+        pack8Bit(tx_payload, VISCA_RESET);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setRgainValue(uint8_t value) const {
+    Result<void> ViscaProtocol::setRgainValue(uint8_t value) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_RGAIN_VALUE);
-        pack16BitAsNibbles(&tx_payload, value);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_RGAIN_VALUE);
+        pack16BitAsNibbles(tx_payload, value);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setBgainUp() const {
+    Result<void> ViscaProtocol::setBgainUp() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_BGAIN);
-        pack8Bit(&tx_payload, VISCA_UP);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_BGAIN);
+        pack8Bit(tx_payload, VISCA_UP);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setBgainDown() const {
+    Result<void> ViscaProtocol::setBgainDown() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_BGAIN);
-        pack8Bit(&tx_payload, VISCA_DOWN);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_BGAIN);
+        pack8Bit(tx_payload, VISCA_DOWN);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setBgainReset() const {
+    Result<void> ViscaProtocol::setBgainReset() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_BGAIN);
-        pack8Bit(&tx_payload, VISCA_RESET);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_BGAIN);
+        pack8Bit(tx_payload, VISCA_RESET);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setBgainValue(uint8_t value) const {
+    Result<void> ViscaProtocol::setBgainValue(uint8_t value) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_BGAIN_VALUE);
-        pack16BitAsNibbles(&tx_payload, value);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_BGAIN_VALUE);
+        pack16BitAsNibbles(tx_payload, value);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setShutterUp() const {
+    Result<void> ViscaProtocol::setShutterUp() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_SHUTTER);
-        pack8Bit(&tx_payload, VISCA_UP);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_SHUTTER);
+        pack8Bit(tx_payload, VISCA_UP);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setShutterDown() const {
+    Result<void> ViscaProtocol::setShutterDown() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_SHUTTER);
-        pack8Bit(&tx_payload, VISCA_DOWN);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_SHUTTER);
+        pack8Bit(tx_payload, VISCA_DOWN);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setShutterReset() const {
+    Result<void> ViscaProtocol::setShutterReset() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_SHUTTER);
-        pack8Bit(&tx_payload, VISCA_RESET);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_SHUTTER);
+        pack8Bit(tx_payload, VISCA_RESET);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setShutterValue(uint8_t value) const {
+    Result<void> ViscaProtocol::setShutterValue(uint8_t value) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_SHUTTER_VALUE);
-        pack16BitAsNibbles(&tx_payload, value);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_SHUTTER_VALUE);
+        pack16BitAsNibbles(tx_payload, value);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setIrisUp() const {
+    Result<void> ViscaProtocol::setIrisUp() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_IRIS);
-        pack8Bit(&tx_payload, VISCA_UP);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_IRIS);
+        pack8Bit(tx_payload, VISCA_UP);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setIrisDown() const {
+    Result<void> ViscaProtocol::setIrisDown() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_IRIS);
-        pack8Bit(&tx_payload, VISCA_DOWN);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_IRIS);
+        pack8Bit(tx_payload, VISCA_DOWN);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setIrisReset() const {
+    Result<void> ViscaProtocol::setIrisReset() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_IRIS);
-        pack8Bit(&tx_payload, VISCA_RESET);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_IRIS);
+        pack8Bit(tx_payload, VISCA_RESET);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setIrisValue(uint8_t value) const {
+    Result<void> ViscaProtocol::setIrisValue(uint8_t value) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_IRIS_VALUE);
-        pack16BitAsNibbles(&tx_payload, value);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_IRIS_VALUE);
+        pack16BitAsNibbles(tx_payload, value);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setGainUp() const {
+    Result<void> ViscaProtocol::setGainUp() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_GAIN);
-        pack8Bit(&tx_payload, VISCA_UP);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_GAIN);
+        pack8Bit(tx_payload, VISCA_UP);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setGainDown() const {
+    Result<void> ViscaProtocol::setGainDown() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_GAIN);
-        pack8Bit(&tx_payload, VISCA_DOWN);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_GAIN);
+        pack8Bit(tx_payload, VISCA_DOWN);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setGainReset() const {
+    Result<void> ViscaProtocol::setGainReset() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_GAIN);
-        pack8Bit(&tx_payload, VISCA_RESET);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_GAIN);
+        pack8Bit(tx_payload, VISCA_RESET);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setGainValue(uint8_t value) const {
+    Result<void> ViscaProtocol::setGainValue(uint8_t value) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_GAIN_VALUE);
-        pack16BitAsNibbles(&tx_payload, value);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_GAIN_VALUE);
+        pack16BitAsNibbles(tx_payload, value);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setBrightUp() const {
+    Result<void> ViscaProtocol::setBrightUp() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_BRIGHT);
-        pack8Bit(&tx_payload, VISCA_UP);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_BRIGHT);
+        pack8Bit(tx_payload, VISCA_UP);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setBrightDown() const {
+    Result<void> ViscaProtocol::setBrightDown() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_BRIGHT);
-        pack8Bit(&tx_payload, VISCA_DOWN);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_BRIGHT);
+        pack8Bit(tx_payload, VISCA_DOWN);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setBrightReset() const {
+    Result<void> ViscaProtocol::setBrightReset() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_BRIGHT);
-        pack8Bit(&tx_payload, VISCA_RESET);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_BRIGHT);
+        pack8Bit(tx_payload, VISCA_RESET);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setBrightValue(uint16_t value) const {
+    Result<void> ViscaProtocol::setBrightValue(uint16_t value) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_BRIGHT_VALUE);
-        pack16BitAsNibbles(&tx_payload, value);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_BRIGHT_VALUE);
+        pack16BitAsNibbles(tx_payload, value);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setApertureUp() const {
+    Result<void> ViscaProtocol::setApertureUp() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_APERTURE);
-        pack8Bit(&tx_payload, VISCA_UP);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_APERTURE);
+        pack8Bit(tx_payload, VISCA_UP);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setApertureDown() const {
+    Result<void> ViscaProtocol::setApertureDown() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_APERTURE);
-        pack8Bit(&tx_payload, VISCA_DOWN);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_APERTURE);
+        pack8Bit(tx_payload, VISCA_DOWN);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setApertureReset() const {
+    Result<void> ViscaProtocol::setApertureReset() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_APERTURE);
-        pack8Bit(&tx_payload, VISCA_RESET);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_APERTURE);
+        pack8Bit(tx_payload, VISCA_RESET);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setApertureValue(uint8_t value) const {
+    Result<void> ViscaProtocol::setApertureValue(uint8_t value) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_APERTURE_VALUE);
-        pack16BitAsNibbles(&tx_payload, value);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_APERTURE_VALUE);
+        pack16BitAsNibbles(tx_payload, value);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setExpCompUp() const {
+    Result<void> ViscaProtocol::setExpCompUp() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_EXP_COMP);
-        pack8Bit(&tx_payload, VISCA_UP);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_EXP_COMP);
+        pack8Bit(tx_payload, VISCA_UP);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setExpCompDown() const {
+    Result<void> ViscaProtocol::setExpCompDown() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_EXP_COMP);
-        pack8Bit(&tx_payload, VISCA_DOWN);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_EXP_COMP);
+        pack8Bit(tx_payload, VISCA_DOWN);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setExpCompReset() const {
+    Result<void> ViscaProtocol::setExpCompReset() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_EXP_COMP);
-        pack8Bit(&tx_payload, VISCA_RESET);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_EXP_COMP);
+        pack8Bit(tx_payload, VISCA_RESET);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setExpCompValue(uint8_t value) const {
+    Result<void> ViscaProtocol::setExpCompValue(uint8_t value) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_EXP_COMP_VALUE);
-        pack16BitAsNibbles(&tx_payload, value);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_EXP_COMP_VALUE);
+        pack16BitAsNibbles(tx_payload, value);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setExpCompPower(uint8_t power) const {
+    Result<void> ViscaProtocol::setAutoExpMode(uint8_t mode) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_EXP_COMP_POWER);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_AUTO_EXP);
+        pack8Bit(tx_payload, static_cast<std::byte>(mode));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAutoExpMode(uint8_t mode) const {
+    Result<void> ViscaProtocol::setSlowShutterAuto(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_AUTO_EXP);
-        pack8Bit(&tx_payload, static_cast<std::byte>(mode));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_SLOW_SHUTTER);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setSlowShutterAuto(uint8_t power) const {
+    Result<void> ViscaProtocol::setBacklightComp(const bool on) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_SLOW_SHUTTER);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
-
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
-            return Result<void>::error(rx_payload.error());
-        }
-
-        return Result<void>::success();
-    }
-
-    Result<void> ViscaProtocol::setBacklightComp(const bool on) const {
-        ViscaPayload tx_payload{};
-
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_BACKLIGHT_COMP);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_BACKLIGHT_COMP);
         if (on) {
-            pack8Bit(&tx_payload, VISCA_ON);
+            pack8Bit(tx_payload, VISCA_ON);
         } else {
-            pack8Bit(&tx_payload, VISCA_OFF);
+            pack8Bit(tx_payload, VISCA_OFF);
         }
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setZeroLuxShot(uint8_t power) const {
+    Result<void> ViscaProtocol::setZeroLuxShot(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_ZERO_LUX);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_ZERO_LUX);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setIrLed(uint8_t power) const {
+    Result<void> ViscaProtocol::setIrLed(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_IR_LED);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_IR_LED);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setWideMode(uint8_t mode) const {
+    Result<void> ViscaProtocol::setWideMode(uint8_t mode) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_WIDE_MODE);
-        pack8Bit(&tx_payload, static_cast<std::byte>(mode));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_WIDE_MODE);
+        pack8Bit(tx_payload, static_cast<std::byte>(mode));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMirror(uint8_t power) const {
+    Result<void> ViscaProtocol::setMirror(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_MIRROR);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_MIRROR);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setFreeze(uint8_t power) const {
+    Result<void> ViscaProtocol::setFreeze(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_FREEZE);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_FREEZE);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPictureEffect(uint8_t mode) const {
+    Result<void> ViscaProtocol::setPictureEffect(uint8_t mode) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_PICTURE_EFFECT);
-        pack8Bit(&tx_payload, static_cast<std::byte>(mode));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_PICTURE_EFFECT);
+        pack8Bit(tx_payload, static_cast<std::byte>(mode));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setDigitalEffect(uint8_t mode) const {
+    Result<void> ViscaProtocol::setDigitalEffect(uint8_t mode) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_DIGITAL_EFFECT);
-        pack8Bit(&tx_payload, static_cast<std::byte>(mode));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_DIGITAL_EFFECT);
+        pack8Bit(tx_payload, static_cast<std::byte>(mode));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setDigitalEffectLevel(uint8_t level) const {
+    Result<void> ViscaProtocol::setDigitalEffectLevel(uint8_t level) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_DIGITAL_EFFECT_LEVEL);
-        pack8Bit(&tx_payload, static_cast<std::byte>(level));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_DIGITAL_EFFECT_LEVEL);
+        pack8Bit(tx_payload, static_cast<std::byte>(level));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setCamStabilizer(const bool power) const {
+    Result<void> ViscaProtocol::setCamStabilizer(const bool power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_CAM_STABILIZER);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_CAM_STABILIZER);
 
         if (power) {
-            pack8Bit(&tx_payload, VISCA_ON);
+            pack8Bit(tx_payload, VISCA_ON);
         } else {
-            pack8Bit(&tx_payload, VISCA_OFF);
+            pack8Bit(tx_payload, VISCA_OFF);
         }
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::memorySet(uint8_t channel) const {
+    Result<void> ViscaProtocol::memorySet(uint8_t channel) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_MEMORY);
-        pack8Bit(&tx_payload, VISCA_MEMORY_SET);
-        pack8Bit(&tx_payload, static_cast<std::byte>(channel));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_MEMORY);
+        pack8Bit(tx_payload, VISCA_MEMORY_SET);
+        pack8Bit(tx_payload, static_cast<std::byte>(channel));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::memoryRecall(uint8_t channel) const {
+    Result<void> ViscaProtocol::memoryRecall(uint8_t channel) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_MEMORY);
-        pack8Bit(&tx_payload, VISCA_MEMORY_RECALL);
-        pack8Bit(&tx_payload, static_cast<std::byte>(channel));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_MEMORY);
+        pack8Bit(tx_payload, VISCA_MEMORY_RECALL);
+        pack8Bit(tx_payload, static_cast<std::byte>(channel));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::memoryReset(uint8_t channel) const {
+    Result<void> ViscaProtocol::memoryReset(uint8_t channel) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_MEMORY);
-        pack8Bit(&tx_payload, VISCA_MEMORY_RESET);
-        pack8Bit(&tx_payload, static_cast<std::byte>(channel));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_MEMORY);
+        pack8Bit(tx_payload, VISCA_MEMORY_RESET);
+        pack8Bit(tx_payload, static_cast<std::byte>(channel));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setDisplay(uint8_t power) const {
+    Result<void> ViscaProtocol::setDisplay(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_DISPLAY);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_DISPLAY);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -1676,197 +1683,197 @@ namespace service::infrastructure {
     }
 
     Result<void> ViscaProtocol::setDateTime(uint16_t year, uint16_t month, uint16_t day, uint16_t hour,
-                                            uint16_t minute) const {
+                                            uint16_t minute) {
         if (month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59) {
             return Result<void>::error("Invalid input");
         }
 
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_DATE_TIME_SET);
-        pack8Bit(&tx_payload, static_cast<std::byte>(year / 10));
-        pack8Bit(&tx_payload, static_cast<std::byte>(year - 10 * (year / 10)));
-        pack8Bit(&tx_payload, static_cast<std::byte>(month / 10));
-        pack8Bit(&tx_payload, static_cast<std::byte>(month - 10 * (month / 10)));
-        pack8Bit(&tx_payload, static_cast<std::byte>(day / 10));
-        pack8Bit(&tx_payload, static_cast<std::byte>(day - 10 * (day / 10)));
-        pack8Bit(&tx_payload, static_cast<std::byte>(hour / 10));
-        pack8Bit(&tx_payload, static_cast<std::byte>(hour - 10 * (hour / 10)));
-        pack8Bit(&tx_payload, static_cast<std::byte>(minute / 10));
-        pack8Bit(&tx_payload, static_cast<std::byte>(minute - 10 * (minute / 10)));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_DATE_TIME_SET);
+        pack8Bit(tx_payload, static_cast<std::byte>(year / 10));
+        pack8Bit(tx_payload, static_cast<std::byte>(year - 10 * (year / 10)));
+        pack8Bit(tx_payload, static_cast<std::byte>(month / 10));
+        pack8Bit(tx_payload, static_cast<std::byte>(month - 10 * (month / 10)));
+        pack8Bit(tx_payload, static_cast<std::byte>(day / 10));
+        pack8Bit(tx_payload, static_cast<std::byte>(day - 10 * (day / 10)));
+        pack8Bit(tx_payload, static_cast<std::byte>(hour / 10));
+        pack8Bit(tx_payload, static_cast<std::byte>(hour - 10 * (hour / 10)));
+        pack8Bit(tx_payload, static_cast<std::byte>(minute / 10));
+        pack8Bit(tx_payload, static_cast<std::byte>(minute - 10 * (minute / 10)));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setDateDisplay(uint8_t power) const {
+    Result<void> ViscaProtocol::setDateDisplay(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_DATE_DISPLAY);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_DATE_DISPLAY);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setTimeDisplay(uint8_t power) const {
+    Result<void> ViscaProtocol::setTimeDisplay(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_TIME_DISPLAY);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_TIME_DISPLAY);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setTitleDisplay(uint8_t power) const {
+    Result<void> ViscaProtocol::setTitleDisplay(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_TITLE_DISPLAY);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_TITLE_DISPLAY);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setTitleClear() const {
+    Result<void> ViscaProtocol::setTitleClear() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_TITLE_DISPLAY);
-        pack8Bit(&tx_payload, VISCA_TITLE_DISPLAY_CLEAR);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_TITLE_DISPLAY);
+        pack8Bit(tx_payload, VISCA_TITLE_DISPLAY_CLEAR);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setTitleParams(const ViscaTitleData* title) const {
+    Result<void> ViscaProtocol::setTitleParams(const ViscaTitleData& title) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_TITLE_SET);
-        pack8Bit(&tx_payload, VISCA_TITLE_SET_PARAMS);
-        pack8Bit(&tx_payload, static_cast<std::byte>(title->vposition));
-        pack8Bit(&tx_payload, static_cast<std::byte>(title->hposition));
-        pack8Bit(&tx_payload, static_cast<std::byte>(title->color));
-        pack8Bit(&tx_payload, static_cast<std::byte>(title->blink));
-        pack8Bit(&tx_payload, std::byte{0});
-        pack8Bit(&tx_payload, std::byte{0});
-        pack8Bit(&tx_payload, std::byte{0});
-        pack8Bit(&tx_payload, std::byte{0});
-        pack8Bit(&tx_payload, std::byte{0});
-        pack8Bit(&tx_payload, std::byte{0});
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_TITLE_SET);
+        pack8Bit(tx_payload, VISCA_TITLE_SET_PARAMS);
+        pack8Bit(tx_payload, static_cast<std::byte>(title.vposition));
+        pack8Bit(tx_payload, static_cast<std::byte>(title.hposition));
+        pack8Bit(tx_payload, static_cast<std::byte>(title.color));
+        pack8Bit(tx_payload, static_cast<std::byte>(title.blink));
+        pack8Bit(tx_payload, std::byte{0});
+        pack8Bit(tx_payload, std::byte{0});
+        pack8Bit(tx_payload, std::byte{0});
+        pack8Bit(tx_payload, std::byte{0});
+        pack8Bit(tx_payload, std::byte{0});
+        pack8Bit(tx_payload, std::byte{0});
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setTitle(const ViscaTitleData* title) const {
+    Result<void> ViscaProtocol::setTitle(const ViscaTitleData& title) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_TITLE_SET);
-        pack8Bit(&tx_payload, VISCA_TITLE_SET_PART1);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_TITLE_SET);
+        pack8Bit(tx_payload, VISCA_TITLE_SET_PART1);
 
-        for (auto i = 0; i < 10; i++) {
-            pack8Bit(&tx_payload, title->title.at(i));
+        for (size_t i = 0; i < 10; i++) {
+            pack8Bit(tx_payload, title.title.at(i));
         }
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_TITLE_SET);
-        pack8Bit(&tx_payload, VISCA_TITLE_SET_PART2);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_TITLE_SET);
+        pack8Bit(tx_payload, VISCA_TITLE_SET_PART2);
 
-        for (auto i = 0; i < 10; i++) {
-            pack8Bit(&tx_payload, title->title.at(i + 10));
+        for (size_t i = 0; i < 10; i++) {
+            pack8Bit(tx_payload, title.title.at(i + 10));
         }
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setIrreceiveOn() const {
+    Result<void> ViscaProtocol::setIrreceiveOn() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_IRRECEIVE);
-        pack8Bit(&tx_payload, VISCA_ON);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_IRRECEIVE);
+        pack8Bit(tx_payload, VISCA_ON);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setIrreceiveOff() const {
+    Result<void> ViscaProtocol::setIrreceiveOff() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_IRRECEIVE);
-        pack8Bit(&tx_payload, VISCA_OFF);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_IRRECEIVE);
+        pack8Bit(tx_payload, VISCA_OFF);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setIrreceiveOnoff() const {
+    Result<void> ViscaProtocol::setIrreceiveOnoff() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_IRRECEIVE);
-        pack8Bit(&tx_payload, VISCA_IRRECEIVE_ONOFF);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_IRRECEIVE);
+        pack8Bit(tx_payload, VISCA_IRRECEIVE_ONOFF);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltUp(uint8_t pan_speed, uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltUp(uint8_t pan_speed, uint8_t tilt_speed) {
         if (pan_speed < 1 || pan_speed > 18) {
             return Result<void>::error("Pan speed should be in the range 01 - 18");
         }
@@ -1876,150 +1883,150 @@ namespace service::infrastructure {
 
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE);
-        pack8Bit(&tx_payload, static_cast<std::byte>(pan_speed));
-        pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE_HORIZ_STOP);
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE_VERT_UP);
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_DRIVE);
+        pack8Bit(tx_payload, static_cast<std::byte>(pan_speed));
+        pack8Bit(tx_payload, static_cast<std::byte>(tilt_speed));
+        pack8Bit(tx_payload, VISCA_PT_DRIVE_HORIZ_STOP);
+        pack8Bit(tx_payload, VISCA_PT_DRIVE_VERT_UP);
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltDown(uint8_t pan_speed, uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltDown(uint8_t pan_speed, uint8_t tilt_speed) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE);
-        pack8Bit(&tx_payload, static_cast<std::byte>(pan_speed));
-        pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE_HORIZ_STOP);
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE_VERT_DOWN);
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_DRIVE);
+        pack8Bit(tx_payload, static_cast<std::byte>(pan_speed));
+        pack8Bit(tx_payload, static_cast<std::byte>(tilt_speed));
+        pack8Bit(tx_payload, VISCA_PT_DRIVE_HORIZ_STOP);
+        pack8Bit(tx_payload, VISCA_PT_DRIVE_VERT_DOWN);
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltLeft(uint8_t pan_speed, uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltLeft(uint8_t pan_speed, uint8_t tilt_speed) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE);
-        pack8Bit(&tx_payload, static_cast<std::byte>(pan_speed));
-        pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE_HORIZ_LEFT);
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE_VERT_STOP);
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_DRIVE);
+        pack8Bit(tx_payload, static_cast<std::byte>(pan_speed));
+        pack8Bit(tx_payload, static_cast<std::byte>(tilt_speed));
+        pack8Bit(tx_payload, VISCA_PT_DRIVE_HORIZ_LEFT);
+        pack8Bit(tx_payload, VISCA_PT_DRIVE_VERT_STOP);
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltRight(uint8_t pan_speed, uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltRight(uint8_t pan_speed, uint8_t tilt_speed) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE);
-        pack8Bit(&tx_payload, static_cast<std::byte>(pan_speed));
-        pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE_HORIZ_RIGHT);
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE_VERT_STOP);
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_DRIVE);
+        pack8Bit(tx_payload, static_cast<std::byte>(pan_speed));
+        pack8Bit(tx_payload, static_cast<std::byte>(tilt_speed));
+        pack8Bit(tx_payload, VISCA_PT_DRIVE_HORIZ_RIGHT);
+        pack8Bit(tx_payload, VISCA_PT_DRIVE_VERT_STOP);
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltUpleft(uint8_t pan_speed, uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltUpleft(uint8_t pan_speed, uint8_t tilt_speed) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE);
-        pack8Bit(&tx_payload, static_cast<std::byte>(pan_speed));
-        pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE_HORIZ_LEFT);
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE_VERT_UP);
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_DRIVE);
+        pack8Bit(tx_payload, static_cast<std::byte>(pan_speed));
+        pack8Bit(tx_payload, static_cast<std::byte>(tilt_speed));
+        pack8Bit(tx_payload, VISCA_PT_DRIVE_HORIZ_LEFT);
+        pack8Bit(tx_payload, VISCA_PT_DRIVE_VERT_UP);
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltUpright(uint8_t pan_speed, uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltUpright(uint8_t pan_speed, uint8_t tilt_speed) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE);
-        pack8Bit(&tx_payload, static_cast<std::byte>(pan_speed));
-        pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE_HORIZ_RIGHT);
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE_VERT_UP);
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_DRIVE);
+        pack8Bit(tx_payload, static_cast<std::byte>(pan_speed));
+        pack8Bit(tx_payload, static_cast<std::byte>(tilt_speed));
+        pack8Bit(tx_payload, VISCA_PT_DRIVE_HORIZ_RIGHT);
+        pack8Bit(tx_payload, VISCA_PT_DRIVE_VERT_UP);
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltDownleft(uint8_t pan_speed, uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltDownleft(uint8_t pan_speed, uint8_t tilt_speed) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE);
-        pack8Bit(&tx_payload, static_cast<std::byte>(pan_speed));
-        pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE_HORIZ_LEFT);
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE_VERT_DOWN);
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_DRIVE);
+        pack8Bit(tx_payload, static_cast<std::byte>(pan_speed));
+        pack8Bit(tx_payload, static_cast<std::byte>(tilt_speed));
+        pack8Bit(tx_payload, VISCA_PT_DRIVE_HORIZ_LEFT);
+        pack8Bit(tx_payload, VISCA_PT_DRIVE_VERT_DOWN);
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltDownright(uint8_t pan_speed, uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltDownright(uint8_t pan_speed, uint8_t tilt_speed) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE);
-        pack8Bit(&tx_payload, static_cast<std::byte>(pan_speed));
-        pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE_HORIZ_RIGHT);
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE_VERT_DOWN);
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_DRIVE);
+        pack8Bit(tx_payload, static_cast<std::byte>(pan_speed));
+        pack8Bit(tx_payload, static_cast<std::byte>(tilt_speed));
+        pack8Bit(tx_payload, VISCA_PT_DRIVE_HORIZ_RIGHT);
+        pack8Bit(tx_payload, VISCA_PT_DRIVE_VERT_DOWN);
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltStop(uint8_t pan_speed, uint8_t tilt_speed) const {
+    Result<void> ViscaProtocol::setPanTiltStop(uint8_t pan_speed, uint8_t tilt_speed) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE);
-        pack8Bit(&tx_payload, static_cast<std::byte>(pan_speed));
-        pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE_HORIZ_STOP);
-        pack8Bit(&tx_payload, VISCA_PT_DRIVE_VERT_STOP);
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_DRIVE);
+        pack8Bit(tx_payload, static_cast<std::byte>(pan_speed));
+        pack8Bit(tx_payload, static_cast<std::byte>(tilt_speed));
+        pack8Bit(tx_payload, VISCA_PT_DRIVE_HORIZ_STOP);
+        pack8Bit(tx_payload, VISCA_PT_DRIVE_VERT_STOP);
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2027,7 +2034,7 @@ namespace service::infrastructure {
     }
 
     Result<void> ViscaProtocol::setPanTiltAbsolutePosition(uint8_t pan_speed, uint8_t tilt_speed, uint16_t pan_position,
-                                                           uint16_t tilt_position) const {
+                                                           uint16_t tilt_position) {
         if (pan_speed < 1 || pan_speed > 18) {
             return Result<void>::error("Pan speed should be in the range 01 - 18");
         }
@@ -2043,15 +2050,15 @@ namespace service::infrastructure {
 
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_ABSOLUTE_POSITION);
-        pack8Bit(&tx_payload, static_cast<std::byte>(pan_speed));
-        pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
-        pack16BitAsNibbles(&tx_payload, pan_position);
-        pack16BitAsNibbles(&tx_payload, tilt_position);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_ABSOLUTE_POSITION);
+        pack8Bit(tx_payload, static_cast<std::byte>(pan_speed));
+        pack8Bit(tx_payload, static_cast<std::byte>(tilt_speed));
+        pack16BitAsNibbles(tx_payload, pan_position);
+        pack16BitAsNibbles(tx_payload, tilt_position);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
@@ -2059,59 +2066,59 @@ namespace service::infrastructure {
     }
 
     Result<void> ViscaProtocol::setPanTiltRelativePosition(uint8_t pan_speed, uint8_t tilt_speed, uint16_t pan_pos,
-                                                           uint16_t tilt_pos) const {
+                                                           uint16_t tilt_pos) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_RELATIVE_POSITION);
-        pack8Bit(&tx_payload, static_cast<std::byte>(pan_speed));
-        pack8Bit(&tx_payload, static_cast<std::byte>(tilt_speed));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_RELATIVE_POSITION);
+        pack8Bit(tx_payload, static_cast<std::byte>(pan_speed));
+        pack8Bit(tx_payload, static_cast<std::byte>(tilt_speed));
 
-        pack8Bit(&tx_payload, getNibble(pan_pos, 12));
-        pack8Bit(&tx_payload, getNibble(pan_pos, 8));
-        pack8Bit(&tx_payload, getNibble(pan_pos, 4));
-        pack8Bit(&tx_payload, getNibble(pan_pos, 0));
+        pack8Bit(tx_payload, getNibble(pan_pos, 12));
+        pack8Bit(tx_payload, getNibble(pan_pos, 8));
+        pack8Bit(tx_payload, getNibble(pan_pos, 4));
+        pack8Bit(tx_payload, getNibble(pan_pos, 0));
 
-        pack8Bit(&tx_payload, getNibble(tilt_pos, 12));
-        pack8Bit(&tx_payload, getNibble(tilt_pos, 8));
-        pack8Bit(&tx_payload, getNibble(tilt_pos, 4));
-        pack8Bit(&tx_payload, getNibble(tilt_pos, 0));
+        pack8Bit(tx_payload, getNibble(tilt_pos, 12));
+        pack8Bit(tx_payload, getNibble(tilt_pos, 8));
+        pack8Bit(tx_payload, getNibble(tilt_pos, 4));
+        pack8Bit(tx_payload, getNibble(tilt_pos, 0));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltHome() const {
+    Result<void> ViscaProtocol::setPanTiltHome() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_HOME);
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_HOME);
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltReset() const {
+    Result<void> ViscaProtocol::setPanTiltReset() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_RESET);
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_RESET);
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltLimitUpright(uint16_t pan_limit, uint16_t tilt_limit) const {
+    Result<void> ViscaProtocol::setPanTiltLimitUpright(uint16_t pan_limit, uint16_t tilt_limit) {
         if (pan_limit < 0xFC90 || pan_limit > 0x370) {
             return Result<void>::error("Pan limit should be in the range -880 - 880");
         }
@@ -2121,737 +2128,781 @@ namespace service::infrastructure {
 
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_LIMITSET);
-        pack8Bit(&tx_payload, VISCA_PT_LIMITSET_SET);
-        pack8Bit(&tx_payload, VISCA_PT_LIMITSET_SET_UR);
-        pack16BitAsNibbles(&tx_payload, pan_limit);
-        pack16BitAsNibbles(&tx_payload, tilt_limit);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_LIMITSET);
+        pack8Bit(tx_payload, VISCA_PT_LIMITSET_SET);
+        pack8Bit(tx_payload, VISCA_PT_LIMITSET_SET_UR);
+        pack16BitAsNibbles(tx_payload, pan_limit);
+        pack16BitAsNibbles(tx_payload, tilt_limit);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltLimitDownleft(uint16_t pan_limit, uint16_t tilt_limit) const {
+    Result<void> ViscaProtocol::setPanTiltLimitDownleft(uint16_t pan_limit, uint16_t tilt_limit) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_LIMITSET);
-        pack8Bit(&tx_payload, VISCA_PT_LIMITSET_SET);
-        pack8Bit(&tx_payload, VISCA_PT_LIMITSET_SET_DL);
-        pack16BitAsNibbles(&tx_payload, pan_limit);
-        pack16BitAsNibbles(&tx_payload, tilt_limit);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_LIMITSET);
+        pack8Bit(tx_payload, VISCA_PT_LIMITSET_SET);
+        pack8Bit(tx_payload, VISCA_PT_LIMITSET_SET_DL);
+        pack16BitAsNibbles(tx_payload, pan_limit);
+        pack16BitAsNibbles(tx_payload, tilt_limit);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltLimitDownleftClear() const {
+    Result<void> ViscaProtocol::setPanTiltLimitDownleftClear() {
         ViscaPayload tx_payload{};
 
         constexpr uint16_t pan_limit{0x7fff};
         constexpr uint16_t tilt_limit{0x7fff};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_LIMITSET);
-        pack8Bit(&tx_payload, VISCA_PT_LIMITSET_CLEAR);
-        pack8Bit(&tx_payload, VISCA_PT_LIMITSET_SET_DL);
-        pack16BitAsNibbles(&tx_payload, pan_limit);
-        pack16BitAsNibbles(&tx_payload, tilt_limit);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_LIMITSET);
+        pack8Bit(tx_payload, VISCA_PT_LIMITSET_CLEAR);
+        pack8Bit(tx_payload, VISCA_PT_LIMITSET_SET_DL);
+        pack16BitAsNibbles(tx_payload, pan_limit);
+        pack16BitAsNibbles(tx_payload, tilt_limit);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setPanTiltLimitUprightClear() const {
+    Result<void> ViscaProtocol::setPanTiltLimitUprightClear() {
         ViscaPayload tx_payload{};
 
         constexpr uint16_t pan_limit{0x7fff};
         constexpr uint16_t tilt_limit{0x7fff};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_LIMITSET);
-        pack8Bit(&tx_payload, VISCA_PT_LIMITSET_CLEAR);
-        pack8Bit(&tx_payload, VISCA_PT_LIMITSET_SET_UR);
-        pack16BitAsNibbles(&tx_payload, pan_limit);
-        pack16BitAsNibbles(&tx_payload, tilt_limit);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_LIMITSET);
+        pack8Bit(tx_payload, VISCA_PT_LIMITSET_CLEAR);
+        pack8Bit(tx_payload, VISCA_PT_LIMITSET_SET_UR);
+        pack16BitAsNibbles(tx_payload, pan_limit);
+        pack16BitAsNibbles(tx_payload, tilt_limit);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setDatascreenOn() const {
+    Result<void> ViscaProtocol::setDatascreenOn() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_DATASCREEN);
-        pack8Bit(&tx_payload, VISCA_ON);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_DATASCREEN);
+        pack8Bit(tx_payload, VISCA_ON);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setDatascreenOff() const {
+    Result<void> ViscaProtocol::setDatascreenOff() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_DATASCREEN);
-        pack8Bit(&tx_payload, VISCA_OFF);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_DATASCREEN);
+        pack8Bit(tx_payload, VISCA_OFF);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setDatascreenOnoff() const {
+    Result<void> ViscaProtocol::setDatascreenOnoff() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_DATASCREEN);
-        pack8Bit(&tx_payload, VISCA_PT_DATASCREEN_ONOFF);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_DATASCREEN);
+        pack8Bit(tx_payload, VISCA_PT_DATASCREEN_ONOFF);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setSpotAeOn() const {
+    Result<void> ViscaProtocol::setSpotAeOn() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_SPOT_AE);
-        pack8Bit(&tx_payload, VISCA_ON);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_SPOT_AE);
+        pack8Bit(tx_payload, VISCA_ON);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setSpotAeOff() const {
+    Result<void> ViscaProtocol::setSpotAeOff() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_SPOT_AE);
-        pack8Bit(&tx_payload, VISCA_OFF);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_SPOT_AE);
+        pack8Bit(tx_payload, VISCA_OFF);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setSpotAePosition(uint8_t x_position, uint8_t y_position) const {
+    Result<void> ViscaProtocol::setSpotAePosition(uint8_t x_position, uint8_t y_position) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_SPOT_AE_POSITION);
-        pack8Bit(&tx_payload, getNibble(x_position, 4));
-        pack8Bit(&tx_payload, getNibble(x_position, 0));
-        pack8Bit(&tx_payload, getNibble(y_position, 4));
-        pack8Bit(&tx_payload, getNibble(y_position, 0));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_SPOT_AE_POSITION);
+        pack8Bit(tx_payload, getNibble(x_position, 4));
+        pack8Bit(tx_payload, getNibble(x_position, 0));
+        pack8Bit(tx_payload, getNibble(y_position, 4));
+        pack8Bit(tx_payload, getNibble(y_position, 0));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<uint8_t> ViscaProtocol::getPower() const {
+    Result<uint8_t> ViscaProtocol::getPower() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_POWER);
-        const auto rx_payload = writeRead(&tx_payload);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_POWER);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getDzoomValue() const {
+    Result<uint8_t> ViscaProtocol::getDzoomValue() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_DZOOM);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_DZOOM);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getDzoomLimit() const {
+    Result<uint8_t> ViscaProtocol::getDzoomLimit() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_DZOOM_LIMIT);
-        const auto rx_payload = writeRead(&tx_payload);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_DZOOM_LIMIT);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint16_t> ViscaProtocol::getZoomValue() const {
+    Result<uint16_t> ViscaProtocol::getZoomValue() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_ZOOM_VALUE);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_ZOOM_VALUE);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint16_t>::error(rx_payload.error());
         }
-        return Result<uint16_t>::success(unpack16BitFromNibbles(rx_payload.value(), 0));
+        return unpack16BitFromNibbles(rx_payload.value(), 0);
     }
 
-    Result<bool> ViscaProtocol::getFocusAuto() const {
+    Result<bool> ViscaProtocol::getFocusAuto() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_FOCUS_AUTO);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_FOCUS_AUTO);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<bool>::error(rx_payload.error());
         }
 
-        if (unpack8Bit(rx_payload.value(), 0) == std::to_integer<uint8_t>(VISCA_OFF)) {
+        const auto value_result = unpack8Bit(rx_payload.value(), 0);
+        if (value_result.isError()) {
+            return Result<bool>::error(value_result.error());
+        }
+
+        if (value_result.value() == std::to_integer<uint8_t>(VISCA_OFF)) {
             return Result<bool>::success(false);
         }
         return Result<bool>::success(true);
     }
 
-    Result<uint16_t> ViscaProtocol::getFocusValue() const {
+    Result<uint16_t> ViscaProtocol::getFocusValue() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_FOCUS_VALUE);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_FOCUS_VALUE);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint16_t>::error(rx_payload.error());
         }
-        return Result<uint16_t>::success(unpack16BitFromNibbles(rx_payload.value(), 0));
+        return unpack16BitFromNibbles(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getFocusAutoSense() const {
+    Result<uint8_t> ViscaProtocol::getFocusAutoSense() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_FOCUS_AUTO_SENSE);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_FOCUS_AUTO_SENSE);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint16_t> ViscaProtocol::getFocusNearLimit() const {
+    Result<uint16_t> ViscaProtocol::getFocusNearLimit() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_FOCUS_NEAR_LIMIT);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_FOCUS_NEAR_LIMIT);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint16_t>::error(rx_payload.error());
         }
-        return Result<uint16_t>::success(unpack16BitFromNibbles(rx_payload.value(), 0));
+        return unpack16BitFromNibbles(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getWhitebalMode() const {
+    Result<uint8_t> ViscaProtocol::getWhitebalMode() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_WB);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_WB);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getRgainValue() const {
+    Result<uint8_t> ViscaProtocol::getRgainValue() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_RGAIN_VALUE);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_RGAIN_VALUE);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getBgainValue() const {
+    Result<uint8_t> ViscaProtocol::getBgainValue() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_BGAIN_VALUE);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_BGAIN_VALUE);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getAutoExpMode() const {
+    Result<uint8_t> ViscaProtocol::getAutoExpMode() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_AUTO_EXP);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_AUTO_EXP);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getSlowShutterAuto() const {
+    Result<uint8_t> ViscaProtocol::getSlowShutterAuto() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_SLOW_SHUTTER);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_SLOW_SHUTTER);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getShutterValue() const {
+    Result<uint8_t> ViscaProtocol::getShutterValue() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_SHUTTER_VALUE);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_SHUTTER_VALUE);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(static_cast<uint8_t>(unpack16BitFromNibbles(rx_payload.value(), 0)));
+        const auto shutter_result = unpack16BitFromNibbles(rx_payload.value(), 0);
+        if (shutter_result.isError()) {
+            return Result<uint8_t>::error(shutter_result.error());
+        }
+        return Result<uint8_t>::success(static_cast<uint8_t>(shutter_result.value()));
     }
 
-    Result<uint8_t> ViscaProtocol::getIrisValue() const {
+    Result<uint8_t> ViscaProtocol::getIrisValue() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_IRIS_VALUE);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_IRIS_VALUE);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(static_cast<uint8_t>(unpack16BitFromNibbles(rx_payload.value(), 0)));
+        const auto iris_result = unpack16BitFromNibbles(rx_payload.value(), 0);
+        if (iris_result.isError()) {
+            return Result<uint8_t>::error(iris_result.error());
+        }
+        return Result<uint8_t>::success(static_cast<uint8_t>(iris_result.value()));
     }
 
-    Result<uint8_t> ViscaProtocol::getGainValue() const {
+    Result<uint8_t> ViscaProtocol::getGainValue() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_GAIN_VALUE);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_GAIN_VALUE);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(static_cast<uint8_t>(unpack16BitFromNibbles(rx_payload.value(), 0)));
+        const auto gain_result = unpack16BitFromNibbles(rx_payload.value(), 0);
+        if (gain_result.isError()) {
+            return Result<uint8_t>::error(gain_result.error());
+        }
+        return Result<uint8_t>::success(static_cast<uint8_t>(gain_result.value()));
     }
 
-    Result<uint16_t> ViscaProtocol::getBrightValue() const {
+    Result<uint16_t> ViscaProtocol::getBrightValue() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_BRIGHT_VALUE);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_BRIGHT_VALUE);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint16_t>::error(rx_payload.error());
         }
-        return Result<uint16_t>::success(unpack16BitFromNibbles(rx_payload.value(), 0));
+        return unpack16BitFromNibbles(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getExpCompPower() const {
+    Result<uint8_t> ViscaProtocol::getExpCompPower() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_EXP_COMP_POWER);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_EXP_COMP_POWER);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        const auto power_result = unpack8Bit(rx_payload.value(), 0);
+        if (power_result.isError()) {
+            return Result<uint8_t>::error(power_result.error());
+        }
+        return power_result;
     }
 
-    Result<uint8_t> ViscaProtocol::getExpCompValue() const {
+    Result<uint8_t> ViscaProtocol::getExpCompValue() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_EXP_COMP_VALUE);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_EXP_COMP_VALUE);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(static_cast<uint8_t>(unpack16BitFromNibbles(rx_payload.value(), 0)));
+        const auto value_result = unpack16BitFromNibbles(rx_payload.value(), 0);
+        if (value_result.isError()) {
+            return Result<uint8_t>::error(value_result.error());
+        }
+        return Result<uint8_t>::success(static_cast<uint8_t>(value_result.value()));
     }
 
-    Result<bool> ViscaProtocol::getBacklightComp() const {
+    Result<bool> ViscaProtocol::getBacklightComp() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_BACKLIGHT_COMP);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_BACKLIGHT_COMP);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<bool>::error(rx_payload.error());
         }
 
-        if (unpack8Bit(rx_payload.value(), 0) == std::to_integer<uint8_t>(VISCA_OFF)) {
+        const auto value_result = unpack8Bit(rx_payload.value(), 0);
+        if (value_result.isError()) {
+            return Result<bool>::error(value_result.error());
+        }
+
+        if (value_result.value() == std::to_integer<uint8_t>(VISCA_OFF)) {
             return Result<bool>::success(false);
         }
         return Result<bool>::success(true);
     }
 
-    Result<uint8_t> ViscaProtocol::getApertureValue() const {
+    Result<uint8_t> ViscaProtocol::getApertureValue() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_APERTURE_VALUE);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_APERTURE_VALUE);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(static_cast<uint8_t>(unpack16BitFromNibbles(rx_payload.value(), 0)));
+        const auto value_result = unpack16BitFromNibbles(rx_payload.value(), 0);
+        if (value_result.isError()) {
+            return Result<uint8_t>::error(value_result.error());
+        }
+        return Result<uint8_t>::success(static_cast<uint8_t>(value_result.value()));
     }
 
-    Result<uint8_t> ViscaProtocol::getZeroLuxShot() const {
+    Result<uint8_t> ViscaProtocol::getZeroLuxShot() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_ZERO_LUX);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_ZERO_LUX);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getIrLed() const {
+    Result<uint8_t> ViscaProtocol::getIrLed() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_IR_LED);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_IR_LED);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getWideMode() const {
+    Result<uint8_t> ViscaProtocol::getWideMode() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_WIDE_MODE);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_WIDE_MODE);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getMirror() const {
+    Result<uint8_t> ViscaProtocol::getMirror() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_MIRROR);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_MIRROR);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getFreeze() const {
+    Result<uint8_t> ViscaProtocol::getFreeze() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_FREEZE);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_FREEZE);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getPictureEffect() const {
+    Result<uint8_t> ViscaProtocol::getPictureEffect() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_PICTURE_EFFECT);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_PICTURE_EFFECT);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getDigitalEffect() const {
+    Result<uint8_t> ViscaProtocol::getDigitalEffect() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_DIGITAL_EFFECT);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_DIGITAL_EFFECT);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint16_t> ViscaProtocol::getDigitalEffectLevel() const {
+    Result<uint16_t> ViscaProtocol::getDigitalEffectLevel() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_DIGITAL_EFFECT_LEVEL);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_DIGITAL_EFFECT_LEVEL);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint16_t>::error(rx_payload.error());
         }
-        return Result<uint16_t>::success(unpack16BitFromNibbles(rx_payload.value(), 0));
+        return unpack16BitFromNibbles(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getMemory() const {
+    Result<uint8_t> ViscaProtocol::getMemory() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_MEMORY);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_MEMORY);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getDisplay() const {
+    Result<uint8_t> ViscaProtocol::getDisplay() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_DISPLAY);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_DISPLAY);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint16_t> ViscaProtocol::getId() const {
+    Result<uint16_t> ViscaProtocol::getId() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_ID);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_ID);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint16_t>::error(rx_payload.error());
         }
-        return Result<uint16_t>::success(unpack16BitFromNibbles(rx_payload.value(), 0));
+        return unpack16BitFromNibbles(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getVideoSystem() const {
+    Result<uint8_t> ViscaProtocol::getVideoSystem() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_VIDEOSYSTEM_INQ);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_VIDEOSYSTEM_INQ);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint16_t> ViscaProtocol::getPanTiltMode() const {
+    Result<uint16_t> ViscaProtocol::getPanTiltMode() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_MODE_INQ);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_MODE_INQ);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint16_t>::error(rx_payload.error());
         }
-        const uint16_t status = unpack16Bit(rx_payload.value(), 1);
-        return Result<uint16_t>::success(status);
+        return unpack16Bit(rx_payload.value(), 1);
     }
 
-    Result<std::pair<uint8_t, uint8_t>> ViscaProtocol::getPanTiltMaxspeed() const {
+    Result<std::pair<uint8_t, uint8_t>> ViscaProtocol::getPanTiltMaxspeed() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_MAXSPEED_INQ);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_MAXSPEED_INQ);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<std::pair<uint8_t, uint8_t>>::error(rx_payload.error());
         }
-        const uint8_t max_pan_speed = unpack8Bit(rx_payload.value(), 0);
-        const uint8_t max_tilt_speed = unpack8Bit(rx_payload.value(), 1);
-        return Result<std::pair<uint8_t, uint8_t>>::success({max_pan_speed, max_tilt_speed});
+        const auto pan_result = unpack8Bit(rx_payload.value(), 0);
+        if (pan_result.isError()) {
+            return Result<std::pair<uint8_t, uint8_t>>::error(pan_result.error());
+        }
+        const auto tilt_result = unpack8Bit(rx_payload.value(), 1);
+        if (tilt_result.isError()) {
+            return Result<std::pair<uint8_t, uint8_t>>::error(tilt_result.error());
+        }
+        return Result<std::pair<uint8_t, uint8_t>>::success({pan_result.value(), tilt_result.value()});
     }
 
-    Result<std::pair<uint16_t, uint16_t>> ViscaProtocol::getPanTiltPosition() const {
+    Result<std::pair<uint16_t, uint16_t>> ViscaProtocol::getPanTiltPosition() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_POSITION_INQ);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_POSITION_INQ);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<std::pair<uint16_t, uint16_t>>::error(rx_payload.error());
         }
-        const auto pan_position = unpack16BitFromNibbles(rx_payload.value(), 0);
-        const auto tilt_position = unpack16BitFromNibbles(rx_payload.value(), 4);
+        const auto pan_result = unpack16BitFromNibbles(rx_payload.value(), 0);
+        if (pan_result.isError()) {
+            return Result<std::pair<uint16_t, uint16_t>>::error(pan_result.error());
+        }
+        const auto tilt_result = unpack16BitFromNibbles(rx_payload.value(), 4);
+        if (tilt_result.isError()) {
+            return Result<std::pair<uint16_t, uint16_t>>::error(tilt_result.error());
+        }
 
-        return Result<std::pair<uint16_t, uint16_t>>::success({pan_position, tilt_position});
+        return Result<std::pair<uint16_t, uint16_t>>::success({pan_result.value(), tilt_result.value()});
     }
 
-    Result<uint8_t> ViscaProtocol::getDatascreen() const {
+    Result<uint8_t> ViscaProtocol::getDatascreen() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_PT_DATASCREEN_INQ);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_PT_DATASCREEN_INQ);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<void> ViscaProtocol::setRegister(uint8_t reg_num, uint8_t reg_val) const {
+    Result<void> ViscaProtocol::setRegister(uint8_t reg_num, uint8_t reg_val) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_REGISTER_VALUE);
-        pack8Bit(&tx_payload, static_cast<std::byte>(reg_num));
-        pack8Bit(&tx_payload, getNibble(reg_val, 4));
-        pack8Bit(&tx_payload, getNibble(reg_val, 0));
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_REGISTER_VALUE);
+        pack8Bit(tx_payload, static_cast<std::byte>(reg_num));
+        pack8Bit(tx_payload, getNibble(reg_val, 4));
+        pack8Bit(tx_payload, getNibble(reg_val, 0));
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<uint8_t> ViscaProtocol::getRegister(uint8_t reg_num) const {
+    Result<uint8_t> ViscaProtocol::getRegister(uint8_t reg_num) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_REGISTER_VALUE);
-        pack8Bit(&tx_payload, static_cast<std::byte>(reg_num));
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_REGISTER_VALUE);
+        pack8Bit(tx_payload, static_cast<std::byte>(reg_num));
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        const uint8_t reg_val = unpack8Bit(rx_payload.value(), 0);
-        return Result<uint8_t>::success(reg_val);
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<void> ViscaProtocol::write(ViscaPayload* payload) const {
+    Result<void> ViscaProtocol::write(ViscaPayload& payload) {
         const auto serialized_payload = serialize(payload);
         const auto frame = encode(serialized_payload);
 
@@ -2879,17 +2930,18 @@ namespace service::infrastructure {
                 return Result<ViscaPayload>::error("ACK response missing terminator");
             }
 
-            const auto ack_end_index = std::distance(rx_buffer.begin(), ack_terminator_it) + 1;
-
             // Check if there's another response after the ACK (at least 3 bytes: start + type + terminator)
-            if (static_cast<size_t>(ack_end_index) + VISCA_MIN_INPUT_BUFFER_SIZE <= result.value()) {
+            if (const auto ack_end_index = std::distance(rx_buffer.begin(), ack_terminator_it) + 1; static_cast<size_t>(
+                ack_end_index) + VISCA_MIN_INPUT_BUFFER_SIZE <= result.value()) {
                 // Check if next byte is a valid response start byte
-                if (rx_buffer[ack_end_index] == VISCA_RESPONSE_START_BYTE ||
-                    rx_buffer[ack_end_index] == VISCA_BROADCAST_RESPONSE_BYTE) {
+                if (rx_buffer.at(ack_end_index) == VISCA_RESPONSE_START_BYTE || rx_buffer.at(ack_end_index) ==
+                    VISCA_BROADCAST_RESPONSE_BYTE) {
                     LOG_TRACE("2 responses in one buffer");
                     // Skip past the ACK to decode the actual response
-                    decode_buffer = std::span<std::byte>{rx_buffer.data() + ack_end_index,
-                                                          VISCA_MAX_INPUT_BUFFER_SIZE - static_cast<size_t>(ack_end_index)};
+                    decode_buffer = std::span{
+                        rx_buffer.data() + ack_end_index,
+                        VISCA_MAX_INPUT_BUFFER_SIZE - static_cast<size_t>(ack_end_index)
+                    };
                     response = static_cast<ResponseType>(std::to_integer<uint8_t>(decode_buffer[1]) & 0xF0U);
                 } else {
                     return Result<ViscaPayload>::error("Invalid data after ACK response");
@@ -2923,7 +2975,7 @@ namespace service::infrastructure {
         return Result<ViscaPayload>::success(deserialize(decode(decode_buffer)));
     }
 
-    Result<ViscaProtocol::ViscaPayload> ViscaProtocol::writeRead(ViscaPayload* payload) const {
+    Result<ViscaProtocol::ViscaPayload> ViscaProtocol::writeRead(ViscaPayload& payload) {
         std::scoped_lock lock(mutex_);
 
         if (const auto result = write(payload); result.isError()) {
@@ -2938,7 +2990,7 @@ namespace service::infrastructure {
         return Result<ViscaPayload>::success(result.value());
     }
 
-    std::vector<std::byte> ViscaProtocol::encode(std::span<const std::byte> payload) const {
+    std::vector<std::byte> ViscaProtocol::encode(std::span<const std::byte> payload) {
         std::vector<std::byte> frame(payload.size() + 2);
 
         frame.front() = VISCA_START_BYTE;
@@ -2960,646 +3012,639 @@ namespace service::infrastructure {
     /* SPECIAL FUNCTIONS FOR D30/31 */
     /********************************/
 
-    Result<void> ViscaProtocol::setWideConLens(uint8_t power) const {
+    Result<void> ViscaProtocol::setWideConLens(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_WIDE_CON_LENS);
-        pack8Bit(&tx_payload, VISCA_WIDE_CON_LENS_SET);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_WIDE_CON_LENS);
+        pack8Bit(tx_payload, VISCA_WIDE_CON_LENS_SET);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtModeOnoff() const {
+    Result<void> ViscaProtocol::setAtModeOnOff() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_AT_MODE);
-        pack8Bit(&tx_payload, VISCA_AT_ONOFF);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_AT_MODE);
+        pack8Bit(tx_payload, VISCA_AT_ONOFF);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtMode(uint8_t power) const {
+    Result<void> ViscaProtocol::setAtMode(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_AT_MODE);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_AT_MODE);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtAeOnoff() const {
+    Result<void> ViscaProtocol::setAtAeOnoff() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_AT_AE);
-        pack8Bit(&tx_payload, VISCA_AT_ONOFF);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_AT_AE);
+        pack8Bit(tx_payload, VISCA_AT_ONOFF);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtAe(uint8_t power) const {
+    Result<void> ViscaProtocol::setAtAe(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_AT_AE);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_AT_AE);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtAutozoomOnoff() const {
+    Result<void> ViscaProtocol::setAtAutozoomOnoff() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_AT_AUTOZOOM);
-        pack8Bit(&tx_payload, VISCA_AT_ONOFF);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_AT_AUTOZOOM);
+        pack8Bit(tx_payload, VISCA_AT_ONOFF);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtAutozoom(uint8_t power) const {
+    Result<void> ViscaProtocol::setAtAutozoom(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_AT_AUTOZOOM);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_AT_AUTOZOOM);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtmdFramedisplayOnoff() const {
+    Result<void> ViscaProtocol::setAtmdFrameDisplayOnOff() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_ATMD_FRAMEDISPLAY);
-        pack8Bit(&tx_payload, VISCA_AT_ONOFF);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_ATMD_FRAMEDISPLAY);
+        pack8Bit(tx_payload, VISCA_AT_ONOFF);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtmdFramedisplay(uint8_t power) const {
+    Result<void> ViscaProtocol::setAtmdFrameDisplay(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_ATMD_FRAMEDISPLAY);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_ATMD_FRAMEDISPLAY);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtFrameoffsetOnoff() const {
+    Result<void> ViscaProtocol::setAtFrameOffsetOnOff() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_AT_FRAMEOFFSET);
-        pack8Bit(&tx_payload, VISCA_AT_ONOFF);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_AT_FRAMEOFFSET);
+        pack8Bit(tx_payload, VISCA_AT_ONOFF);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtFrameoffset(uint8_t power) const {
+    Result<void> ViscaProtocol::setAtFrameOffset(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_AT_FRAMEOFFSET);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_AT_FRAMEOFFSET);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtmdStartstop() const {
+    Result<void> ViscaProtocol::setAtmdStartStop() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_ATMD_STARTSTOP);
-        pack8Bit(&tx_payload, VISCA_AT_ONOFF);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_ATMD_STARTSTOP);
+        pack8Bit(tx_payload, VISCA_AT_ONOFF);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtChase(uint8_t power) const {
+    Result<void> ViscaProtocol::setAtChase(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_AT_CHASE);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_AT_CHASE);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtChaseNext() const {
+    Result<void> ViscaProtocol::setAtChaseNext() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_AT_CHASE);
-        pack8Bit(&tx_payload, VISCA_AT_CHASE_NEXT);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_AT_CHASE);
+        pack8Bit(tx_payload, VISCA_AT_CHASE_NEXT);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdModeOnoff() const {
+    Result<void> ViscaProtocol::setMdModeOnoff() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_MODE);
-        pack8Bit(&tx_payload, VISCA_MD_ONOFF);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_MODE);
+        pack8Bit(tx_payload, VISCA_MD_ONOFF);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdMode(uint8_t power) const {
+    Result<void> ViscaProtocol::setMdMode(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_MODE);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_MODE);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdFrame() const {
+    Result<void> ViscaProtocol::setMdFrame() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_FRAME);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_FRAME);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdDetect() const {
+    Result<void> ViscaProtocol::setMdDetect() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_DETECT);
-        pack8Bit(&tx_payload, VISCA_MD_ONOFF);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_DETECT);
+        pack8Bit(tx_payload, VISCA_MD_ONOFF);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtEntry(uint8_t power) const {
+    Result<void> ViscaProtocol::setAtEntry(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_AT_ENTRY);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_AT_ENTRY);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setAtLostinfo() const {
+    Result<void> ViscaProtocol::setAtLostinfo() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_ATMD_LOSTINFO1);
-        pack8Bit(&tx_payload, VISCA_ATMD_LOSTINFO2);
-        pack8Bit(&tx_payload, VISCA_AT_LOSTINFO);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_ATMD_LOSTINFO1);
+        pack8Bit(tx_payload, VISCA_ATMD_LOSTINFO2);
+        pack8Bit(tx_payload, VISCA_AT_LOSTINFO);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdLostinfo() const {
+    Result<void> ViscaProtocol::setMdLostinfo() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_PAN_TILTER);
-        pack8Bit(&tx_payload, VISCA_ATMD_LOSTINFO1);
-        pack8Bit(&tx_payload, VISCA_ATMD_LOSTINFO2);
-        pack8Bit(&tx_payload, VISCA_MD_LOSTINFO);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_PAN_TILTER);
+        pack8Bit(tx_payload, VISCA_ATMD_LOSTINFO1);
+        pack8Bit(tx_payload, VISCA_ATMD_LOSTINFO2);
+        pack8Bit(tx_payload, VISCA_MD_LOSTINFO);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdAdjustYlevel(uint8_t power) const {
+    Result<void> ViscaProtocol::setMdAdjustYlevel(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_ADJUST_YLEVEL);
-        pack8Bit(&tx_payload, VISCA_MD_ADJUST);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_ADJUST_YLEVEL);
+        pack8Bit(tx_payload, VISCA_MD_ADJUST);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdAdjustHuelevel(uint8_t power) const {
+    Result<void> ViscaProtocol::setMdAdjustHuelevel(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_ADJUST_HUELEVEL);
-        pack8Bit(&tx_payload, VISCA_MD_ADJUST);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_ADJUST_HUELEVEL);
+        pack8Bit(tx_payload, VISCA_MD_ADJUST);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdAdjustSize(uint8_t power) const {
+    Result<void> ViscaProtocol::setMdAdjustSize(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_ADJUST_SIZE);
-        pack8Bit(&tx_payload, VISCA_MD_ADJUST);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_ADJUST_SIZE);
+        pack8Bit(tx_payload, VISCA_MD_ADJUST);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdAdjustDisptime(uint8_t power) const {
+    Result<void> ViscaProtocol::setMdAdjustDisptime(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_ADJUST_DISPTIME);
-        pack8Bit(&tx_payload, VISCA_MD_ADJUST);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_ADJUST_DISPTIME);
+        pack8Bit(tx_payload, VISCA_MD_ADJUST);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdAdjustRefmode(uint8_t power) const {
+    Result<void> ViscaProtocol::setMdAdjustRefmode(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_ADJUST_REFMODE);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_ADJUST_REFMODE);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdAdjustReftime(uint8_t power) const {
+    Result<void> ViscaProtocol::setMdAdjustReftime(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_REFTIME_QUERY);
-        pack8Bit(&tx_payload, VISCA_MD_ADJUST);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_REFTIME_QUERY);
+        pack8Bit(tx_payload, VISCA_MD_ADJUST);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdMeasureMode1Onoff() const {
+    Result<void> ViscaProtocol::setMdMeasureMode1OnOff() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_MEASURE_MODE_1);
-        pack8Bit(&tx_payload, VISCA_MD_ONOFF);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_MEASURE_MODE_1);
+        pack8Bit(tx_payload, VISCA_MD_ONOFF);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdMeasureMode1(uint8_t power) const {
+    Result<void> ViscaProtocol::setMdMeasureMode1(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_MEASURE_MODE_1);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_MEASURE_MODE_1);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdMeasureMode2Onoff() const {
+    Result<void> ViscaProtocol::setMdMeasureMode2OnOff() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_MEASURE_MODE_2);
-        pack8Bit(&tx_payload, VISCA_MD_ONOFF);
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_MEASURE_MODE_2);
+        pack8Bit(tx_payload, VISCA_MD_ONOFF);
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<void> ViscaProtocol::setMdMeasureMode2(uint8_t power) const {
+    Result<void> ViscaProtocol::setMdMeasureMode2(uint8_t power) {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_COMMAND);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_MEASURE_MODE_2);
-        pack8Bit(&tx_payload, static_cast<std::byte>(power));
+        pack8Bit(tx_payload, VISCA_COMMAND);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_MEASURE_MODE_2);
+        pack8Bit(tx_payload, static_cast<std::byte>(power));
 
-        if (const auto rx_payload = writeRead(&tx_payload); rx_payload.isError()) {
+        if (const auto rx_payload = writeRead(tx_payload); rx_payload.isError()) {
             return Result<void>::error(rx_payload.error());
         }
 
         return Result<void>::success();
     }
 
-    Result<uint8_t> ViscaProtocol::getKeylock() const {
+    Result<uint8_t> ViscaProtocol::getKeylock() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_KEYLOCK);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_KEYLOCK);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getWideConLens() const {
+    Result<uint8_t> ViscaProtocol::getWideConLens() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA1);
-        pack8Bit(&tx_payload, VISCA_WIDE_CON_LENS);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_WIDE_CON_LENS);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getAtmdMode() const {
+    Result<uint8_t> ViscaProtocol::getAtmdMode() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_ATMD_MODE);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_ATMD_MODE);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint16_t> ViscaProtocol::getAtMode() const {
+    Result<uint16_t> ViscaProtocol::getAtMode() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_AT_MODE_QUERY);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_AT_MODE_QUERY);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint16_t>::error(rx_payload.error());
         }
-        const uint16_t value = unpack16Bit(rx_payload.value(), 1);
-        return Result<uint16_t>::success(value);
+        return unpack16Bit(rx_payload.value(), 1);
     }
 
-    Result<uint8_t> ViscaProtocol::getAtEntry() const {
+    Result<uint8_t> ViscaProtocol::getAtEntry() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_AT_ENTRY);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_AT_ENTRY);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint16_t> ViscaProtocol::getMdMode() const {
+    Result<uint16_t> ViscaProtocol::getMdMode() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_MODE_QUERY);
-        const auto rx_payload = writeRead(&tx_payload);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_MODE_QUERY);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint16_t>::error(rx_payload.error());
         }
-        const uint16_t value = unpack16Bit(rx_payload.value(), 1);
-        return Result<uint16_t>::success(value);
+        return unpack16Bit(rx_payload.value(), 1);
     }
 
-    Result<uint8_t> ViscaProtocol::getMdYlevel() const {
+    Result<uint8_t> ViscaProtocol::getMdYlevel() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_ADJUST_YLEVEL);
-        const auto rx_payload = writeRead(&tx_payload);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_ADJUST_YLEVEL);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        const uint8_t power = unpack8BitFromNibbles(rx_payload.value(), 0);
-        return Result<uint8_t>::success(power);
+        return unpack8BitFromNibbles(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getMdHuelevel() const {
+    Result<uint8_t> ViscaProtocol::getMdHuelevel() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_ADJUST_HUELEVEL);
-        const auto rx_payload = writeRead(&tx_payload);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_ADJUST_HUELEVEL);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        const uint8_t power = unpack8BitFromNibbles(rx_payload.value(), 0);
-        return Result<uint8_t>::success(power);
+        return unpack8BitFromNibbles(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getMdSize() const {
+    Result<uint8_t> ViscaProtocol::getMdSize() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_ADJUST_SIZE);
-        const auto rx_payload = writeRead(&tx_payload);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_ADJUST_SIZE);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        const uint8_t power = unpack8BitFromNibbles(rx_payload.value(), 0);
-        return Result<uint8_t>::success(power);
+        return unpack8BitFromNibbles(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getMdDisptime() const {
+    Result<uint8_t> ViscaProtocol::getMdDisptime() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_ADJUST_DISPTIME);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_ADJUST_DISPTIME);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        const uint8_t power = unpack8BitFromNibbles(rx_payload.value(), 0);
-        return Result<uint8_t>::success(power);
+        return unpack8BitFromNibbles(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getMdRefmode() const {
+    Result<uint8_t> ViscaProtocol::getMdRefmode() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_ADJUST_REFMODE);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_ADJUST_REFMODE);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        return Result<uint8_t>::success(unpack8Bit(rx_payload.value(), 0));
+        return unpack8Bit(rx_payload.value(), 0);
     }
 
-    Result<uint8_t> ViscaProtocol::getMdReftime() const {
+    Result<uint8_t> ViscaProtocol::getMdReftime() {
         ViscaPayload tx_payload{};
 
-        pack8Bit(&tx_payload, VISCA_INQUIRY);
-        pack8Bit(&tx_payload, VISCA_CATEGORY_CAMERA2);
-        pack8Bit(&tx_payload, VISCA_MD_REFTIME_QUERY);
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA2);
+        pack8Bit(tx_payload, VISCA_MD_REFTIME_QUERY);
 
-        const auto rx_payload = writeRead(&tx_payload);
+        const auto rx_payload = writeRead(tx_payload);
         if (rx_payload.isError()) {
             return Result<uint8_t>::error(rx_payload.error());
         }
-        const uint8_t power = unpack8BitFromNibbles(rx_payload.value(), 0);
-        return Result<uint8_t>::success(power);
+        return unpack8BitFromNibbles(rx_payload.value(), 0);
     }
 } // namespace service::infrastructure
