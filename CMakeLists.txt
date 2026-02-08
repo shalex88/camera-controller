@@ -100,5 +100,23 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/config/"
     FILES_MATCHING PATTERN "*.yaml"
 )
 
+# Configure and install systemd service file
+set(PROJECT_INSTALL_SYSTEMDDIR "${PROJECT_INSTALL_ROOT}/systemd")
+configure_file(
+    "${CMAKE_SOURCE_DIR}/systemd/camera-controller.service.in"
+    "${CMAKE_BINARY_DIR}/systemd/camera-controller.service"
+    @ONLY
+)
+
+install(FILES "${CMAKE_BINARY_DIR}/systemd/camera-controller.service"
+    COMPONENT runtime
+    DESTINATION "${PROJECT_INSTALL_SYSTEMDDIR}"
+)
+
+install(PROGRAMS "${CMAKE_SOURCE_DIR}/systemd/install-service.sh"
+    COMPONENT runtime
+    DESTINATION "${PROJECT_INSTALL_SYSTEMDDIR}"
+)
+
 add_subdirectory(tests)
 include(cmake/CreatePackage.cmake)
