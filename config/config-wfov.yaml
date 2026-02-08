@@ -1,5 +1,5 @@
 app:
-  name: wfov
+  name: camera-controller-wfov
   log_level: info
   api:
     api_type: grpc

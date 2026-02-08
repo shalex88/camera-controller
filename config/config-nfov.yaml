@@ -1,13 +1,14 @@
 app:
-  name: nfov
+  name: camera-controller-nfov
   log_level: info
   api:
     api_type: grpc
-    server_address: 0.0.0.0:50051
+    server_address: 0.0.0.0:50050
   core:
     camera: core
   infrastructure:
     camera: adimec
+    video_channel: 0
     endpoints:
       - address: /dev/mem #TODO: use uio when available in BSP
       - address: 192.168.1.10:5555
