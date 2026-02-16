@@ -1,11 +1,15 @@
 app:
-  name: wfov
-  log_level: debug
+  name: camera-controller-wfov
+  log_level: info
   api:
     api_type: grpc
     server_address: 0.0.0.0:50051
   core:
     camera: core
-  data:
+  infrastructure:
     camera: sony
-    device: /dev/ttyACM0 #TODO: pass parameters like boudrate
+    video_channel: 1
+    endpoints:
+      - address: /dev/ttyUL0
+        configuration:
+          baud_rate: 115200

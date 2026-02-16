@@ -10,8 +10,8 @@
 #include "LoggerInterface.h"
 #include "SpdLogAdapter.h"
 
-namespace camera_service::common {
-#define CAMERA_SERVICE_LOGGER_SCOPE_COUNT 4
+namespace service::common {
+#define LOGGER_SCOPE_COUNT 4
 
     enum class LogScope : std::uint8_t {
         App = 0,
@@ -145,7 +145,7 @@ namespace camera_service::common {
         }
 
         std::shared_ptr<LoggerInterface> logger_impl_;
-        std::array<ScopedLogger, CAMERA_SERVICE_LOGGER_SCOPE_COUNT> scoped_loggers_ {};
+        std::array<ScopedLogger, LOGGER_SCOPE_COUNT> scoped_loggers_ {};
     };
 
     namespace detail {
@@ -174,18 +174,18 @@ namespace camera_service::common {
         inline ScopedLogger& loggerFor(const char* file) {
             return LoggerRegistry::instance().getLogger(scopeFromFile(file));
         }
-    }
-}
+    } // namespace detail
+} // namespace service::common
 
 #define CONFIGURE_LOGGER(name, level) do { \
-    camera_service::common::LoggerRegistry::instance().initialize((name), (level)); \
+    service::common::LoggerRegistry::instance().initialize((name), (level)); \
 } while(false)
 
-#define SET_LOG_LEVEL(level) camera_service::common::LoggerRegistry::instance().setLogLevel((level))
+#define SET_LOG_LEVEL(level) service::common::LoggerRegistry::instance().setLogLevel((level))
 
-#define LOG_TRACE(...) camera_service::common::detail::loggerFor(__FILE__).trace(__VA_ARGS__)
-#define LOG_DEBUG(...) camera_service::common::detail::loggerFor(__FILE__).debug(__VA_ARGS__)
-#define LOG_INFO(...) camera_service::common::detail::loggerFor(__FILE__).info(__VA_ARGS__)
-#define LOG_WARN(...) camera_service::common::detail::loggerFor(__FILE__).warn(__VA_ARGS__)
-#define LOG_ERROR(...) camera_service::common::detail::loggerFor(__FILE__).error(__VA_ARGS__)
-#define LOG_CRITICAL(...) camera_service::common::detail::loggerFor(__FILE__).critical(__VA_ARGS__)
+#define LOG_TRACE(...) service::common::detail::loggerFor(__FILE__).trace(__VA_ARGS__)
+#define LOG_DEBUG(...) service::common::detail::loggerFor(__FILE__).debug(__VA_ARGS__)
+#define LOG_INFO(...) service::common::detail::loggerFor(__FILE__).info(__VA_ARGS__)
+#define LOG_WARN(...) service::common::detail::loggerFor(__FILE__).warn(__VA_ARGS__)
+#define LOG_ERROR(...) service::common::detail::loggerFor(__FILE__).error(__VA_ARGS__)
+#define LOG_CRITICAL(...) service::common::detail::loggerFor(__FILE__).critical(__VA_ARGS__)

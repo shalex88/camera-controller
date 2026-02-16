@@ -6,7 +6,7 @@
 
 #include "common/types/Result.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class ITransport {
     public:
         virtual ~ITransport() = default;
@@ -32,4 +32,4 @@ namespace camera_service::infrastructure {
             return read(bytes);
         }
     };
-}
+} // namespace service::infrastructure

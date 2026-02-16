@@ -1,8 +1,10 @@
 #pragma once
+
 #include <string>
+
 #include "common/types/Result.h"
 
-namespace camera_service::api {
+namespace service::api {
     class ITransport {
     public:
         virtual ~ITransport() = default;
@@ -11,4 +13,4 @@ namespace camera_service::api {
         virtual Result<void> stop() = 0;
         virtual Result<void> runLoop() = 0;
     };
-}
+} // namespace service::api

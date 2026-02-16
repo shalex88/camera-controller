@@ -6,24 +6,23 @@
 
 #include "common/types/Result.h"
 
-namespace camera_service::common {
+namespace service::common {
     class ConfigManager;
-}
+} // namespace service::common
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class ICamera;
-}
+} // namespace service::infrastructure
 
-namespace camera_service::core {
+namespace service::core {
     class ICore;
-}
+} // namespace service::core
 
-namespace camera_service::api {
+namespace service::api {
     class ApiController;
-}
+} // namespace service::api
 
-namespace camera_service::app {
-
+namespace service::app {
     class Application final {
     public:
         Application(int argc, char* argv[]);
@@ -51,5 +50,4 @@ namespace camera_service::app {
         std::unique_ptr<common::ConfigManager> config_{};
         std::unique_ptr<api::ApiController> api_controller_{};
     };
-
-}
+} // namespace service::app

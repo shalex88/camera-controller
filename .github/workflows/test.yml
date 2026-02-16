@@ -7,33 +7,28 @@ on:
       - opened
 
 env:
-  BUILD_TYPE: Debug
+  BUILD_TYPE: Release
+  BUILD_DIR: build-native
 
 jobs:
   test:
     runs-on: ubuntu-latest
     permissions: write-all
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Get the project name
         run: |
           echo "PROJECT_NAME=$(echo "${{ github.repository }}" | awk -F '/' '{print $2}')" >> $GITHUB_ENV
 
-      - name: Configure
-        run: |
-          cmake -B build \
-            -G "Ninja" \
-            -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
-            -DVCPKG_TARGET_TRIPLET=x64-linux-release \
-            -DVCPKG_HOST_TRIPLET=x64-linux-release
-
       - name: Build
-        run: |
-          cmake --build build --target ${{ env.PROJECT_NAME }}-unit-tests
+        run: ./scripts/build.sh native
 
       - name: Test
-        run: cd ./build/$sub_project && ./$bin
+        run: cd ./${{ env.BUILD_DIR }}/$sub_project && ./$bin
         env:
           sub_project: tests
           bin: ${{ env.PROJECT_NAME }}-unit-tests
@@ -42,9 +37,9 @@ jobs:
         if: github.event_name == 'push'
         run: |
           pip install gcovr
-          gcovr --xml coverage_report.xml --exclude '.*tests.*' --exclude '.*build.*' 
+          gcovr --xml coverage_report.xml --exclude '.*tests.*' --exclude '.*build.*'
           gcovr --exclude '.*tests.*' --exclude '.*build.*'
-          rm -rf ./build/tests
+          rm -rf ./${{ env.BUILD_DIR }}/tests
 
       - name: Upload coverage reports to Codecov
         if: github.event_name == 'push'

@@ -6,19 +6,26 @@
 #include "common/types/Result.h"
 #include "infrastructure/camera/devices/AdimecCamera.h"
 #include "infrastructure/camera/hal/Camera.h"
-#include "infrastructure/camera/transport/mmio/RegisterImplUio.h"
-#include "infrastructure/camera/transport/mmio/RegistersMapManager.h"
+#include "infrastructure/camera/protocol/genicam/FpgaTransport.h"
+#include "infrastructure/camera/protocol/genicam/GenicamProtocol.h"
+#include "infrastructure/camera/protocol/itl/ItlProtocol.h"
+#include "infrastructure/camera/transport/ethernet/TcpClient.h"
 
-using namespace camera_service;
+using namespace service;
 using namespace testing;
 
 class AdimecCameraTests : public Test {
 protected:
     AdimecCameraTests() : config_(std::make_unique<common::ConfigManager>("../../config/config-nfov.yaml")) {
         CONFIGURE_LOGGER(config_->getAppName(), config_->getLogLevel());
-        auto register_impl = std::make_unique<infrastructure::RegisterImplUio>(config_->getDataConfig().device);
-        auto registers_manager = std::make_unique<infrastructure::RegistersMapManager>(std::move(register_impl));
-        auto camera_hw = std::make_unique<infrastructure::AdimecCamera>(std::move(registers_manager));
+        const auto& infrastructure_config = config_->getInfrastructureConfig();
+        const auto& camera_endpoint = infrastructure_config.endpoints[0];
+        const auto& lens_endpoint = infrastructure_config.endpoints[1];
+        auto camera_transport = std::make_unique<infrastructure::FpgaTransport>(camera_endpoint.address);
+        auto camera_protocol = std::make_unique<infrastructure::GenicamProtocol>(std::move(camera_transport));
+        auto lens_transport = std::make_unique<infrastructure::TcpClient>(lens_endpoint.address);
+        auto lens_protocol = std::make_unique<infrastructure::ItlProtocol>(std::move(lens_transport));
+        auto camera_hw = std::make_unique<infrastructure::AdimecCamera>(std::move(camera_protocol), std::move(lens_protocol));
         camera_ = std::make_unique<infrastructure::Camera>(std::move(camera_hw));
     }
 
@@ -27,32 +34,37 @@ protected:
 };
 
 TEST_F(AdimecCameraTests, CanBeConstructed) {
-    auto register_impl = std::make_unique<infrastructure::RegisterImplUio>(config_->getDataConfig().device);
-    auto registers_manager = std::make_unique<infrastructure::RegistersMapManager>(std::move(register_impl));
-    const auto camera = std::make_unique<infrastructure::AdimecCamera>(std::move(registers_manager));
+    const auto& infrastructure_config = config_->getInfrastructureConfig();
+    const auto& camera_endpoint = infrastructure_config.endpoints[0];
+    const auto& lens_endpoint = infrastructure_config.endpoints[1];
+    auto camera_transport = std::make_unique<infrastructure::FpgaTransport>(camera_endpoint.address);
+    auto camera_protocol = std::make_unique<infrastructure::GenicamProtocol>(std::move(camera_transport));
+    auto lens_transport = std::make_unique<infrastructure::TcpClient>(lens_endpoint.address);
+    auto lens_protocol = std::make_unique<infrastructure::ItlProtocol>(std::move(lens_transport));
+    const auto camera = std::make_unique<infrastructure::AdimecCamera>(std::move(camera_protocol), std::move(lens_protocol));
     ASSERT_NE(nullptr, camera);
 }
 
 TEST_F(AdimecCameraTests, ConnectDisconnect) {
-    const auto connect_result = camera_->connect();
+    const auto connect_result = camera_->open();
     ASSERT_TRUE(connect_result.isSuccess());
 
-    const auto disconnect_result = camera_->disconnect();
+    const auto disconnect_result = camera_->close();
     ASSERT_TRUE(disconnect_result.isSuccess());
 }
 
 TEST_F(AdimecCameraTests, CanBeConnected) {
-    const auto result = camera_->connect();
+    const auto result = camera_->open();
     ASSERT_TRUE(result.isSuccess());
 }
 
 TEST_F(AdimecCameraTests, ErrorOnDisconnectWhenNotConnected) {
-    const auto result = camera_->disconnect();
+    const auto result = camera_->close();
     ASSERT_TRUE(result.isError());
 }
 
 TEST_F(AdimecCameraTests, ZoomOperations) {
-    const auto result = camera_->connect();
+    const auto result = camera_->open();
     ASSERT_TRUE(result.isSuccess());
 
     constexpr auto expected_value = 2u;
@@ -66,7 +78,7 @@ TEST_F(AdimecCameraTests, ZoomOperations) {
 }
 
 TEST_F(AdimecCameraTests, FocusOperations) {
-    const auto result = camera_->connect();
+    const auto result = camera_->open();
     ASSERT_TRUE(result.isSuccess());
 
     constexpr auto expected_value = 2u;

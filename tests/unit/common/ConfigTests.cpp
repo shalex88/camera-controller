@@ -22,10 +22,13 @@ protected:
         config_file << "    api_type: grpc\n";
         config_file << "    server_address: localhost:50051\n";
         config_file << "  core:\n";
-        config_file << "    camera: nfov\n";
-        config_file << "  data:\n";
+        config_file << "    camera: core\n";
+        config_file << "  infrastructure:\n";
         config_file << "    camera: sony\n";
-        config_file << "    device: fake\n";
+        config_file << "    endpoints:\n";
+        config_file << "      - address: fake\n";
+        config_file << "        configuration:\n";
+        config_file << "          baud_rate: \"9600\"\n";
         config_file.close();
     }
 
@@ -46,18 +49,21 @@ protected:
 };
 
 TEST_F(ConfigManagerTests, LoadValidConfig) {
-    const camera_service::common::ConfigManager config(test_config_path_);
+    const service::common::ConfigManager config(test_config_path_);
 
     const auto& api_config = config.getApiConfig();
     EXPECT_EQ(api_config.api, "grpc");
     EXPECT_EQ(api_config.server_address, "localhost:50051");
 
     const auto& core_config = config.getCoreConfig();
-    EXPECT_EQ(core_config.camera, "nfov");
+    EXPECT_EQ(core_config.camera, "core");
 
-    const auto& data_config = config.getDataConfig();
-    EXPECT_EQ(data_config.camera, "sony");
-    EXPECT_EQ(data_config.device, "fake");
+    const auto& infrastructure_config = config.getInfrastructureConfig();
+    EXPECT_EQ(infrastructure_config.camera, "sony");
+    ASSERT_EQ(infrastructure_config.endpoints.size(), 1);
+    EXPECT_EQ(infrastructure_config.endpoints[0].address, "fake");
+    ASSERT_TRUE(infrastructure_config.endpoints[0].configuration.contains("baud_rate"));
+    EXPECT_EQ(infrastructure_config.endpoints[0].configuration.at("baud_rate"), "9600");
 
     const auto& log_level = config.getLogLevel();
     const auto& app_name = config.getAppName();
@@ -66,100 +72,100 @@ TEST_F(ConfigManagerTests, LoadValidConfig) {
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnNonexistentFile) {
-    EXPECT_THROW({ camera_service::common::ConfigManager config("nonexistent.yaml");
+    EXPECT_THROW({ service::common::ConfigManager config("nonexistent.yaml");
                  }, std::runtime_error);
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnInvalidYaml) {
     createInvalidConfig("invalid: : yaml : content");
-    EXPECT_THROW({ camera_service::common::ConfigManager config(invalid_config_path_);
+    EXPECT_THROW({ service::common::ConfigManager config(invalid_config_path_);
                  }, std::runtime_error);
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnInvalidApiType) {
-    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: invalid_api\n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
-    EXPECT_THROW({ camera_service::common::ConfigManager config(invalid_config_path_);
+    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: invalid_api\n    server_address: localhost:50051\n  core:\n    camera: core\n  infrastructure:\n    camera: sony\n    endpoints:\n      - address: fake\n        configuration:\n          baud_rate: \"9600\"");
+    EXPECT_THROW({ service::common::ConfigManager config(invalid_config_path_);
     }, std::runtime_error);
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnMissingServerAddress) {
-    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
-    EXPECT_THROW({ camera_service::common::ConfigManager config(invalid_config_path_);
+    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n  core:\n    camera: core\n  infrastructure:\n    camera: sony\n    endpoints:\n      - address: fake\n        configuration:\n          baud_rate: \"9600\"");
+    EXPECT_THROW({ service::common::ConfigManager config(invalid_config_path_);
     }, std::runtime_error);
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnInvalidServerAddressFormat) {
-    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: invalid_address\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
-    EXPECT_THROW({ camera_service::common::ConfigManager config(invalid_config_path_);
+    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: invalid_address\n  core:\n    camera: core\n  infrastructure:\n    camera: sony\n    endpoints:\n      - address: fake\n        configuration:\n          baud_rate: \"9600\"");
+    EXPECT_THROW({ service::common::ConfigManager config(invalid_config_path_);
     }, std::runtime_error);
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnInvalidCameraType) {
-    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: invalid_camera\n  data:\n    camera: invalid_camera\n    device: fake");
-    EXPECT_THROW({ camera_service::common::ConfigManager config(invalid_config_path_);
+    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: core\n  infrastructure:\n    camera: invalid_camera\n    endpoints:\n      - address: fake\n        configuration:\n          baud_rate: \"9600\"");
+    EXPECT_THROW({ service::common::ConfigManager config(invalid_config_path_);
     }, std::runtime_error);
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnEmptyApiType) {
-    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: \n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
-    EXPECT_THROW({ camera_service::common::ConfigManager config(invalid_config_path_);
+    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: \n    server_address: localhost:50051\n  core:\n    camera: core\n  infrastructure:\n    camera: sony\n    endpoints:\n      - address: fake\n        configuration:\n          baud_rate: \"9600\"");
+    EXPECT_THROW({ service::common::ConfigManager config(invalid_config_path_);
     }, std::runtime_error);
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnEmptyCameraType) {
-    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: \n  data:\n    camera: \n    device: fake");
-    EXPECT_THROW({ camera_service::common::ConfigManager config(invalid_config_path_);
+    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: \n  infrastructure:\n    camera: \n    endpoints:\n      - address: fake\n        configuration:\n          baud_rate: \"9600\"");
+    EXPECT_THROW({ service::common::ConfigManager config(invalid_config_path_);
     }, std::runtime_error);
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnEmptyDeviceType) {
-    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: \"\"");
+    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: core\n  infrastructure:\n    camera: sony\n    endpoints:\n      - address: \"\"");
     EXPECT_THROW({
-        camera_service::common::ConfigManager config(invalid_config_path_);
+        service::common::ConfigManager config(invalid_config_path_);
     }, std::runtime_error);
 }
 
 TEST_F(ConfigManagerTests, HandlesAppName) {
-    createInvalidConfig("app:\n  name: demo\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
-    const camera_service::common::ConfigManager config(invalid_config_path_);
+    createInvalidConfig("app:\n  name: demo\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: core\n  infrastructure:\n    camera: sony\n    endpoints:\n      - address: fake\n        configuration:\n          baud_rate: \"9600\"");
+    const service::common::ConfigManager config(invalid_config_path_);
 
     const auto& name = config.getAppName();
     EXPECT_EQ(name, "demo");
 }
 
 TEST_F(ConfigManagerTests, HandlesLogLevel) {
-    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
-    const camera_service::common::ConfigManager config(invalid_config_path_);
+    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: core\n  infrastructure:\n    camera: sony\n    endpoints:\n      - address: fake\n        configuration:\n          baud_rate: \"9600\"");
+    const service::common::ConfigManager config(invalid_config_path_);
 
     const auto& log_level = config.getLogLevel();
     EXPECT_EQ(log_level, "info");
 }
 
 TEST_F(ConfigManagerTests, ValidatesCoreCamera) {
-    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: wfov\n  data:\n    camera: sony\n    device: fake");
-    const camera_service::common::ConfigManager config(invalid_config_path_);
+    createInvalidConfig("app:\n  name: test\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: core\n  infrastructure:\n    camera: sony\n    endpoints:\n      - address: fake\n        configuration:\n          baud_rate: \"9600\"");
+    const service::common::ConfigManager config(invalid_config_path_);
 
     const auto& core_config = config.getCoreConfig();
-    EXPECT_EQ(core_config.camera, "wfov");
+    EXPECT_EQ(core_config.camera, "core");
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnMissingAppName) {
-    createInvalidConfig("app:\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
+    createInvalidConfig("app:\n  log_level: info\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: core\n  infrastructure:\n    camera: sony\n    endpoints:\n      - address: fake\n        configuration:\n          baud_rate: \"9600\"");
     EXPECT_THROW({
-        camera_service::common::ConfigManager config(invalid_config_path_);
+        service::common::ConfigManager config(invalid_config_path_);
     }, std::runtime_error);
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnMissingLogLevel) {
-    createInvalidConfig("app:\n  name: test\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
+    createInvalidConfig("app:\n  name: test\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: core\n  infrastructure:\n    camera: sony\n    endpoints:\n      - address: fake\n        configuration:\n          baud_rate: \"9600\"");
     EXPECT_THROW({
-        camera_service::common::ConfigManager config(invalid_config_path_);
+        service::common::ConfigManager config(invalid_config_path_);
     }, std::runtime_error);
 }
 
 TEST_F(ConfigManagerTests, ThrowsOnInvalidLogLevel) {
-    createInvalidConfig("app:\n  name: test\n  log_level: invalid_level\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: nfov\n  data:\n    camera: sony\n    device: fake");
+    createInvalidConfig("app:\n  name: test\n  log_level: invalid_level\n  api:\n    api_type: grpc\n    server_address: localhost:50051\n  core:\n    camera: core\n  infrastructure:\n    camera: sony\n    endpoints:\n      - address: fake\n        configuration:\n          baud_rate: \"9600\"");
     EXPECT_THROW({
-        camera_service::common::ConfigManager config(invalid_config_path_);
+        service::common::ConfigManager config(invalid_config_path_);
     }, std::runtime_error);
 }

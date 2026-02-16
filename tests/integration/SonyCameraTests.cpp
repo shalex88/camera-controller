@@ -9,14 +9,18 @@
 #include "infrastructure/camera/protocol/visca/ViscaProtocol.h"
 #include "infrastructure/camera/transport/uart/Uart.h"
 
-using namespace camera_service;
+using namespace service;
 using namespace testing;
 
 class SonyCameraTests : public Test {
 protected:
     SonyCameraTests() : config_(std::make_unique<common::ConfigManager>("../../config/config-wfov.yaml")) {
         CONFIGURE_LOGGER(config_->getAppName(), config_->getLogLevel());
-        auto uart = std::make_unique<infrastructure::Uart>(config_->getDataConfig().device);
+        const auto& infrastructure_config = config_->getInfrastructureConfig();
+        const auto& endpoint = infrastructure_config.endpoints[0];
+        auto uart = std::make_unique<infrastructure::Uart>(
+            endpoint.address,
+            endpoint.configuration.at("baud_rate"));
         auto protocol = std::make_unique<infrastructure::ViscaProtocol>(std::move(uart));
         auto camera_hw = std::make_unique<infrastructure::SonyCamera>(std::move(protocol));
         camera_ = std::make_unique<infrastructure::Camera>(std::move(camera_hw));
@@ -31,7 +35,11 @@ protected:
 // ============================================================================
 
 TEST_F(SonyCameraTests, CanBeConstructed) {
-    auto uart = std::make_unique<infrastructure::Uart>(config_->getDataConfig().device);
+    const auto& infrastructure_config = config_->getInfrastructureConfig();
+    const auto& endpoint = infrastructure_config.endpoints[0];
+    auto uart = std::make_unique<infrastructure::Uart>(
+        endpoint.address,
+        endpoint.configuration.at("baud_rate"));
     auto protocol = std::make_unique<infrastructure::ViscaProtocol>(std::move(uart));
     const auto camera = std::make_unique<infrastructure::SonyCamera>(std::move(protocol));
     ASSERT_NE(nullptr, camera);
@@ -42,38 +50,38 @@ TEST_F(SonyCameraTests, InitiallyNotConnected) {
 }
 
 TEST_F(SonyCameraTests, ConnectDisconnect) {
-    const auto connect_result = camera_->connect();
+    const auto connect_result = camera_->open();
     ASSERT_TRUE(connect_result.isSuccess()) << "Failed to connect: " << connect_result.error();
     EXPECT_TRUE(camera_->isConnected());
 
-    const auto disconnect_result = camera_->disconnect();
+    const auto disconnect_result = camera_->close();
     ASSERT_TRUE(disconnect_result.isSuccess()) << "Failed to disconnect: " << disconnect_result.error();
     EXPECT_FALSE(camera_->isConnected());
 }
 
 TEST_F(SonyCameraTests, CanBeConnected) {
-    const auto result = camera_->connect();
+    const auto result = camera_->open();
     ASSERT_TRUE(result.isSuccess()) << "Failed to connect: " << result.error();
     EXPECT_TRUE(camera_->isConnected());
 }
 
 TEST_F(SonyCameraTests, DisconnectWhenNotConnectedSucceeds) {
     // Should succeed even if not connected
-    const auto result = camera_->disconnect();
+    const auto result = camera_->close();
     EXPECT_TRUE(result.isSuccess());
 }
 
 TEST_F(SonyCameraTests, ReconnectAfterDisconnect) {
     // First connection
-    ASSERT_TRUE(camera_->connect().isSuccess());
+    ASSERT_TRUE(camera_->open().isSuccess());
     EXPECT_TRUE(camera_->isConnected());
 
     // Disconnect
-    ASSERT_TRUE(camera_->disconnect().isSuccess());
+    ASSERT_TRUE(camera_->close().isSuccess());
     EXPECT_FALSE(camera_->isConnected());
 
     // Reconnect
-    ASSERT_TRUE(camera_->connect().isSuccess());
+    ASSERT_TRUE(camera_->open().isSuccess());
     EXPECT_TRUE(camera_->isConnected());
 }
 
@@ -82,7 +90,7 @@ TEST_F(SonyCameraTests, ReconnectAfterDisconnect) {
 // ============================================================================
 
 TEST_F(SonyCameraTests, ZoomOperationsBasic) {
-    ASSERT_TRUE(camera_->connect().isSuccess());
+    ASSERT_TRUE(camera_->open().isSuccess());
 
     constexpr auto test_zoom = 5u;
 
@@ -98,9 +106,9 @@ TEST_F(SonyCameraTests, ZoomOperationsBasic) {
 }
 
 TEST_F(SonyCameraTests, ZoomOperationsMultipleValues) {
-    ASSERT_TRUE(camera_->connect().isSuccess());
+    ASSERT_TRUE(camera_->open().isSuccess());
 
-    const std::vector<types::zoom> test_values = {0, 10, 20, 50, 100};
+    const std::vector<common::types::zoom> test_values = {0, 10, 20, 50, 100};
 
     for (const auto zoom : test_values) {
         const auto set_result = camera_->setZoom(zoom);
@@ -115,7 +123,7 @@ TEST_F(SonyCameraTests, ZoomOperationsMultipleValues) {
 }
 
 TEST_F(SonyCameraTests, ZoomOperationsMinValue) {
-    ASSERT_TRUE(camera_->connect().isSuccess());
+    ASSERT_TRUE(camera_->open().isSuccess());
 
     constexpr auto min_zoom = 0u;
 
@@ -128,7 +136,7 @@ TEST_F(SonyCameraTests, ZoomOperationsMinValue) {
 }
 
 TEST_F(SonyCameraTests, ZoomOperationsMaxValue) {
-    ASSERT_TRUE(camera_->connect().isSuccess());
+    ASSERT_TRUE(camera_->open().isSuccess());
 
     constexpr auto max_zoom = 100u;
 
@@ -157,7 +165,7 @@ TEST_F(SonyCameraTests, ZoomOperationsFailWhenNotConnected) {
 // ============================================================================
 
 TEST_F(SonyCameraTests, FocusOperationsBasic) {
-    ASSERT_TRUE(camera_->connect().isSuccess());
+    ASSERT_TRUE(camera_->open().isSuccess());
 
     // Disable autofocus first
     ASSERT_TRUE(camera_->enableAutoFocus(false).isSuccess());
@@ -176,13 +184,13 @@ TEST_F(SonyCameraTests, FocusOperationsBasic) {
 }
 
 TEST_F(SonyCameraTests, FocusOperationsMultipleValues) {
-    ASSERT_TRUE(camera_->connect().isSuccess());
+    ASSERT_TRUE(camera_->open().isSuccess());
 
     // Disable autofocus first
     ASSERT_TRUE(camera_->enableAutoFocus(false).isSuccess());
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    const std::vector<types::focus> test_values = {10, 20, 30, 50, 80};
+    const std::vector<common::types::focus> test_values = {10, 20, 30, 50, 80};
 
     for (const auto focus : test_values) {
         const auto set_result = camera_->setFocus(focus);
@@ -209,7 +217,7 @@ TEST_F(SonyCameraTests, FocusOperationsFailWhenNotConnected) {
 }
 
 TEST_F(SonyCameraTests, FocusOperationsFailWhenAutoFocusEnabled) {
-    ASSERT_TRUE(camera_->connect().isSuccess());
+    ASSERT_TRUE(camera_->open().isSuccess());
 
     // Enable autofocus
     ASSERT_TRUE(camera_->enableAutoFocus(true).isSuccess());
@@ -232,7 +240,7 @@ TEST_F(SonyCameraTests, FocusOperationsFailWhenAutoFocusEnabled) {
 // ============================================================================
 
 TEST_F(SonyCameraTests, AutoFocusEnableDisable) {
-    ASSERT_TRUE(camera_->connect().isSuccess());
+    ASSERT_TRUE(camera_->open().isSuccess());
 
     // Enable autofocus
     const auto enable_result = camera_->enableAutoFocus(true);
@@ -246,7 +254,7 @@ TEST_F(SonyCameraTests, AutoFocusEnableDisable) {
 }
 
 TEST_F(SonyCameraTests, AutoFocusMultipleToggles) {
-    ASSERT_TRUE(camera_->connect().isSuccess());
+    ASSERT_TRUE(camera_->open().isSuccess());
 
     for (int i = 0; i < 3; ++i) {
         ASSERT_TRUE(camera_->enableAutoFocus(true).isSuccess()) << "Failed to enable autofocus iteration " << i;
@@ -268,7 +276,7 @@ TEST_F(SonyCameraTests, AutoFocusFailWhenNotConnected) {
 // ============================================================================
 
 TEST_F(SonyCameraTests, StabilizationEnableDisable) {
-    ASSERT_TRUE(camera_->connect().isSuccess());
+    ASSERT_TRUE(camera_->open().isSuccess());
 
     // Enable stabilization
     const auto enable_result = camera_->stabilize(true);
@@ -282,7 +290,7 @@ TEST_F(SonyCameraTests, StabilizationEnableDisable) {
 }
 
 TEST_F(SonyCameraTests, StabilizationMultipleToggles) {
-    ASSERT_TRUE(camera_->connect().isSuccess());
+    ASSERT_TRUE(camera_->open().isSuccess());
 
     for (int i = 0; i < 3; ++i) {
         ASSERT_TRUE(camera_->stabilize(true).isSuccess()) << "Failed to enable stabilization iteration " << i;
@@ -304,7 +312,7 @@ TEST_F(SonyCameraTests, StabilizationFailWhenNotConnected) {
 // ============================================================================
 
 TEST_F(SonyCameraTests, GetInfoSuccess) {
-    ASSERT_TRUE(camera_->connect().isSuccess());
+    ASSERT_TRUE(camera_->open().isSuccess());
 
     const auto result = camera_->getInfo();
     ASSERT_TRUE(result.isSuccess()) << "Failed to get info: " << result.error();
@@ -322,7 +330,7 @@ TEST_F(SonyCameraTests, GetInfoFailWhenNotConnected) {
 // ============================================================================
 
 TEST_F(SonyCameraTests, CombinedZoomAndFocusOperations) {
-    ASSERT_TRUE(camera_->connect().isSuccess());
+    ASSERT_TRUE(camera_->open().isSuccess());
 
     // Disable autofocus
     ASSERT_TRUE(camera_->enableAutoFocus(false).isSuccess());
@@ -349,10 +357,10 @@ TEST_F(SonyCameraTests, CombinedZoomAndFocusOperations) {
 }
 
 TEST_F(SonyCameraTests, RapidZoomChanges) {
-    ASSERT_TRUE(camera_->connect().isSuccess());
+    ASSERT_TRUE(camera_->open().isSuccess());
 
     // Rapidly change zoom values
-    for (types::zoom zoom = 0; zoom <= 100; zoom += 20) {
+    for (common::types::zoom zoom = 0; zoom <= 100; zoom += 20) {
         ASSERT_TRUE(camera_->setZoom(zoom).isSuccess()) << "Failed at zoom " << zoom;
         // Small delay between commands
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -360,7 +368,7 @@ TEST_F(SonyCameraTests, RapidZoomChanges) {
 }
 
 TEST_F(SonyCameraTests, StressTestAllOperations) {
-    ASSERT_TRUE(camera_->connect().isSuccess());
+    ASSERT_TRUE(camera_->open().isSuccess());
 
     // Disable autofocus for focus operations
     ASSERT_TRUE(camera_->enableAutoFocus(false).isSuccess());
@@ -391,10 +399,10 @@ TEST_F(SonyCameraTests, StressTestAllOperations) {
 // ============================================================================
 
 TEST_F(SonyCameraTests, ZoomAtBoundaries) {
-    ASSERT_TRUE(camera_->connect().isSuccess());
+    ASSERT_TRUE(camera_->open().isSuccess());
 
     // Test minimum zoom (0 is normalized minimum)
-    constexpr types::zoom min_zoom = 0u;
+    constexpr common::types::zoom min_zoom = 0u;
 
     // Test minimum
     ASSERT_TRUE(camera_->setZoom(min_zoom).isSuccess());
@@ -404,7 +412,7 @@ TEST_F(SonyCameraTests, ZoomAtBoundaries) {
     EXPECT_EQ(min_zoom, min_result.value());
 
     // Test maximum (100 is normalized maximum)
-    constexpr types::zoom max_zoom = 100u;
+    constexpr common::types::zoom max_zoom = 100u;
     ASSERT_TRUE(camera_->setZoom(max_zoom).isSuccess());
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     const auto max_result = camera_->getZoom();
@@ -417,7 +425,7 @@ TEST_F(SonyCameraTests, ZoomAtBoundaries) {
 // ============================================================================
 
 TEST_F(SonyCameraTests, RecoverFromInvalidOperation) {
-    ASSERT_TRUE(camera_->connect().isSuccess());
+    ASSERT_TRUE(camera_->open().isSuccess());
 
     // Enable autofocus
     ASSERT_TRUE(camera_->enableAutoFocus(true).isSuccess());

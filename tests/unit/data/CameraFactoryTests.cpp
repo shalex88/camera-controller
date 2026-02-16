@@ -5,13 +5,16 @@
 #include "common/config/ConfigManager.h"
 #include "infrastructure/camera/hal/ICamera.h"
 
-using namespace camera_service;
+using namespace service;
 using namespace testing;
 
 TEST(CameraFactoryTests, CreateSonyCameraSuccess) {
-    common::DataConfig config;
+    common::InfrastructureConfig config;
     config.camera = "sony";
-    config.device = "fake";
+    common::EndpointConfig endpoint;
+    endpoint.address = "fake";
+    endpoint.configuration.emplace("baud_rate", "9600");
+    config.endpoints.push_back(endpoint);
 
     const auto camera = infrastructure::CameraFactory::createCamera(config);
     ASSERT_NE(nullptr, camera);
@@ -19,17 +22,23 @@ TEST(CameraFactoryTests, CreateSonyCameraSuccess) {
 }
 
 TEST(CameraFactoryTests, ThrowsOnUnknownType) {
-    common::DataConfig config;
+    common::InfrastructureConfig config;
     config.camera = "invalid_camera";
-    config.device = "fake";
+    common::EndpointConfig endpoint;
+    endpoint.address = "fake";
+    endpoint.configuration.emplace("baud_rate", "9600");
+    config.endpoints.push_back(endpoint);
 
     EXPECT_THROW(infrastructure::CameraFactory::createCamera(config), std::invalid_argument);
 }
 
 TEST(CameraFactoryTests, ThrowsOnEmptyType) {
-    common::DataConfig config;
+    common::InfrastructureConfig config;
     config.camera = "";
-    config.device = "fake";
+    common::EndpointConfig endpoint;
+    endpoint.address = "fake";
+    endpoint.configuration.emplace("baud_rate", "9600");
+    config.endpoints.push_back(endpoint);
 
     EXPECT_THROW(infrastructure::CameraFactory::createCamera(config), std::invalid_argument);
 }

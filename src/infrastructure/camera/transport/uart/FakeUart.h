@@ -5,7 +5,7 @@
 
 #include "infrastructure/camera/transport/ITransport.h"
 
-namespace camera_service::infrastructure::uart {
+namespace service::infrastructure {
     class FakeUart final : public ITransport {
     public:
         FakeUart();
@@ -23,4 +23,4 @@ namespace camera_service::infrastructure::uart {
         std::vector<std::byte> stored_data_;
         mutable std::shared_mutex data_mutex_;
     };
-}
+} // namespace service::infrastructure

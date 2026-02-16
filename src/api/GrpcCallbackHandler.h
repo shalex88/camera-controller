@@ -1,61 +1,75 @@
 #pragma once
 
-#include "api/proto/camera_service.grpc.pb.h" //TODO: can move to implementation file?
-#include "api/proto/camera_service.pb.h"
+#include "api/proto/camera_service.grpc.pb.h"
 
-namespace camera_service::api {
+namespace service::api {
     class IRequestHandler;
 
-    class GrpcCallbackHandler final : public camera::CameraService::CallbackService {
+    class GrpcCallbackHandler final : public camera::v1::CameraService::CallbackService {
     public:
         explicit GrpcCallbackHandler(IRequestHandler& request_handler);
 
         grpc::ServerUnaryReactor* SetZoom(
             grpc::CallbackServerContext* context,
-            const camera::SetZoomRequest* request,
-            camera::SetZoomResponse* response) override;
+            const camera::v1::SetZoomRequest* request,
+            camera::v1::SetZoomResponse* response) override;
 
         grpc::ServerUnaryReactor* SetFocus(
             grpc::CallbackServerContext* context,
-            const camera::SetFocusRequest* request,
-            camera::SetFocusResponse* response) override;
+            const camera::v1::SetFocusRequest* request,
+            camera::v1::SetFocusResponse* response) override;
 
         grpc::ServerUnaryReactor* GetZoom(
             grpc::CallbackServerContext* context,
-            const camera::GetZoomRequest* request,
-            camera::GetZoomResponse* response) override;
+            const google::protobuf::Empty* request,
+            camera::v1::GetZoomResponse* response) override;
 
         grpc::ServerUnaryReactor* GetFocus(
             grpc::CallbackServerContext* context,
-            const camera::GetFocusRequest* request,
-            camera::GetFocusResponse* response) override;
+            const google::protobuf::Empty* request,
+            camera::v1::GetFocusResponse* response) override;
 
         grpc::ServerUnaryReactor* GetInfo(
             grpc::CallbackServerContext* context,
-            const camera::GetInfoRequest* request,
-            camera::GetInfoResponse* response) override;
+            const google::protobuf::Empty* request,
+            camera::v1::GetInfoResponse* response) override;
+
+        grpc::ServerUnaryReactor* GetCapabilities(
+            grpc::CallbackServerContext* context,
+            const google::protobuf::Empty* request,
+            camera::v1::GetCapabilitiesResponse* response) override;
 
         grpc::ServerUnaryReactor* GoToMinZoom(
             grpc::CallbackServerContext* context,
-            const camera::GoToMinZoomRequest* request,
-            camera::GoToMinZoomResponse* response) override;
+            const google::protobuf::Empty* request,
+            camera::v1::GoToMinZoomResponse* response) override;
 
         grpc::ServerUnaryReactor* GoToMaxZoom(
             grpc::CallbackServerContext* context,
-            const camera::GoToMaxZoomRequest* request,
-            camera::GoToMaxZoomResponse* response) override;
+            const google::protobuf::Empty* request,
+            camera::v1::GoToMaxZoomResponse* response) override;
 
-        grpc::ServerUnaryReactor* EnableAutoFocus(
+        grpc::ServerUnaryReactor* SetAutoFocus(
             grpc::CallbackServerContext* context,
-            const camera::EnableAutoFocusRequest* request,
-            camera::EnableAutoFocusResponse* response) override;
+            const camera::v1::SetAutoFocusRequest* request,
+            google::protobuf::Empty* response) override;
 
-        grpc::ServerUnaryReactor* Stabilize(
+        grpc::ServerUnaryReactor* GetAutoFocus(
             grpc::CallbackServerContext* context,
-            const camera::EnableStabilizationRequest* request,
-            camera::EnableStabilizationResponse* response) override;
+            const google::protobuf::Empty* request,
+            camera::v1::GetAutoFocusResponse* response) override;
+
+        grpc::ServerUnaryReactor* SetStabilization(
+            grpc::CallbackServerContext* context,
+            const camera::v1::SetStabilizationRequest* request,
+            google::protobuf::Empty* response) override;
+
+        grpc::ServerUnaryReactor* GetStabilization(
+            grpc::CallbackServerContext* context,
+            const google::protobuf::Empty* request,
+            camera::v1::GetStabilizationResponse* response) override;
 
     private:
         IRequestHandler& request_handler_;
     };
-}
+} // namespace service::api

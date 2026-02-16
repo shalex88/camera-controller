@@ -1,4 +1,5 @@
 #pragma once
+
 #include <atomic>
 #include <memory>
 
@@ -6,11 +7,11 @@
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
 
-namespace camera_service::core {
+namespace service::core {
     class ICore;
 }
 
-namespace camera_service::api {
+namespace service::api {
     class RequestHandler final : public IRequestHandler {
     public:
         explicit RequestHandler(std::unique_ptr<core::ICore> core);
@@ -21,18 +22,22 @@ namespace camera_service::api {
         bool isRunning() const override;
 
         // Capability-aware request methods
-        Result<void> setZoom(types::zoom zoom_level) const override;
-        Result<types::zoom> getZoom() const override;
+        Result<void> setZoom(common::types::zoom zoom_level) const override;
+        Result<common::types::zoom> getZoom() const override;
         Result<void> goToMinZoom() const override;
         Result<void> goToMaxZoom() const override;
 
-        Result<void> setFocus(types::focus focus_value) const override;
-        Result<types::focus> getFocus() const override;
+        Result<void> setFocus(common::types::focus focus_value) const override;
+        Result<common::types::focus> getFocus() const override;
         Result<void> enableAutoFocus(bool on) const override;
+        Result<bool> isAutoFocusEnabled() const override;
 
-        Result<types::info> getInfo() const override;
+        Result<common::types::info> getInfo() const override;
 
         Result<void> stabilize(bool on) const override;
+        Result<bool> isStabilizationEnabled() const override;
+
+        Result<common::capabilities::CapabilityList> getCapabilities() const override;
 
     private:
         std::unique_ptr<core::ICore> core_;

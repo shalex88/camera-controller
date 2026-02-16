@@ -5,7 +5,7 @@
 #include "RegistersMap.h"
 #include "infrastructure/camera/transport/mmio/IRegisterImpl.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     RegistersMapManager::RegistersMapManager(std::unique_ptr<IRegisterImpl> impl) : register_(std::move(impl)) {
     }
 
@@ -122,4 +122,4 @@ namespace camera_service::infrastructure {
         }
         return Result<void>::success();
     }
-}
+} // namespace service::infrastructure

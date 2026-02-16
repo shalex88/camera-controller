@@ -4,7 +4,7 @@
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
 
-using namespace camera_service;
+using namespace service;
 using namespace testing;
 
 class ResultTests : public Test {
@@ -155,25 +155,25 @@ TEST_F(ResultTests, ErrorMoveSemantics) {
 }
 
 TEST_F(ResultTests, ZoomTypeSuccess) {
-    const auto result = Result<types::zoom>::success(50u);
+    const auto result = Result<common::types::zoom>::success(50u);
     EXPECT_TRUE(result.isSuccess());
     EXPECT_EQ(result.value(), 50u);
 }
 
 TEST_F(ResultTests, FocusTypeSuccess) {
-    const auto result = Result<types::focus>::success(25u);
+    const auto result = Result<common::types::focus>::success(25u);
     EXPECT_TRUE(result.isSuccess());
     EXPECT_EQ(result.value(), 25u);
 }
 
 TEST_F(ResultTests, ZoomTypeError) {
-    const auto result = Result<types::zoom>::error("Invalid zoom value");
+    const auto result = Result<common::types::zoom>::error("Invalid zoom value");
     EXPECT_TRUE(result.isError());
     EXPECT_EQ(result.error(), "Invalid zoom value");
 }
 
 TEST_F(ResultTests, FocusTypeError) {
-    const auto result = Result<types::focus>::error("Invalid focus value");
+    const auto result = Result<common::types::focus>::error("Invalid focus value");
     EXPECT_TRUE(result.isError());
     EXPECT_EQ(result.error(), "Invalid focus value");
 }

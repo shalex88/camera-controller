@@ -3,17 +3,18 @@
 #include "common/types/CameraCapabilities.h"
 #include "common/types/Result.h"
 
-namespace camera_service::infrastructure {
-    class ICamera : public capabilities::IZoomCapable,
-                       public capabilities::IFocusCapable,
-                       public capabilities::IAutoFocusCapable,
-                       public capabilities::IStabilizeCapable,
-                       public capabilities::IInfoCapable {
+namespace service::infrastructure {
+    class ICamera : public common::capabilities::IZoomCapable,
+                       public common::capabilities::IFocusCapable,
+                       public common::capabilities::IAutoFocusCapable,
+                       public common::capabilities::IStabilizeCapable,
+                       public common::capabilities::IInfoCapable {
     public:
         ~ICamera() override = default;
 
-        virtual Result<void> connect() = 0;
-        virtual Result<void> disconnect() = 0;
+        virtual Result<void> open() = 0;
+        virtual Result<void> close() = 0;
         virtual bool isConnected() const = 0;
+        virtual Result<common::capabilities::CapabilityList> getCapabilities() const = 0;
     };
-}
+} // namespace service::infrastructure

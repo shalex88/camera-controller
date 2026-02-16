@@ -3,7 +3,7 @@
 #include "common/logger/Logger.h"
 #include "core/ICore.h"
 
-namespace camera_service::api {
+namespace service::api {
     RequestHandler::RequestHandler(std::unique_ptr<core::ICore> core)
         : core_(std::move(core)), running_(false) {
         if (!core_) {
@@ -50,7 +50,7 @@ namespace camera_service::api {
         return running_;
     }
 
-    Result<void> RequestHandler::setZoom(const types::zoom zoom_level) const {
+    Result<void> RequestHandler::setZoom(const common::types::zoom zoom_level) const {
         if (!isRunning()) {
             return Result<void>::error("RequestHandler is not running");
         }
@@ -68,9 +68,9 @@ namespace camera_service::api {
         return operation;
     }
 
-    Result<types::zoom> RequestHandler::getZoom() const {
+    Result<common::types::zoom> RequestHandler::getZoom() const {
         if (!isRunning()) {
-            return Result<types::zoom>::error("Request Handler is not running");
+            return Result<common::types::zoom>::error("Request Handler is not running");
         }
 
         LOG_INFO("Request: {}", __func__);
@@ -122,7 +122,7 @@ namespace camera_service::api {
         return operation;
     }
 
-    Result<void> RequestHandler::setFocus(const types::focus focus_value) const {
+    Result<void> RequestHandler::setFocus(const common::types::focus focus_value) const {
         if (!isRunning()) {
             return Result<void>::error("Request Handler is not running");
         }
@@ -140,9 +140,9 @@ namespace camera_service::api {
         return operation;
     }
 
-    Result<types::focus> RequestHandler::getFocus() const {
+    Result<common::types::focus> RequestHandler::getFocus() const {
         if (!isRunning()) {
-            return Result<types::focus>::error("Request Handler is not running");
+            return Result<common::types::focus>::error("Request Handler is not running");
         }
 
         LOG_INFO("Request: {}", __func__);
@@ -175,9 +175,26 @@ namespace camera_service::api {
         return operation;
     }
 
-    Result<types::info> RequestHandler::getInfo() const {
+    Result<bool> RequestHandler::isAutoFocusEnabled() const {
         if (!isRunning()) {
-            return Result<types::info>::error("Request Handler is not running");
+            return Result<bool>::error("Request Handler is not running");
+        }
+
+        LOG_INFO("Request: {}", __func__);
+
+        auto operation = core_->isAutoFocusEnabled();
+        if (operation.isError()) {
+            LOG_ERROR("Response: {}", operation.error());
+        } else {
+            LOG_INFO("Response: {}", operation.value());
+        }
+
+        return operation;
+    }
+
+    Result<common::types::info> RequestHandler::getInfo() const {
+        if (!isRunning()) {
+            return Result<common::types::info>::error("Request Handler is not running");
         }
 
         LOG_INFO("Request: {}", __func__);
@@ -209,4 +226,38 @@ namespace camera_service::api {
 
         return operation;
     }
-}
+
+    Result<bool> RequestHandler::isStabilizationEnabled() const {
+        if (!isRunning()) {
+            return Result<bool>::error("Request Handler is not running");
+        }
+
+        LOG_INFO("Request: {}", __func__);
+
+        auto operation = core_->isStabilizationEnabled();
+        if (operation.isError()) {
+            LOG_ERROR("Response: {}", operation.error());
+        } else {
+            LOG_INFO("Response: {}", operation.value());
+        }
+
+        return operation;
+    }
+
+    Result<common::capabilities::CapabilityList> RequestHandler::getCapabilities() const {
+        if (!isRunning()) {
+            return Result<common::capabilities::CapabilityList>::error("Request Handler is not running");
+        }
+
+        LOG_INFO("Request: {}", __func__);
+
+        auto operation = core_->getCapabilities();
+        if (operation.isError()) {
+            LOG_ERROR("Response: {}", operation.error());
+        } else {
+            LOG_INFO("Response: {} capabilities", operation.value().size());
+        }
+
+        return operation;
+    }
+} // namespace service::api

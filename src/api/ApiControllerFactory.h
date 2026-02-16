@@ -2,15 +2,15 @@
 
 #include <memory>
 
-namespace camera_service::common {
+namespace service::common {
     struct ApiConfig;
-}
+} // namespace service::common
 
-namespace camera_service::core {
+namespace service::core {
     class ICore;
-}
+} // namespace service::core
 
-namespace camera_service::api {
+namespace service::api {
     class ApiController;
 
     class ApiControllerFactory {
@@ -18,5 +18,5 @@ namespace camera_service::api {
         static std::unique_ptr<ApiController> createController(
             std::unique_ptr<core::ICore> core, const common::ApiConfig& config);
     };
-}
+} // namespace service::api
 

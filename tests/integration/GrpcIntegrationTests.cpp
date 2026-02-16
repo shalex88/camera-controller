@@ -8,6 +8,7 @@
 #include "api/GrpcTransport.h"
 #include "api/RequestHandler.h"
 #include "common/logger/Logger.h"
+#include "common/types/CameraCapabilities.h"
 #include "../../utils/GrpcClient.h"
 #include "../Mocks.h"
 
@@ -62,7 +63,7 @@ TEST_F(GrpcIntegrationTests, SetZoomAndGetZoomSuccess) {
     EXPECT_CALL(*core, setZoom(test_zoom))
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*core, getZoom())
-        .WillOnce(Return(Result<types::zoom>::success(test_zoom)));
+        .WillOnce(Return(Result<common::types::zoom>::success(test_zoom)));
 
     std::cout << "Test SetZoom " << test_zoom << " getZoom" << "\n";
     ASSERT_TRUE(client->setZoom(test_zoom).isSuccess());
@@ -92,4 +93,35 @@ TEST_F(GrpcIntegrationTests, RequestFailOnTimeout) {
     const auto result = client->setZoom(test_zoom);
     ASSERT_TRUE(result.isError());
     ASSERT_TRUE(result.error().find("Deadline") != std::string::npos);
+}
+
+TEST_F(GrpcIntegrationTests, GetCapabilitiesSuccess) {
+    const common::capabilities::CapabilityList expected {
+        common::capabilities::Capability::Zoom,
+        common::capabilities::Capability::Focus};
+
+    EXPECT_CALL(*core, getCapabilities())
+        .WillOnce(Return(Result<common::capabilities::CapabilityList>::success(expected)));
+
+    const auto result = client->getCapabilities();
+    ASSERT_TRUE(result.isSuccess());
+    EXPECT_EQ(result.value(), expected);
+}
+
+TEST_F(GrpcIntegrationTests, GetAutoFocusSuccess) {
+    EXPECT_CALL(*core, isAutoFocusEnabled())
+        .WillOnce(Return(Result<bool>::success(true)));
+
+    const auto result = client->getAutoFocus();
+    ASSERT_TRUE(result.isSuccess());
+    EXPECT_TRUE(result.value());
+}
+
+TEST_F(GrpcIntegrationTests, GetStabilizationSuccess) {
+    EXPECT_CALL(*core, isStabilizationEnabled())
+        .WillOnce(Return(Result<bool>::success(false)));
+
+    const auto result = client->getStabilization();
+    ASSERT_TRUE(result.isSuccess());
+    EXPECT_FALSE(result.value());
 }

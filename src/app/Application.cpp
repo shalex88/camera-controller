@@ -16,10 +16,10 @@
 #include "infrastructure/camera/CameraFactory.h"
 #include "infrastructure/camera/hal/ICamera.h"
 
-namespace camera_service::app {
+namespace service::app {
     static Application* g_application_instance = nullptr;
 
-    void signalHandler(const int signal) {
+    void signalHandler(int signal) {
         if (signal == SIGTERM || signal == SIGINT) {
             if (g_application_instance != nullptr) {
                 g_application_instance->requestShutdown();
@@ -27,14 +27,14 @@ namespace camera_service::app {
         }
     }
 
-    Application::Application(const int argc, char* argv[]) {
+    Application::Application(int argc, char* argv[]) {
         parseArguments(argc, argv);
         setupSignalHandlers();
     }
 
     Application::~Application() = default;
 
-    void Application::parseArguments(const int argc, char* argv[]) {
+    void Application::parseArguments(int argc, char* argv[]) {
         CLI::App app{"A camera control service", APP_NAME};
 
         bool show_version = false;
@@ -70,7 +70,7 @@ namespace camera_service::app {
             LOG_INFO("{} v{}.{}.{}{}", APP_NAME, APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH,
                      APP_VERSION_DIRTY);
 
-            auto camera = infrastructure::CameraFactory::createCamera(config_->getDataConfig());
+            auto camera = infrastructure::CameraFactory::createCamera(config_->getInfrastructureConfig());
             auto core = core::CoreFactory::createCore(std::move(camera), config_->getCoreConfig());
             api_controller_ = api::ApiControllerFactory::createController(std::move(core), config_->getApiConfig());
 
@@ -118,4 +118,4 @@ namespace camera_service::app {
     void Application::requestShutdown() {
         shutdown_requested_.store(true);
     }
-}
+} // namespace service::app

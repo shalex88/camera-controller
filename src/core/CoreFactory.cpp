@@ -4,7 +4,7 @@
 #include "core/Core.h"
 #include "infrastructure/camera/hal/ICamera.h"
 
-namespace camera_service::core {
+namespace service::core {
     std::unique_ptr<ICore> CoreFactory::createCore(std::unique_ptr<infrastructure::ICamera> camera,
                                                    const common::CoreConfig& config) {
         if (!camera) {
@@ -17,4 +17,4 @@ namespace camera_service::core {
 
         throw std::invalid_argument("Unknown core type");
     }
-}
+} // namespace service::core

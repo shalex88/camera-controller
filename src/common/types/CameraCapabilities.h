@@ -1,9 +1,21 @@
 #pragma once
 
+#include <vector>
+
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
 
-namespace camera_service::capabilities {
+namespace service::common::capabilities {
+    enum class Capability {
+        Zoom,
+        Focus,
+        AutoFocus,
+        Info,
+        Stabilization
+    };
+
+    using CapabilityList = std::vector<Capability>;
+
     class IZoomCapable {
     public:
         virtual ~IZoomCapable() = default;
@@ -27,6 +39,7 @@ namespace camera_service::capabilities {
         virtual ~IAutoFocusCapable() = default;
 
         virtual Result<void> enableAutoFocus(bool on) const = 0;
+        virtual Result<bool> isAutoFocusEnabled() const = 0;
     };
 
     class IInfoCapable {
@@ -41,5 +54,6 @@ namespace camera_service::capabilities {
         virtual ~IStabilizeCapable() = default;
 
         virtual Result<void> stabilize(bool on) const = 0;
+        virtual Result<bool> isStabilizationEnabled() const = 0;
     };
-}
+} // namespace service::common::capabilities

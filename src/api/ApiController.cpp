@@ -6,7 +6,7 @@
 #include "api/ITransport.h"
 #include "common/logger/Logger.h"
 
-namespace camera_service::api {
+namespace service::api {
     ApiController::ApiController(std::unique_ptr<IRequestHandler> request_handler,
                                  std::unique_ptr<ITransport> transport, std::string server_address)
         : request_handler_(std::move(request_handler)), transport_(std::move(transport)),
@@ -79,4 +79,4 @@ namespace camera_service::api {
     bool ApiController::isRunning() const {
         return is_running_;
     }
-}
+} // namespace service::api

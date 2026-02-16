@@ -7,7 +7,7 @@
 
 #include "common/types/Result.h"
 
-namespace camera_service::api {
+namespace service::api {
     class IRequestHandler;
     class ITransport;
 
@@ -28,4 +28,4 @@ namespace camera_service::api {
         std::atomic<bool> is_running_;
         std::jthread service_thread_;
     };
-}
+} // namespace service::api

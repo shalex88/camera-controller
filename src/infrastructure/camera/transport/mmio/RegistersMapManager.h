@@ -6,7 +6,7 @@
 #include "RegistersMap.h"
 #include "common/types/Result.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class IRegisterImpl;
 
     class RegistersMapManager {
@@ -29,4 +29,4 @@ namespace camera_service::infrastructure {
         std::unique_ptr<IRegisterImpl> register_;
         mutable std::mutex mutex_;
     };
-}
+} // namespace service::infrastructure

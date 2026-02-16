@@ -8,7 +8,7 @@
 
 #include "common/types/Result.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class ITransport;
 
     struct __attribute__((packed)) ItlHeader {
@@ -32,8 +32,8 @@ namespace camera_service::infrastructure {
         explicit ItlProtocol(std::unique_ptr<ITransport> transport);
         ~ItlProtocol();
 
-        Result<void> connect() const;
-        Result<void> disconnect() const;
+        Result<void> open() const;
+        Result<void> close() const;
         Result<std::vector<std::byte>> sendPayload(std::array<std::byte, 4> opcode, std::span<const std::byte> payload) const;
 
     private:
@@ -48,8 +48,8 @@ namespace camera_service::infrastructure {
         static std::array<std::byte, 2> calculateMessageChecksum(const ItlMessage& message);
         static bool isValidChecksum(const ItlMessage& message);
 
-        // Helper functions for converting between multi-byte values and byte arrays
+        // Helper functions for converting between multibyte values and byte arrays
         static std::array<std::byte, 2> toBytes(uint16_t value);
         static uint16_t fromBytes(std::span<const std::byte, 2> bytes);
     };
-}
+} // namespace service::infrastructure

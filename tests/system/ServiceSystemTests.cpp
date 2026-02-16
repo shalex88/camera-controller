@@ -8,7 +8,7 @@
 #include "common/config/ConfigManager.h"
 #include "../../utils/GrpcClient.h"
 
-using namespace camera_service;
+using namespace service;
 using namespace testing;
 
 class ServiceSystemTests : public Test {
@@ -51,7 +51,7 @@ TEST_F(ServiceSystemTests, CameraRequestResponse) {
     const auto channel = CreateChannel(server_address, grpc::InsecureChannelCredentials());
     const GrpcClient client(channel);
 
-    constexpr types::zoom test_zoom = 1u;
+    constexpr common::types::zoom test_zoom = 1u;
     std::cout << "Test SetZoom " << test_zoom <<" and GetZoom" << "\n";
     ASSERT_TRUE(client.setZoom(test_zoom).isSuccess());
 
@@ -59,7 +59,7 @@ TEST_F(ServiceSystemTests, CameraRequestResponse) {
     ASSERT_TRUE(zoom_result.isSuccess());
     EXPECT_EQ(test_zoom, zoom_result.value());
 
-    constexpr types::focus test_focus = 1u;
+    constexpr common::types::focus test_focus = 1u;
     std::cout << "Test SetFocus " << test_focus <<" and GetFocus" << "\n";
     ASSERT_TRUE(client.setFocus(test_focus).isError());
 

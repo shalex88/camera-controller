@@ -1,75 +1,63 @@
 #include "AdimecCamera.h"
 
-#include <chrono>
-#include <thread>
-
 #include "common/logger/Logger.h"
-#include "infrastructure/camera/transport/mmio/RegistersMapManager.h"
+#include "infrastructure/camera/protocol/genicam/GenicamProtocol.h"
+#include "infrastructure/camera/protocol/itl/ItlProtocol.h"
 
-#define NFOV_CAMERA_LOCK_TIMEOUT_MS 200 //TODO: remove when real async camera control is implemented
-
-namespace camera_service::infrastructure {
-    AdimecCamera::AdimecCamera(std::unique_ptr<RegistersMapManager> fpga_manager) : fpga_(std::move(fpga_manager)) {
+namespace service::infrastructure {
+    AdimecCamera::AdimecCamera(std::unique_ptr<GenicamProtocol> camera_protocol, std::unique_ptr<ItlProtocol> lens_protocol) :
+        camera_protocol_(std::move(camera_protocol)), lens_protocol_(std::move(lens_protocol)) {
     }
 
-    Result<void> AdimecCamera::setZoom(const types::zoom zoom) const {
-        if (const auto result = fpga_->setValue(REG::ZOOM, static_cast<uint32_t>(zoom)); result.isError()) {
-            return Result<void>::error("Failed to set zoom: " + result.error());
+    Result<void> AdimecCamera::open() {
+        if (camera_protocol_->open().isError()) {
+            return Result<void>::error("Failed to connect to Adimec camera");
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
+        if (lens_protocol_) {
+            if (lens_protocol_->open().isError()) {
+                return Result<void>::error("Failed to connect to Adimec lens");
+            }
+        } else {
+            LOG_WARN("No lens endpoint provided. Operating without lens control.");
+        }
         return Result<void>::success();
     }
 
-    Result<types::zoom> AdimecCamera::getZoom() const {
-        const auto zoom_result = fpga_->getValue(REG::ZOOM);
-        if (zoom_result.isError()) {
-            return Result<types::zoom>::error("Failed to get zoom: " + zoom_result.error());
+    Result<void> AdimecCamera::close() {
+        if (camera_protocol_->close().isError()) {
+            return Result<void>::error("Failed to disconnect from Adimec camera");
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
-        return Result<types::zoom>::success(static_cast<types::zoom>(zoom_result.value()));
-    }
-
-    Result<void> AdimecCamera::setFocus(const types::focus focus) const {
-        if (const auto result = fpga_->setValue(REG::FOCUS, static_cast<uint32_t>(focus)); result.isError()) {
-            return Result<void>::error("Failed to set focus: " + result.error());
+        if (lens_protocol_) {
+            if (lens_protocol_->close().isError()) {
+                return Result<void>::error("Failed to disconnect from Adimec lens");
+            }
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
         return Result<void>::success();
     }
 
-    Result<types::focus> AdimecCamera::getFocus() const {
-        const auto focus_result = fpga_->getValue(REG::FOCUS);
-        if (focus_result.isError()) {
-            return Result<types::focus>::error("Failed to get focus: " + focus_result.error());
+    Result<common::types::info> AdimecCamera::getInfo() const {
+        std::string info;
+
+        if (const auto vendor = camera_protocol_->getDeviceVendorName(); vendor.isSuccess()) {
+            info += "Vendor: " + vendor.value() + "";
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
-        return Result<types::focus>::success(static_cast<types::focus>(focus_result.value()));
-    }
 
-    Result<types::info> AdimecCamera::getInfo() const {
-        const auto info_result = fpga_->getValue(REG::VERSION);
-        if (info_result.isError()) {
-            return Result<types::info>::error("Failed to get camera info: " + info_result.error());
+        if (const auto model = camera_protocol_->getDeviceModelName(); model.isSuccess()) {
+            info += "Model: " + model.value() + "";
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
-        return Result<types::info>::success(std::to_string(info_result.value()));
-    }
 
-    Result<void> AdimecCamera::connect() {
-        std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
-        return Result<void>::success();
-    }
+        if (const auto manufacturer_info = camera_protocol_->getDeviceManufacturerInfo(); manufacturer_info.isSuccess()) {
+            info += "Manufacturer Info: " + manufacturer_info.value() + " ";
+        }
 
-    Result<void> AdimecCamera::disconnect() {
-        std::this_thread::sleep_for(std::chrono::milliseconds(NFOV_CAMERA_LOCK_TIMEOUT_MS));
-        return Result<void>::success();
-    }
+        if (const auto firmware = camera_protocol_->getDeviceFirmwareVersion(); firmware.isSuccess()) {
+            info += "Firmware Version: " + firmware.value();
+        }
 
-    types::ZoomRange AdimecCamera::getZoomLimits() const {
-        return zoom_limits_;
-    }
+        if (info.empty()) {
+            return Result<common::types::info>::error("Failed to retrieve camera information");
+        }
 
-    types::FocusRange AdimecCamera::getFocusLimits() const {
-        return focus_limits_;
+        return Result<common::types::info>::success(info);
     }
-}
+} // namespace service::infrastructure

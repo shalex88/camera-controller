@@ -1,153 +1,72 @@
-@startuml Camera Service Main Classes Diagram
+@startuml Camera Service Main Classes Diagram (Concise)
 
 skinparam linetype ortho
+skinparam classAttributeIconSize 0
 
 package camera_service {
-  package common {
-    interface ICameraCapabilities {
-      + setZoom(zoom_level: types::zoom): Result<void>
-      + getZoom(): Result<types::zoom>
-      + setFocus(focus_value: types::focus): Result<void>
-      + getFocus(): Result<types::focus>
-    }
+  package capabilities {
+    interface IZoomCapable
+    interface IFocusCapable
+    interface IAutoFocusCapable
+    interface IStabilizeCapable
+    interface IInfoCapable
   }
 
   package api {
     class ApiController {
-      - request_handler_: std::shared_ptr<IRequestHandler>
-      - transport_: std::unique_ptr<ITransport>
-      - server_address_: std::string
-      - running_: std::atomic<bool>
-      - service_thread_: std::jthread
-      + ApiController(std::shared_ptr<IRequestHandler>, std::unique_ptr<ITransport>, const std::string&)
-      + startAsync(): Result<void>
-      + stop(): Result<void>
-      + isRunning(): bool
+      - request_handler_
+      - transport_
+      - server_address_
     }
-
-    interface IRequestHandler {
-      + start(): Result<void>
-      + stop(): Result<void>
-      + isRunning(): bool
-    }
-
-    class RequestHandler {
-      - core_: std::unique_ptr<core::ICore>
-      - running_: std::atomic<bool>
-      + RequestHandler(std::unique_ptr<core::ICore>)
-      + startAsync(): Result<void>
-      + stop(): Result<void>
-      + isRunning(): bool
-      + setZoom(zoom_level: types::zoom): Result<void>
-      + getZoom(): Result<types::zoom>
-      + setFocus(focus_value: types::focus): Result<void>
-      + getFocus(): Result<types::focus>
-    }
-
-    interface ITransport {
-      + start(server_address: std::string): Result<void>
-      + stop(): Result<void>
-      + runLoop(): Result<void>
-    }
-
-    class GrpcTransport {
-      - server_: std::unique_ptr<grpc::Server>
-      - callback_handler_: std::unique_ptr<GrpcCallbackHandler>
-      + GrpcTransport(request_handler: std::shared_ptr<IRequestHandler>)
-      + start(server_address: std::string): Result<void>
-      + stop(): Result<void>
-      + runLoop(): Result<void>
-    }
-
-    class GrpcCallbackHandler {
-      - request_handler_: std::shared_ptr<IRequestHandler>
-      + GrpcCallbackHandler(std::shared_ptr<IRequestHandler>)
-      + SetZoom(context: grpc::CallbackServerContext*, request: camera::SetZoomRequest*, response: camera::SetZoomResponse*): grpc::ServerUnaryReactor*
-      + SetFocus(context: grpc::CallbackServerContext*, request: camera::SetFocusRequest*, response: camera::SetFocusResponse*): grpc::ServerUnaryReactor*
-      + GetZoom(context: grpc::CallbackServerContext*, request: camera::GetZoomRequest*, response: camera::GetZoomResponse*): grpc::ServerUnaryReactor*
-      + GetFocus(context: grpc::CallbackServerContext*, request: camera::GetFocusRequest*, response: camera::GetFocusResponse*): grpc::ServerUnaryReactor*
-    }
-
-    class ApiControllerFactory {
-      + {static} createApiController(controller_type: std::string, server_address: std::string, core: std::unique_ptr<ICore>): std::unique_ptr<ApiController>
-    }
+    interface IRequestHandler
+    class RequestHandler
+    interface ITransport
+    class GrpcTransport
+    class GrpcCallbackHandler
+    class ApiControllerFactory
   }
 
   package core {
-    interface ICore {
-      + initialize(): Result<void>
-      + shutdown(): Result<void>
-    }
-
+    interface ICore
     class Core {
-      - camera_: std::unique_ptr<infrastructure::ICameraHal>
-      + Core(std::unique_ptr<infrastructure::ICameraHal>)
-      + initialize(): Result<void>
-      + shutdown(): Result<void>
-      + setZoom(zoom_level: types::zoom): Result<void>
-      + getZoom(): Result<types::zoom>
-      + setFocus(focus_value: types::focus): Result<void>
-      + getFocus(): Result<types::focus>
+      - camera_
     }
+    class CoreFactory
+  }
 
-    class CoreFactory {
-      + {static} createCore(camera_type: std::string, std::unique_ptr<infrastructure::ICameraHal> camera): std::unique_ptr<ICore>
+  package infrastructure {
+    package camera {
+      interface ICamera
+      interface ICameraHw
+      class Camera {
+        - camera_hw_
+      }
+      class SonyCamera
+      class MwirCamera
+      class AdimecCamera
+      class FakeAdvancedCamera
+      class FakeSimpleCamera
+      class CameraFactory
     }
   }
 
-  package data {
-    interface ICameraHal {
-      + connect(): Result<void>
-      + disconnect(): Result<void>
-    }
-
-    class CameraHal  {
-      - camera_hw_: std::unique_ptr<ICameraHw>
-      - limits_: CameraLimits
-      - connected_: bool
-      + CameraHal (std::unique_ptr<ICameraHw>)
-      + setZoom(zoom_level: types::zoom): Result<void>
-      + getZoom(): Result<types::zoom>
-      + setFocus(focus_value: types::focus): Result<void>
-      + getFocus(): Result<types::focus>
-      + connect(): Result<void>
-      + disconnect(): Result<void>
-      + isConnected(): bool
-      - isValidZoom(value: types::zoom): bool
-      - isValidFocus(value: types::focus): bool
-    }
-
-    interface ICameraHw {
-      + connect(): Result<void>
-      + disconnect(): Result<void>
-      + getLimits(): CameraLimits
-    }
-
-    class NfovCameraHw {
-      - limits_: CameraLimits
-      + NfovCameraHw()
-      + setZoom(zoom_level: types::zoom): Result<void>
-      + getZoom(): Result<types::zoom>
-      + setFocus(focus_value: types::focus): Result<void>
-      + getFocus(): Result<types::focus>
-      + connect(): Result<void>
-      + disconnect(): Result<void>
-      + getLimits(): CameraLimits
-    }
-
-    class CameraFactory {
-      + {static} createCamera(camera_type: std::string): std::unique_ptr<ICameraHal>
-    }
+  package common {
+    class ConfigManager
+    class ApiConfig
+    class CoreConfig
+    class InfrastructureConfig
+    class EndpointConfig
   }
 
-  package apps {
-    class main {
-      // Main application entry point
+  package app {
+    class Application {
+      - config_
+      - api_controller_
     }
   }
 }
 
-' Relationships
+' Relationships (unchanged semantics)
 ApiController o-- IRequestHandler
 ApiController o-- ITransport
 ApiControllerFactory ..> ApiController: creates >
@@ -159,32 +78,62 @@ RequestHandler --|> IRequestHandler
 RequestHandler o-- ICore
 
 GrpcTransport --|> ITransport
-GrpcTransport o-- IRequestHandler
 GrpcTransport o-- GrpcCallbackHandler
+GrpcTransport ..> IRequestHandler: uses
 
 GrpcCallbackHandler o-- IRequestHandler
 
 Core --|> ICore
-Core o-- ICameraHal
-
-ICameraHal --|> ICameraCapabilities
-ICameraHw --|> ICameraCapabilities
-ICore --|> ICameraCapabilities
-IRequestHandler --|> ICameraCapabilities
-
-CameraHal  --|> ICameraHal
-CameraHal  o-- ICameraHw
-
-NfovCameraHw --|> ICameraHw
+Core o-- ICamera
 
 CoreFactory ..> Core: creates >
-CoreFactory ..> ICameraHal: uses >
+CoreFactory ..> ICamera: uses >
 
-CameraFactory ..> CameraHal : creates >
-CameraFactory ..> NfovCameraHw: creates >
+ICamera --|> IZoomCapable
+ICamera --|> IFocusCapable
+ICamera --|> IAutoFocusCapable
+ICamera --|> IStabilizeCapable
+ICamera --|> IInfoCapable
 
-main ..> CameraFactory: creates >
-main ..> CoreFactory: creates >
-main ..> ApiControllerFactory: creates >
+Camera --|> ICamera
+Camera o-- ICameraHw
+
+SonyCamera --|> ICameraHw
+SonyCamera --|> IZoomCapable
+SonyCamera --|> IFocusCapable
+SonyCamera --|> IAutoFocusCapable
+SonyCamera --|> IStabilizeCapable
+SonyCamera --|> IInfoCapable
+
+MwirCamera --|> ICameraHw
+MwirCamera --|> IZoomCapable
+MwirCamera --|> IFocusCapable
+MwirCamera --|> IAutoFocusCapable
+MwirCamera --|> IInfoCapable
+
+AdimecCamera --|> ICameraHw
+AdimecCamera --|> IInfoCapable
+
+FakeAdvancedCamera --|> ICameraHw
+FakeAdvancedCamera --|> IZoomCapable
+FakeAdvancedCamera --|> IFocusCapable
+FakeAdvancedCamera --|> IAutoFocusCapable
+FakeAdvancedCamera --|> IStabilizeCapable
+
+FakeSimpleCamera --|> ICameraHw
+FakeSimpleCamera --|> IInfoCapable
+
+CameraFactory ..> Camera: creates >
+CameraFactory ..> SonyCamera: creates >
+CameraFactory ..> MwirCamera: creates >
+CameraFactory ..> AdimecCamera: creates >
+CameraFactory ..> FakeAdvancedCamera: creates >
+CameraFactory ..> FakeSimpleCamera: creates >
+
+Application o-- ConfigManager
+Application o-- ApiController
+Application ..> ApiControllerFactory: creates >
+Application ..> CoreFactory: creates >
+Application ..> CameraFactory: creates >
 
 @enduml

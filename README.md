@@ -1,14 +1,27 @@
-# camera-service
+# camera-controller
 
-[![Test](https://github.com/shalex88/camera-service/actions/workflows/test.yml/badge.svg)](https://github.com/shalex88/camera-service/actions/workflows/test.yml)
-[![Coverage](https://img.shields.io/codecov/c/github/shalex88/camera-service)](https://codecov.io/github/shalex88/camera-service)
-[![Release](https://img.shields.io/github/v/release/shalex88/camera-service.svg)](https://github.com/shalex88/camera-service/releases/latest)
+[![Test](https://github.com/shalex88/camera-controller/actions/workflows/test.yml/badge.svg)](https://github.com/shalex88/camera-controller/actions/workflows/test.yml)
+[![Coverage](https://img.shields.io/codecov/c/github/shalex88/camera-controller)](https://codecov.io/github/shalex88/camera-controller)
+[![Release](https://img.shields.io/github/v/release/shalex88/camera-controller.svg)](https://github.com/shalex88/camera-controller/releases/latest)
+
+## Build
+
+```bash
+./scripts/build.sh
+```
+
+## Install
+
+```bash
+./scripts/install.sh
+sudo dpkg -i ./build-native/camera-controller-tests_0.0.0_amd64.deb
+```
 
 ## Usage
 
 ```bash
 A camera control service
-camera-service [OPTIONS]
+camera-controller [OPTIONS]
 OPTIONS:
 -h,     --help              Print this help message and exit
 -v,     --version           Show version information
@@ -18,7 +31,7 @@ OPTIONS:
 ## Run
 
 ```bash
-./camera-service ../config/config-wfov.yaml
+./camera-controller -c ../config/config-wfov.yaml
 
 # Run client
 grpcui -plaintext 0.0.0.0:50051
@@ -29,19 +42,19 @@ grpcui -plaintext 0.0.0.0:50051
 ### Unit tests
 
 ```bash
-./camera-service-unit-tests
+./camera-controller-unit-tests
 ```
 
 ### Integration tests
 
 ```bash
-./camera-service-integration-tests
+./camera-controller-integration-tests
 ```
 
 ### System tests
 
 ```bash
-./camera-service-system-tests
+./camera-controller-system-tests
 ```
 
 ## Add new functionality
@@ -67,6 +80,9 @@ grpcui -plaintext 0.0.0.0:50051
 
 ## TODO
 
-1. Use string_view instead of string where possible
-2. Use span instead of other containers. Check how it should be passed
-3. Set Nagle's algorithm on TCP sockets
+- Add monitoring for lower layers to be able to stop execution requested by lower layers
+- Set Nagle's algorithm on TCP sockets?
+- Core still does almost nothing, it's config file is also unnecessary
+- Add noexcept contract for public methods
+- Add fixes-sized thread pool instead async
+-

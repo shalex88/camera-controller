@@ -3,6 +3,7 @@
 /* Add your project include files here */
 #include "api/RequestHandler.h"
 #include "common/types/Result.h"
+#include "common/types/CameraCapabilities.h"
 #include "../../Mocks.h"
 
 class RequestHandlerTests : public Test {
@@ -79,7 +80,7 @@ TEST_F(RequestHandlerTests, ZoomOperations) {
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*core, getZoom())
         .InSequence(s)
-        .WillOnce(Return(Result<types::zoom>::success(2u)));
+        .WillOnce(Return(Result<common::types::zoom>::success(2u)));
     EXPECT_CALL(*core, stop())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
@@ -117,7 +118,7 @@ TEST_F(RequestHandlerTests, FocusOperations) {
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*core, getFocus())
         .InSequence(s)
-        .WillOnce(Return(Result<types::focus>::success(1u)));
+        .WillOnce(Return(Result<common::types::focus>::success(1u)));
     EXPECT_CALL(*core, stop())
         .InSequence(s)
         .WillOnce(Return(Result<void>::success()));
@@ -148,7 +149,7 @@ TEST_F(RequestHandlerTests, GetInfoSuccess) {
     EXPECT_CALL(*core, start())
         .WillOnce(Return(Result<void>::success()));
     EXPECT_CALL(*core, getInfo())
-        .WillOnce(Return(Result<types::info>::success(std::string("Camera Info"))));
+        .WillOnce(Return(Result<common::types::info>::success(std::string("Camera Info"))));
     EXPECT_CALL(*core, stop())
         .WillOnce(Return(Result<void>::success()));
 
@@ -181,6 +182,28 @@ TEST_F(RequestHandlerTests, EnableAutoFocusSuccess) {
 
 TEST_F(RequestHandlerTests, EnableAutoFocusFailsIfNotRunning) {
     const auto result = request_handler->enableAutoFocus(true);
+    ASSERT_TRUE(result.isError());
+}
+
+TEST_F(RequestHandlerTests, IsAutoFocusEnabledSuccess) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, isAutoFocusEnabled())
+        .WillOnce(Return(Result<bool>::success(true)));
+    EXPECT_CALL(*core, stop())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+
+    const auto result = request_handler->isAutoFocusEnabled();
+    ASSERT_TRUE(result.isSuccess());
+    EXPECT_TRUE(result.value());
+
+    ASSERT_TRUE(request_handler->stop().isSuccess());
+}
+
+TEST_F(RequestHandlerTests, IsAutoFocusEnabledFailsIfNotRunning) {
+    const auto result = request_handler->isAutoFocusEnabled();
     ASSERT_TRUE(result.isError());
 }
 
@@ -235,6 +258,57 @@ TEST_F(RequestHandlerTests, StabilizeSuccess) {
 
 TEST_F(RequestHandlerTests, StabilizeFailsIfNotRunning) {
     const auto result = request_handler->stabilize(true);
+    ASSERT_TRUE(result.isError());
+}
+
+TEST_F(RequestHandlerTests, IsStabilizationEnabledSuccess) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, isStabilizationEnabled())
+        .WillOnce(Return(Result<bool>::success(true)));
+    EXPECT_CALL(*core, stop())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+
+    const auto result = request_handler->isStabilizationEnabled();
+    ASSERT_TRUE(result.isSuccess());
+    EXPECT_TRUE(result.value());
+
+    ASSERT_TRUE(request_handler->stop().isSuccess());
+}
+
+TEST_F(RequestHandlerTests, IsStabilizationEnabledFailsIfNotRunning) {
+    const auto result = request_handler->isStabilizationEnabled();
+    ASSERT_TRUE(result.isError());
+}
+
+TEST_F(RequestHandlerTests, GetCapabilitiesSuccess) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+
+    const common::capabilities::CapabilityList expected {
+        common::capabilities::Capability::Zoom,
+        common::capabilities::Capability::Focus,
+        common::capabilities::Capability::Stabilization};
+
+    EXPECT_CALL(*core, getCapabilities())
+        .WillOnce(Return(Result<common::capabilities::CapabilityList>::success(expected)));
+
+    EXPECT_CALL(*core, stop())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+
+    const auto result = request_handler->getCapabilities();
+    ASSERT_TRUE(result.isSuccess());
+    EXPECT_EQ(result.value(), expected);
+
+    ASSERT_TRUE(request_handler->stop().isSuccess());
+}
+
+TEST_F(RequestHandlerTests, GetCapabilitiesFailsIfNotRunning) {
+    const auto result = request_handler->getCapabilities();
     ASSERT_TRUE(result.isError());
 }
 

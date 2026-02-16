@@ -1,12 +1,12 @@
 #pragma once
 #include "common/types/Result.h"
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class ICameraHw {
     public:
         virtual ~ICameraHw() = default;
 
-        virtual Result<void> connect() = 0;
-        virtual Result<void> disconnect() = 0;
+        virtual Result<void> open() = 0;
+        virtual Result<void> close() = 0;
     };
-}
+} // namespace service::infrastructure

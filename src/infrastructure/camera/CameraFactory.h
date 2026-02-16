@@ -2,15 +2,15 @@
 
 #include <memory>
 
-namespace camera_service::common {
-    struct DataConfig;
-}
+namespace service::common {
+    struct InfrastructureConfig;
+} // namespace service::common
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class ICamera;
 
     class CameraFactory {
     public:
-        static std::unique_ptr<ICamera> createCamera(const common::DataConfig& config);
+        static std::unique_ptr<ICamera> createCamera(const common::InfrastructureConfig& config);
     };
-}
+} // namespace service::infrastructure

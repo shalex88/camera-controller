@@ -1,11 +1,13 @@
 app:
-  name: mwir
+  name: camera-controller-mwir
   log_level: info
   api:
     api_type: grpc
-    server_address: 0.0.0.0:50051
+    server_address: 0.0.0.0:50053
   core:
     camera: core
-  data:
+  infrastructure:
     camera: mwir
-    device: 192.168.1.51:2017
+    video_channel: 3
+    endpoints:
+      - address: 192.168.1.51:2017

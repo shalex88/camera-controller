@@ -1,15 +1,16 @@
 #pragma once
+
 #include <memory>
 
-namespace camera_service::common {
+namespace service::common {
     struct CoreConfig;
-}
+} // namespace service::common
 
-namespace camera_service::infrastructure {
+namespace service::infrastructure {
     class ICamera;
-}
+} // namespace service::infrastructure
 
-namespace camera_service::core {
+namespace service::core {
     class ICore;
 
     class CoreFactory {
@@ -17,4 +18,4 @@ namespace camera_service::core {
         static std::unique_ptr<ICore> createCore(
             std::unique_ptr<infrastructure::ICamera> camera, const common::CoreConfig& config);
     };
-}
+} // namespace service::core

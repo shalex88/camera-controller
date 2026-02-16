@@ -10,7 +10,7 @@
 #include "api/IRequestHandler.h"
 #include "common/logger/Logger.h"
 
-namespace camera_service::api {
+namespace service::api {
     GrpcTransport::GrpcTransport(IRequestHandler& request_handler) {
         callback_handler_ = std::make_unique<GrpcCallbackHandler>(request_handler);
     }
@@ -51,7 +51,7 @@ namespace camera_service::api {
         }
 
         is_running_ = true;
-        LOG_INFO("Server is listening on: {}", server_address);
+        LOG_INFO("Server is listening on: {}", server_address); //TODO: show actual target ip
         return Result<void>::success();
     }
 
@@ -78,4 +78,4 @@ namespace camera_service::api {
         server_->Wait();
         return Result<void>::success();
     }
-}
+} // namespace service::api
