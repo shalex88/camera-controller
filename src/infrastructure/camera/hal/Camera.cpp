@@ -146,6 +146,21 @@ namespace service::infrastructure {
         return auto_focus_capable->enableAutoFocus(on);
     }
 
+    Result<bool> Camera::isAutoFocusEnabled() const {
+        if (!isConnected()) {
+            return Result<bool>::error("Camera not connected");
+        }
+
+        const auto* auto_focus_capable = getCapability<common::capabilities::IAutoFocusCapable>();
+        if (!auto_focus_capable) {
+            return Result<bool>::error("Camera doesn't support autofocus");
+        }
+
+        LOG_DEBUG(__func__);
+
+        return auto_focus_capable->isAutoFocusEnabled();
+    }
+
     Result<common::types::info> Camera::getInfo() const {
         if (!isConnected()) {
             return Result<common::types::info>::error("Camera not connected");
@@ -178,6 +193,21 @@ namespace service::infrastructure {
         LOG_DEBUG(__func__);
 
         return stabilize_capable->stabilize(on);
+    }
+
+    Result<bool> Camera::isStabilizationEnabled() const {
+        if (!isConnected()) {
+            return Result<bool>::error("Camera not connected");
+        }
+
+        const auto* stabilize_capable = getCapability<common::capabilities::IStabilizeCapable>();
+        if (!stabilize_capable) {
+            return Result<bool>::error("Camera doesn't support stabilization");
+        }
+
+        LOG_DEBUG(__func__);
+
+        return stabilize_capable->isStabilizationEnabled();
     }
 
     Result<common::capabilities::CapabilityList> Camera::getCapabilities() const {

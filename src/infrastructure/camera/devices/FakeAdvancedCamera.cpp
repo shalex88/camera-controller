@@ -69,6 +69,10 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
+    Result<bool> FakeAdvancedCamera::isStabilizationEnabled() const {
+        return Result<bool>::success(stabilize_enabled_);
+    }
+
     common::types::ZoomRange FakeAdvancedCamera::getZoomLimits() const {
         return zoom_limits_;
     }

@@ -30,10 +30,12 @@ namespace service::api {
         Result<void> setFocus(common::types::focus focus_value) const override;
         Result<common::types::focus> getFocus() const override;
         Result<void> enableAutoFocus(bool on) const override;
+        Result<bool> isAutoFocusEnabled() const override;
 
         Result<common::types::info> getInfo() const override;
 
         Result<void> stabilize(bool on) const override;
+        Result<bool> isStabilizationEnabled() const override;
 
         Result<common::capabilities::CapabilityList> getCapabilities() const override;
 

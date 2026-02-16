@@ -24,12 +24,14 @@ namespace service::core {
         virtual Result<void> setFocus(common::types::focus focus_value) const = 0;
         virtual Result<common::types::focus> getFocus() const = 0;
         virtual Result<void> enableAutoFocus(bool on) const = 0;
+        virtual Result<bool> isAutoFocusEnabled() const = 0;
 
         // Business methods for info operations
         virtual Result<common::types::info> getInfo() const = 0;
 
         // Business methods for advanced operations
         virtual Result<void> stabilize(bool on) const = 0;
+        virtual Result<bool> isStabilizationEnabled() const = 0;
 
         // Capability inquiry
         virtual Result<common::capabilities::CapabilityList> getCapabilities() const = 0;

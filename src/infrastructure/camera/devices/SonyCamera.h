@@ -28,13 +28,14 @@ namespace service::infrastructure {
 
         // IAutoFocusCapable implementation
         Result<void> enableAutoFocus(bool on) const override;
-        Result<bool> isAutoFocusEnabled() const;
+        Result<bool> isAutoFocusEnabled() const override;
 
         // IInfoCapable implementation
         Result<common::types::info> getInfo() const override;
 
         // IStabilizeCapable implementation
         Result<void> stabilize(bool on) const override;
+        Result<bool> isStabilizationEnabled() const override;
 
         // ICameraHw implementation
         Result<void> open() override;

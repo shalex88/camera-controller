@@ -235,6 +235,33 @@ TEST_F(CoreTests, EnableAutoFocusFailsWhenNotInitialized) {
     EXPECT_THAT(af_result.error(), ::testing::HasSubstr("not initialized"));
 }
 
+TEST_F(CoreTests, IsAutoFocusEnabledSuccess) {
+    EXPECT_CALL(*camera, isConnected())
+        .WillOnce(Return(false))
+        .WillOnce(Return(true));
+    EXPECT_CALL(*camera, open())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*camera, isAutoFocusEnabled())
+        .WillOnce(Return(Result<bool>::success(true)));
+    EXPECT_CALL(*camera, close())
+        .WillOnce(Return(Result<void>::success()));
+
+    core::Core core(std::move(camera));
+    ASSERT_TRUE(core.start().isSuccess());
+
+    const auto af_result = core.isAutoFocusEnabled();
+    ASSERT_TRUE(af_result.isSuccess());
+    EXPECT_TRUE(af_result.value());
+}
+
+TEST_F(CoreTests, IsAutoFocusEnabledFailsWhenNotInitialized) {
+    const core::Core core(std::move(camera));
+
+    const auto af_result = core.isAutoFocusEnabled();
+    ASSERT_TRUE(af_result.isError());
+    EXPECT_THAT(af_result.error(), ::testing::HasSubstr("not initialized"));
+}
+
 TEST_F(CoreTests, StabilizeSuccess) {
     EXPECT_CALL(*camera, isConnected())
         .WillOnce(Return(false))
@@ -257,6 +284,33 @@ TEST_F(CoreTests, StabilizeFailsWhenNotInitialized) {
     const core::Core core(std::move(camera));
 
     const auto result = core.stabilize(true);
+    ASSERT_TRUE(result.isError());
+    EXPECT_THAT(result.error(), ::testing::HasSubstr("not initialized"));
+}
+
+TEST_F(CoreTests, IsStabilizationEnabledSuccess) {
+    EXPECT_CALL(*camera, isConnected())
+        .WillOnce(Return(false))
+        .WillOnce(Return(true));
+    EXPECT_CALL(*camera, open())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*camera, isStabilizationEnabled())
+        .WillOnce(Return(Result<bool>::success(true)));
+    EXPECT_CALL(*camera, close())
+        .WillOnce(Return(Result<void>::success()));
+
+    core::Core core(std::move(camera));
+    ASSERT_TRUE(core.start().isSuccess());
+
+    const auto result = core.isStabilizationEnabled();
+    ASSERT_TRUE(result.isSuccess());
+    EXPECT_TRUE(result.value());
+}
+
+TEST_F(CoreTests, IsStabilizationEnabledFailsWhenNotInitialized) {
+    const core::Core core(std::move(camera));
+
+    const auto result = core.isStabilizationEnabled();
     ASSERT_TRUE(result.isError());
     EXPECT_THAT(result.error(), ::testing::HasSubstr("not initialized"));
 }

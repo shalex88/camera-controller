@@ -33,9 +33,10 @@ namespace service::infrastructure {
 
         // IAutoFocusCapable implementation
         Result<void> enableAutoFocus(bool enable) const override;
-        Result<bool> isAutoFocusEnabled() const;
+        Result<bool> isAutoFocusEnabled() const override;
 
         // IStabilizeCapable implementation
         Result<void> stabilize(bool enable) const override;
+        Result<bool> isStabilizationEnabled() const override;
     };
 } // namespace service::infrastructure

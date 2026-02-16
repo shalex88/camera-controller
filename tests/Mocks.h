@@ -31,10 +31,12 @@ public:
     MOCK_METHOD(Result<void>, setFocus, (common::types::focus), (const, override));
     MOCK_METHOD(Result<common::types::focus>, getFocus, (), (const, override));
     MOCK_METHOD(Result<void>, enableAutoFocus, (bool), (const, override));
+    MOCK_METHOD(Result<bool>, isAutoFocusEnabled, (), (const, override));
     MOCK_METHOD(Result<common::types::info>, getInfo, (), (const, override));
     MOCK_METHOD(Result<void>, goToMinZoom, (), (const, override));
     MOCK_METHOD(Result<void>, goToMaxZoom, (), (const, override));
     MOCK_METHOD(Result<void>, stabilize, (bool), (const, override));
+    MOCK_METHOD(Result<bool>, isStabilizationEnabled, (), (const, override));
     MOCK_METHOD(Result<common::capabilities::CapabilityList>, getCapabilities, (), (const, override));
 };
 
@@ -51,7 +53,9 @@ public:
     MOCK_METHOD(Result<common::types::focus>, getFocus, (), (const, override));
     MOCK_METHOD(Result<common::types::info>, getInfo, (), (const, override));
     MOCK_METHOD(Result<void>, enableAutoFocus, (bool), (const, override));
+    MOCK_METHOD(Result<bool>, isAutoFocusEnabled, (), (const, override));
     MOCK_METHOD(Result<void>, stabilize, (bool), (const, override));
+    MOCK_METHOD(Result<bool>, isStabilizationEnabled, (), (const, override));
     MOCK_METHOD(Result<common::capabilities::CapabilityList>, getCapabilities, (), (const, override));
 };
 
@@ -73,12 +77,14 @@ public:
 
     // IAutoFocusCapable implementation
     MOCK_METHOD(Result<void>, enableAutoFocus, (bool), (const, override));
+    MOCK_METHOD(Result<bool>, isAutoFocusEnabled, (), (const, override));
 
     // IInfoCapable implementation
     MOCK_METHOD(Result<common::types::info>, getInfo, (), (const, override));
 
     // IStabilizationCapable implementation
     MOCK_METHOD(Result<void>, stabilize, (bool), (const, override));
+    MOCK_METHOD(Result<bool>, isStabilizationEnabled, (), (const, override));
 
     // Capability enumeration
     MOCK_METHOD(Result<common::capabilities::CapabilityList>, getCapabilities, (), (const, override));
@@ -117,12 +123,14 @@ public:
 
     // IAutoFocusCapable implementation
     MOCK_METHOD(Result<void>, enableAutoFocus, (bool), (const, override));
+    MOCK_METHOD(Result<bool>, isAutoFocusEnabled, (), (const, override));
 
     // IInfoCapable implementation
     MOCK_METHOD(Result<common::types::info>, getInfo, (), (const, override));
 
     // IStabilizationCapable implementation
     MOCK_METHOD(Result<void>, stabilize, (bool), (const, override));
+    MOCK_METHOD(Result<bool>, isStabilizationEnabled, (), (const, override));
 };
 
 class MockRegisterImpl: public infrastructure::IRegisterImpl {

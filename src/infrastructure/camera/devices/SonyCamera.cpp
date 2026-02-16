@@ -92,6 +92,10 @@ namespace service::infrastructure {
         return protocol_->setCamStabilizer(on);
     }
 
+    Result<bool> SonyCamera::isStabilizationEnabled() const {
+        return protocol_->getCamStabilizer();
+    }
+
     Result<void> SonyCamera::open() {
         if (const auto result = protocol_->open(); result.isError()) {
             return Result<void>::error(result.error());

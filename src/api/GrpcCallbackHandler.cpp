@@ -202,6 +202,21 @@ namespace service::api {
             });
     }
 
+    grpc::ServerUnaryReactor* GrpcCallbackHandler::GetAutoFocus(
+        grpc::CallbackServerContext* context,
+        const google::protobuf::Empty* request,
+        camera::v1::GetAutoFocusResponse* response) {
+        return handleGrpcSyncRequest(context, request, response,
+            [this](const google::protobuf::Empty*, camera::v1::GetAutoFocusResponse* resp) {
+                const auto result = request_handler_.isAutoFocusEnabled();
+                if (result.isSuccess()) {
+                    resp->set_enable(result.value());
+                    return Result<void>::success();
+                }
+                return Result<void>::error(result.error());
+            });
+    }
+
     grpc::ServerUnaryReactor* GrpcCallbackHandler::SetStabilization(
     grpc::CallbackServerContext* context,
     const camera::v1::SetStabilizationRequest* request,
@@ -209,6 +224,21 @@ namespace service::api {
         return handleGrpcSyncRequest(context, request, response,
             [this](const camera::v1::SetStabilizationRequest* req, google::protobuf::Empty*) {
                 return request_handler_.stabilize(req->enable());
+            });
+    }
+
+    grpc::ServerUnaryReactor* GrpcCallbackHandler::GetStabilization(
+        grpc::CallbackServerContext* context,
+        const google::protobuf::Empty* request,
+        camera::v1::GetStabilizationResponse* response) {
+        return handleGrpcSyncRequest(context, request, response,
+            [this](const google::protobuf::Empty*, camera::v1::GetStabilizationResponse* resp) {
+                const auto result = request_handler_.isStabilizationEnabled();
+                if (result.isSuccess()) {
+                    resp->set_enable(result.value());
+                    return Result<void>::success();
+                }
+                return Result<void>::error(result.error());
             });
     }
 } // namespace service::api

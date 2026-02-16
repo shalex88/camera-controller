@@ -185,6 +185,28 @@ TEST_F(RequestHandlerTests, EnableAutoFocusFailsIfNotRunning) {
     ASSERT_TRUE(result.isError());
 }
 
+TEST_F(RequestHandlerTests, IsAutoFocusEnabledSuccess) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, isAutoFocusEnabled())
+        .WillOnce(Return(Result<bool>::success(true)));
+    EXPECT_CALL(*core, stop())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+
+    const auto result = request_handler->isAutoFocusEnabled();
+    ASSERT_TRUE(result.isSuccess());
+    EXPECT_TRUE(result.value());
+
+    ASSERT_TRUE(request_handler->stop().isSuccess());
+}
+
+TEST_F(RequestHandlerTests, IsAutoFocusEnabledFailsIfNotRunning) {
+    const auto result = request_handler->isAutoFocusEnabled();
+    ASSERT_TRUE(result.isError());
+}
+
 TEST_F(RequestHandlerTests, GoToMinZoomSuccess) {
     EXPECT_CALL(*core, start())
         .WillOnce(Return(Result<void>::success()));
@@ -236,6 +258,28 @@ TEST_F(RequestHandlerTests, StabilizeSuccess) {
 
 TEST_F(RequestHandlerTests, StabilizeFailsIfNotRunning) {
     const auto result = request_handler->stabilize(true);
+    ASSERT_TRUE(result.isError());
+}
+
+TEST_F(RequestHandlerTests, IsStabilizationEnabledSuccess) {
+    EXPECT_CALL(*core, start())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*core, isStabilizationEnabled())
+        .WillOnce(Return(Result<bool>::success(true)));
+    EXPECT_CALL(*core, stop())
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(request_handler->start().isSuccess());
+
+    const auto result = request_handler->isStabilizationEnabled();
+    ASSERT_TRUE(result.isSuccess());
+    EXPECT_TRUE(result.value());
+
+    ASSERT_TRUE(request_handler->stop().isSuccess());
+}
+
+TEST_F(RequestHandlerTests, IsStabilizationEnabledFailsIfNotRunning) {
+    const auto result = request_handler->isStabilizationEnabled();
     ASSERT_TRUE(result.isError());
 }
 

@@ -103,6 +103,7 @@ namespace service::infrastructure {
         Result<void> setDigitalEffect(uint8_t mode);
         Result<void> setDigitalEffectLevel(uint8_t level);
         Result<void> setCamStabilizer(bool power);
+        Result<bool> getCamStabilizer();
         Result<void> memorySet(uint8_t channel);
         Result<void> memoryRecall(uint8_t channel);
         Result<void> memoryReset(uint8_t channel);

@@ -35,7 +35,7 @@ namespace service::infrastructure {
 
         // IAutoFocusCapable implementation
         Result<void> enableAutoFocus(bool on) const override;
-        Result<bool> isAutoFocusEnabled() const;
+        Result<bool> isAutoFocusEnabled() const override;
 
     private:
         std::unique_ptr<ItlProtocol> protocol_;

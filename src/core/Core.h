@@ -30,12 +30,14 @@ namespace service::core {
         Result<void> setFocus(common::types::focus focus_value) const override;
         Result<common::types::focus> getFocus() const override;
         Result<void> enableAutoFocus(bool on) const override;
+        Result<bool> isAutoFocusEnabled() const override;
 
         // Business methods for info operations
         Result<common::types::info> getInfo() const override;
 
         // Business methods for advanced operations
         Result<void> stabilize(bool on) const override;
+        Result<bool> isStabilizationEnabled() const override;
 
         // Capability inquiry
         Result<common::capabilities::CapabilityList> getCapabilities() const override;

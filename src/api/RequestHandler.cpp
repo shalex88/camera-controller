@@ -175,6 +175,23 @@ namespace service::api {
         return operation;
     }
 
+    Result<bool> RequestHandler::isAutoFocusEnabled() const {
+        if (!isRunning()) {
+            return Result<bool>::error("Request Handler is not running");
+        }
+
+        LOG_INFO("Request: {}", __func__);
+
+        auto operation = core_->isAutoFocusEnabled();
+        if (operation.isError()) {
+            LOG_ERROR("Response: {}", operation.error());
+        } else {
+            LOG_INFO("Response: {}", operation.value());
+        }
+
+        return operation;
+    }
+
     Result<common::types::info> RequestHandler::getInfo() const {
         if (!isRunning()) {
             return Result<common::types::info>::error("Request Handler is not running");
@@ -205,6 +222,23 @@ namespace service::api {
             LOG_ERROR("Response: {}", operation.error());
         } else {
             LOG_INFO("Response: Success");
+        }
+
+        return operation;
+    }
+
+    Result<bool> RequestHandler::isStabilizationEnabled() const {
+        if (!isRunning()) {
+            return Result<bool>::error("Request Handler is not running");
+        }
+
+        LOG_INFO("Request: {}", __func__);
+
+        auto operation = core_->isStabilizationEnabled();
+        if (operation.isError()) {
+            LOG_ERROR("Response: {}", operation.error());
+        } else {
+            LOG_INFO("Response: {}", operation.value());
         }
 
         return operation;

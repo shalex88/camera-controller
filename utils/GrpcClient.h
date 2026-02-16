@@ -85,6 +85,49 @@ public:
         return Result<void>::success();
     }
 
+    Result<bool> getAutoFocus(const std::chrono::milliseconds timeout = NFOV_CAMERA_LOCK_TIMEOUT_MS) const {
+        const google::protobuf::Empty request;
+        camera::v1::GetAutoFocusResponse response;
+        grpc::ClientContext context;
+
+        context.set_deadline(std::chrono::system_clock::now() + timeout);
+
+        if (const grpc::Status status = stub_->GetAutoFocus(&context, request, &response); !status.ok()) {
+            return Result<bool>::error(status.error_message());
+        }
+
+        return Result<bool>::success(response.enable());
+    }
+
+    Result<void> setStabilization(const bool enable, const std::chrono::milliseconds timeout = NFOV_CAMERA_LOCK_TIMEOUT_MS) const {
+        camera::v1::SetStabilizationRequest request;
+        google::protobuf::Empty response;
+        grpc::ClientContext context;
+
+        request.set_enable(enable);
+        context.set_deadline(std::chrono::system_clock::now() + timeout);
+
+        if (const grpc::Status status = stub_->SetStabilization(&context, request, &response); !status.ok()) {
+            return Result<void>::error(status.error_message());
+        }
+
+        return Result<void>::success();
+    }
+
+    Result<bool> getStabilization(const std::chrono::milliseconds timeout = NFOV_CAMERA_LOCK_TIMEOUT_MS) const {
+        const google::protobuf::Empty request;
+        camera::v1::GetStabilizationResponse response;
+        grpc::ClientContext context;
+
+        context.set_deadline(std::chrono::system_clock::now() + timeout);
+
+        if (const grpc::Status status = stub_->GetStabilization(&context, request, &response); !status.ok()) {
+            return Result<bool>::error(status.error_message());
+        }
+
+        return Result<bool>::success(response.enable());
+    }
+
     Result<common::capabilities::CapabilityList> getCapabilities(const std::chrono::milliseconds timeout = NFOV_CAMERA_LOCK_TIMEOUT_MS) const {
         const google::protobuf::Empty request;
         camera::v1::GetCapabilitiesResponse response;

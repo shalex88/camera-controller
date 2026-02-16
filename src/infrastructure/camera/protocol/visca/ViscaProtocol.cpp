@@ -1619,6 +1619,30 @@ namespace service::infrastructure {
         return Result<void>::success();
     }
 
+    Result<bool> ViscaProtocol::getCamStabilizer() {
+        ViscaPayload tx_payload{};
+
+        pack8Bit(tx_payload, VISCA_INQUIRY);
+        pack8Bit(tx_payload, VISCA_CATEGORY_CAMERA1);
+        pack8Bit(tx_payload, VISCA_CAM_STABILIZER);
+
+        const auto rx_payload = writeRead(tx_payload);
+        if (rx_payload.isError()) {
+            return Result<bool>::error(rx_payload.error());
+        }
+
+        const auto value_result = unpack8Bit(rx_payload.value(), 0);
+        if (value_result.isError()) {
+            return Result<bool>::error(value_result.error());
+        }
+
+        if (value_result.value() == std::to_integer<uint8_t>(VISCA_OFF)) {
+            return Result<bool>::success(false);
+        }
+
+        return Result<bool>::success(true);
+    }
+
     Result<void> ViscaProtocol::memorySet(uint8_t channel) {
         ViscaPayload tx_payload{};
 

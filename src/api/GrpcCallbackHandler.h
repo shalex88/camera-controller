@@ -54,10 +54,20 @@ namespace service::api {
             const camera::v1::SetAutoFocusRequest* request,
             google::protobuf::Empty* response) override;
 
+        grpc::ServerUnaryReactor* GetAutoFocus(
+            grpc::CallbackServerContext* context,
+            const google::protobuf::Empty* request,
+            camera::v1::GetAutoFocusResponse* response) override;
+
         grpc::ServerUnaryReactor* SetStabilization(
             grpc::CallbackServerContext* context,
             const camera::v1::SetStabilizationRequest* request,
             google::protobuf::Empty* response) override;
+
+        grpc::ServerUnaryReactor* GetStabilization(
+            grpc::CallbackServerContext* context,
+            const google::protobuf::Empty* request,
+            camera::v1::GetStabilizationResponse* response) override;
 
     private:
         IRequestHandler& request_handler_;

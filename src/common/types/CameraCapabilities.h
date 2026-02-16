@@ -39,6 +39,7 @@ namespace service::common::capabilities {
         virtual ~IAutoFocusCapable() = default;
 
         virtual Result<void> enableAutoFocus(bool on) const = 0;
+        virtual Result<bool> isAutoFocusEnabled() const = 0;
     };
 
     class IInfoCapable {
@@ -53,5 +54,6 @@ namespace service::common::capabilities {
         virtual ~IStabilizeCapable() = default;
 
         virtual Result<void> stabilize(bool on) const = 0;
+        virtual Result<bool> isStabilizationEnabled() const = 0;
     };
 } // namespace service::common::capabilities

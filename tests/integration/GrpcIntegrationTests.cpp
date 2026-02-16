@@ -107,3 +107,21 @@ TEST_F(GrpcIntegrationTests, GetCapabilitiesSuccess) {
     ASSERT_TRUE(result.isSuccess());
     EXPECT_EQ(result.value(), expected);
 }
+
+TEST_F(GrpcIntegrationTests, GetAutoFocusSuccess) {
+    EXPECT_CALL(*core, isAutoFocusEnabled())
+        .WillOnce(Return(Result<bool>::success(true)));
+
+    const auto result = client->getAutoFocus();
+    ASSERT_TRUE(result.isSuccess());
+    EXPECT_TRUE(result.value());
+}
+
+TEST_F(GrpcIntegrationTests, GetStabilizationSuccess) {
+    EXPECT_CALL(*core, isStabilizationEnabled())
+        .WillOnce(Return(Result<bool>::success(false)));
+
+    const auto result = client->getStabilization();
+    ASSERT_TRUE(result.isSuccess());
+    EXPECT_FALSE(result.value());
+}
