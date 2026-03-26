@@ -1,23 +1,26 @@
 #include "MwirCamera.h"
 
 #include "infrastructure/camera/protocol/itl/ItlProtocol.h"
-#include "infrastructure/camera/transport/ethernet/MwirOpcodes.h"
 
 namespace service::infrastructure {
     namespace {
         constexpr common::types::ZoomRange zoom_limits_{ //TODO: define real limits
-            .min = 0x0,
-            .max = 0xFF
+            .min = 0x0, .max = 0xFF
         };
 
         constexpr common::types::FocusRange focus_limits_{ //TODO: define real limits
-            .min = 0x0,
-            .max = 0xFF
+            .min = 0x0, .max = 0xFF
         };
 
         common::types::zoom zoom_ = zoom_limits_.min;
         common::types::focus focus_ = focus_limits_.min;
         bool auto_focus_enabled_ = true;
+
+        constexpr std::uint32_t DEVICE_ID = static_cast<std::uint32_t>('E') | (static_cast<std::uint32_t>('N') << 8U) |
+            (static_cast<std::uint32_t>('G') << 16U) | (static_cast<std::uint32_t>('2') << 24U);
+        constexpr std::uint32_t GET_VERSION_GENIP = 0x0000'0001;
+        constexpr std::uint32_t GET_VERSION_FRAMEWORK = 0x0001'0001;
+        constexpr std::uint32_t SET_AOI_INDEX = 0x0000'000E;
     } // unnamed namespace
 
     MwirCamera::MwirCamera(std::unique_ptr<ItlProtocol> protocol) : protocol_(std::move(protocol)) {
@@ -53,16 +56,23 @@ namespace service::infrastructure {
     }
 
     Result<common::types::info> MwirCamera::getInfo() const {
-        std::vector<std::byte> payload;
-
-        const auto info = protocol_->sendPayload(MWIR_GET_VERSION, std::span<const std::byte>{payload});
-        if (info.isError()) {
-            return Result<common::types::info>::error(info.error());
+        const auto genip_ver = protocol_->send(DEVICE_ID, GET_VERSION_GENIP);
+        if (genip_ver.isError()) {
+            return Result<common::types::info>::error(genip_ver.error());
         }
-        const std::string result = "v" + std::to_string(static_cast<uint8_t>(info.value().at(0))) + "." +
-                                  std::to_string(static_cast<uint8_t>(info.value().at(1))) + "." +
-                                  std::to_string(static_cast<uint8_t>(info.value().at(2))) + "." +
-                                  std::to_string(static_cast<uint8_t>(info.value().at(3)));
+
+        const auto framework_ver = protocol_->send(DEVICE_ID, GET_VERSION_FRAMEWORK);
+        if (framework_ver.isError()) {
+            return Result<common::types::info>::error(framework_ver.error());
+        }
+        const std::string result = "GenIP v" + std::to_string(static_cast<uint8_t>(genip_ver.value().at(0))) + "." +
+            std::to_string(static_cast<uint8_t>(genip_ver.value().at(1))) + "." +
+            std::to_string(static_cast<uint8_t>(genip_ver.value().at(2))) + "." +
+            std::to_string(static_cast<uint8_t>(genip_ver.value().at(3))) + " Framework v" +
+            std::to_string(static_cast<uint8_t>(framework_ver.value().at(0))) + "." +
+            std::to_string(static_cast<uint8_t>(framework_ver.value().at(1))) + "." +
+            std::to_string(static_cast<uint8_t>(framework_ver.value().at(2))) + "." + std::to_string(
+                static_cast<uint8_t>(framework_ver.value().at(3)));
         return Result<common::types::info>::success(result);
     }
 
@@ -80,8 +90,12 @@ namespace service::infrastructure {
         return Result<void>::error("Failed to disconnect");
     }
 
-    Result<void> MwirCamera::enableAutoFocus(const bool on) const {
-        auto_focus_enabled_ = on;
+    Result<void> MwirCamera::enableAutoFocus(bool enable) const {
+        // auto_focus_enabled_ = enable;
+        std::vector<std::byte> payload = {std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}};
+        if (const auto result = protocol_->send(DEVICE_ID, SET_AOI_INDEX, std::span<const std::byte>{payload}); result.isError()) {
+            return Result<void>::error(result.error());
+        }
         return Result<void>::success();
     }
 

@@ -165,7 +165,7 @@ namespace service::common {
         }
 
         if (infrastructure_node["video_channel"]) {
-            app_config_->infrastructure_config.video_channel = infrastructure_node["video_channel"].as<int>();
+            app_config_->infrastructure_config.video_channel = infrastructure_node["video_channel"].as<uint32_t>();
         }
 
         app_config_->infrastructure_config.endpoints.clear();

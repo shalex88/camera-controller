@@ -85,4 +85,22 @@ grpcui -plaintext 0.0.0.0:50051
 - Core still does almost nothing, it's config file is also unnecessary
 - Add noexcept contract for public methods
 - Add fixes-sized thread pool instead async
--
+- Support using hostname for tcp clients instead of IP address
+- Test video registers for live video
+- Print server address like in other services
+
+## MPSOC replace fpga
+scp omb_evb_top.bit root@frontier-peripheral-ctrl-mpsoc.local:~/fpga/
+sync
+devmem 0x800b0000
+cd fpga
+./fpga_replace.sh 0
+reboot
+devmem 0x800b0000
+
+## MWIR dev flow
+ssh root@frontier-mwir-mpsoc.local
+./video_init.sh
+/oper/CurrentAppLink/BackEnd/GenIpFrontier/GenIpFrontier
+
+./ultrazed_channel_config_frontier_res.sh 3 3 25 15 1 1

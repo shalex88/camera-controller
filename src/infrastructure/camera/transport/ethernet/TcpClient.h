@@ -18,7 +18,7 @@ namespace service::infrastructure {
         Result<size_t> read(std::span<std::byte> rx_data) override;
 
     private:
-        std::string ip_;
+        std::string host_;
         uint16_t port_ = 0;
         int socket_fd_ = -1;
         bool is_connected_ = false;

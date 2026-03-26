@@ -3,9 +3,10 @@
 #include <cstring>
 #include <errno.h>
 #include <fcntl.h>
+#include <memory>
 #include <stdexcept>
 #include <unistd.h>
-#include <arpa/inet.h>
+#include <netdb.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 
@@ -17,9 +18,9 @@ namespace service::infrastructure {
 
         const auto colon_pos = device_path.find(':');
         if (colon_pos == std::string::npos || colon_pos == 0 || colon_pos == device_path.size() - 1) {
-            throw std::invalid_argument("Device path must be in format <ip>:<port>");
+            throw std::invalid_argument("Device path must be in format <host>:<port>");
         }
-        ip_ = device_path.substr(0, colon_pos);
+        host_ = device_path.substr(0, colon_pos);
         const std::string port_str = device_path.substr(colon_pos + 1);
         try {
             const int port_val = std::stoi(port_str);
@@ -46,78 +47,68 @@ namespace service::infrastructure {
         if (is_connected_) {
             return Result<void>::success();
         }
-        socket_fd_ = ::socket(AF_INET, SOCK_STREAM, 0);
-        if (socket_fd_ < 0) {
-            return Result<void>::error("Failed to create socket");
+
+        addrinfo hints{};
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_STREAM;
+
+        addrinfo* raw_addr_list = nullptr;
+        const std::string port_str = std::to_string(port_);
+        const int gai_result = ::getaddrinfo(host_.c_str(), port_str.c_str(), &hints, &raw_addr_list);
+        if (gai_result != 0) {
+            return Result<void>::error(
+                std::string("Failed to resolve host '") + host_ + "': " + ::gai_strerror(gai_result));
         }
+        auto addr_list = std::unique_ptr<addrinfo, decltype(&::freeaddrinfo)>(raw_addr_list, ::freeaddrinfo);
 
-        // Set socket to non-blocking mode for connection timeout
-        int flags = ::fcntl(socket_fd_, F_GETFL, 0);
-        if (flags < 0 || ::fcntl(socket_fd_, F_SETFL, flags | O_NONBLOCK) < 0) {
-            ::close(socket_fd_);
-            socket_fd_ = -1;
-            return Result<void>::error("Failed to set socket non-blocking");
-        }
+        for (addrinfo* addr = addr_list.get(); addr != nullptr; addr = addr->ai_next) {
+            socket_fd_ = ::socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
+            if (socket_fd_ < 0) {
+                continue;
+            }
 
-        sockaddr_in server_addr{};
-        server_addr.sin_family = AF_INET;
-        server_addr.sin_port = htons(port_);
-        if (::inet_pton(AF_INET, ip_.c_str(), &server_addr.sin_addr) <= 0) {
-            ::close(socket_fd_);
-            socket_fd_ = -1;
-            return Result<void>::error("Invalid address");
-        }
+            int flags = ::fcntl(socket_fd_, F_GETFL, 0);
+            if (flags < 0 || ::fcntl(socket_fd_, F_SETFL, flags | O_NONBLOCK) < 0) {
+                ::close(socket_fd_);
+                socket_fd_ = -1;
+                continue;
+            }
 
-        // Attempt connection (will return immediately due to non-blocking)
-        int connect_result = ::connect(socket_fd_, reinterpret_cast<sockaddr*>(&server_addr), sizeof(server_addr));
+            const int connect_result = ::connect(socket_fd_, addr->ai_addr, addr->ai_addrlen);
+            bool connected = (connect_result == 0);
 
-        if (connect_result < 0) {
-            if (errno == EINPROGRESS) {
-                // Connection in progress, wait with timeout (3 seconds)
+            if (!connected && errno == EINPROGRESS) {
                 fd_set write_fds;
                 FD_ZERO(&write_fds);
                 FD_SET(socket_fd_, &write_fds);
 
-                struct timeval timeout;
-                timeout.tv_sec = 3;
-                timeout.tv_usec = 0;
+                timeval timeout{3, 0};
+                const int select_result = ::select(socket_fd_ + 1, nullptr, &write_fds, nullptr, &timeout);
 
-                int select_result = ::select(socket_fd_ + 1, nullptr, &write_fds, nullptr, &timeout);
-
-                if (select_result <= 0) {
-                    // Timeout or error
-                    ::close(socket_fd_);
-                    socket_fd_ = -1;
-                    return Result<void>::error(select_result == 0 ?
-                        "Connection timeout (address not reachable)" :
-                        "Connection failed: " + std::string(std::strerror(errno)));
+                if (select_result > 0) {
+                    int error = 0;
+                    socklen_t len = sizeof(error);
+                    if (::getsockopt(socket_fd_, SOL_SOCKET, SO_ERROR, &error, &len) == 0 && error == 0) {
+                        connected = true;
+                    }
                 }
-
-                // Check if connection was successful
-                int error = 0;
-                socklen_t len = sizeof(error);
-                if (::getsockopt(socket_fd_, SOL_SOCKET, SO_ERROR, &error, &len) < 0 || error != 0) {
-                    ::close(socket_fd_);
-                    socket_fd_ = -1;
-                    return Result<void>::error("Connection failed: " + std::string(std::strerror(error ? error : errno)));
-                }
-            } else {
-                // Immediate connection error
-                ::close(socket_fd_);
-                socket_fd_ = -1;
-                return Result<void>::error("Connection failed: " + std::string(std::strerror(errno)));
             }
-        }
 
-        // Restore blocking mode
-        if (::fcntl(socket_fd_, F_SETFL, flags) < 0) {
+            if (connected) {
+                if (::fcntl(socket_fd_, F_SETFL, flags) < 0) {
+                    ::close(socket_fd_);
+                    socket_fd_ = -1;
+                    continue;
+                }
+                is_connected_ = true;
+                return Result<void>::success();
+            }
+
             ::close(socket_fd_);
             socket_fd_ = -1;
-            return Result<void>::error("Failed to restore socket blocking mode");
         }
 
-        is_connected_ = true;
-        return Result<void>::success();
+        return Result<void>::error("Failed to connect to " + host_ + ":" + port_str);
     }
 
     Result<void> TcpClient::close() {

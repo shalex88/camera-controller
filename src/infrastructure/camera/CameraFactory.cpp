@@ -35,7 +35,7 @@ namespace service::infrastructure {
         LOG_DEBUG("Creating camera: {}", config.camera);
         for (size_t i = 0; i < config.endpoints.size(); ++i) {
             const auto& [address, configuration] = config.endpoints[i];
-            LOG_DEBUG("Endpoint[{}]: address={}, config: {}", i, address, formatConfiguration(configuration));
+            LOG_DEBUG("Endpoint[{}]: {} {}", i, address, formatConfiguration(configuration));
         }
 
         if (config.video_channel != std::nullopt) {

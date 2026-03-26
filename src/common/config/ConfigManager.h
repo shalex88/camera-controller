@@ -32,7 +32,7 @@ namespace service::common {
     struct InfrastructureConfig {
         std::string camera;
         std::vector<EndpointConfig> endpoints;
-        std::optional<int> video_channel;
+        std::optional<uint32_t> video_channel;
 
         void validate() const;
     };

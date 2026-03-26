@@ -1,13 +1,13 @@
 app:
   name: camera-controller-mwir
-  log_level: info
+  log_level: debug
   api:
     api_type: grpc
-    server_address: 0.0.0.0:50053
+    server_address: 0.0.0.0:50052
   core:
     camera: core
   infrastructure:
     camera: mwir
-    video_channel: 3
+    video_channel: 2
     endpoints:
-      - address: 192.168.1.51:2017
+      - address: frontier-mwir-mpsoc.local:3016

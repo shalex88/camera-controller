@@ -34,7 +34,7 @@ namespace service::infrastructure {
         Result<void> close() override;
 
         // IAutoFocusCapable implementation
-        Result<void> enableAutoFocus(bool on) const override;
+        Result<void> enableAutoFocus(bool enable) const override;
         Result<bool> isAutoFocusEnabled() const override;
 
     private:
