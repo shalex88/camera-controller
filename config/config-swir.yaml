@@ -1,0 +1,11 @@
+app:
+  name: camera-controller-swir
+  log_level: info
+  api:
+    api_type: grpc
+    port: 50053
+  core:
+    camera: core
+  infrastructure:
+    camera: fake_advanced
+    video_channel: 3

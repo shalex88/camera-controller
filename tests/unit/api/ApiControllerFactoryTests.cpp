@@ -14,14 +14,14 @@ protected:
         core_ = std::make_unique<CoreMock>();
     }
 
-    std::string server_address = "50051";
+    std::string server = "50051";
     std::unique_ptr<core::ICore> core_;
 };
 
 TEST_F(ApiControllerFactoryTests, CreateGrpcServiceSuccess) {
     common::ApiConfig config;
     config.api = "grpc";
-    config.server_address = "localhost:50051";
+    config.port = 50051;
 
     const auto service = api::ApiControllerFactory::createController(std::move(core_), config);
     ASSERT_NE(nullptr, service);
@@ -31,7 +31,7 @@ TEST_F(ApiControllerFactoryTests, CreateGrpcServiceSuccess) {
 TEST_F(ApiControllerFactoryTests, ThrowsOnUnknownType) {
     common::ApiConfig config;
     config.api = "invalid_api";
-    config.server_address = "localhost:50051";
+    config.port = 50051;
 
     EXPECT_THROW(
         api::ApiControllerFactory::createController(std::move(core_), config),

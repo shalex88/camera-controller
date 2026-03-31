@@ -6,7 +6,7 @@
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
 
-#include "api/GrpcCallbackHandler.h"
+#include "api/grpc/GrpcCallbackHandler.h"
 #include "api/IRequestHandler.h"
 #include "common/logger/Logger.h"
 
@@ -21,12 +21,23 @@ namespace service::api {
         }
     }
 
-    Result<void> GrpcTransport::start(const std::string& server_address) {
+    Result<void> GrpcTransport::start(const std::string& server, uint16_t port) {
         LOG_DEBUG("Starting server...");
+
+        if (server.empty()) {
+            return Result<void>::error("Server cannot be empty");
+        }
+
+        if (port == 0) {
+            return Result<void>::error("Port cannot be zero");
+        }
+
         //TODO: learn how to use health check
         grpc::EnableDefaultHealthCheckService(false);
         //TODO: disable in production
         grpc::reflection::InitProtoReflectionServerBuilderPlugin();
+
+        const auto server_address = server + ":" + std::to_string(port);
 
         grpc::ServerBuilder builder;
         builder.AddChannelArgument(GRPC_ARG_ALLOW_REUSEPORT, 0);
@@ -51,7 +62,7 @@ namespace service::api {
         }
 
         is_running_ = true;
-        LOG_INFO("Server is listening on: {}", server_address); //TODO: show actual target ip
+        LOG_INFO("Server is listening on: {}", server_address);
         return Result<void>::success();
     }
 

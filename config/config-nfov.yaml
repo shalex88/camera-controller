@@ -3,7 +3,7 @@ app:
   log_level: info
   api:
     api_type: grpc
-    server_address: 0.0.0.0:50050
+    port: 50050
   core:
     camera: core
   infrastructure:

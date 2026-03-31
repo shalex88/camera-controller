@@ -1,16 +1,16 @@
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 /* Add your project include files here */
 #include <chrono>
 #include <memory>
 #include <thread>
 
-#include "api/GrpcTransport.h"
+#include "../Mocks.h"
+#include "../../utils/GrpcClient.h"
 #include "api/RequestHandler.h"
+#include "api/grpc/GrpcTransport.h"
 #include "common/logger/Logger.h"
 #include "common/types/CameraCapabilities.h"
-#include "../../utils/GrpcClient.h"
-#include "../Mocks.h"
 
 class GrpcIntegrationTests : public Test {
 protected:
@@ -26,7 +26,7 @@ protected:
         grpc_transport = std::make_unique<api::GrpcTransport>(*request_handler);
 
         ASSERT_TRUE(request_handler->start().isSuccess());
-        ASSERT_TRUE(grpc_transport->start(server_address).isSuccess());
+        ASSERT_TRUE(grpc_transport->start(server_addr, server_port).isSuccess());
 
         // Run the server loop in a separate thread
         server_thread = std::jthread([this] {
@@ -34,8 +34,8 @@ protected:
         });
 
         // Give the server a moment to start listening
-        std::cout << "Connecting to server at " << server_address << "\n";
-        const auto channel = CreateChannel(server_address, grpc::InsecureChannelCredentials());
+        std::cout << "Connecting to server at " << server_addr << ":" << server_port << "\n";
+        const auto channel = CreateChannel(server, grpc::InsecureChannelCredentials());
         client = std::make_unique<GrpcClient>(channel);
     }
 
@@ -51,7 +51,9 @@ protected:
     CoreMock* core {}; // Raw pointer to access the mock
     std::unique_ptr<api::RequestHandler> request_handler;
     std::unique_ptr<api::GrpcTransport> grpc_transport;
-    std::string server_address = "0.0.0.0:50051";
+    std::string server_addr = "0.0.0.0";
+    uint16_t server_port = 50051;
+    std::string server = server_addr + ":" + std::to_string(server_port);
     std::unique_ptr<GrpcClient> client;
     std::jthread server_thread;
     Result<void> server_result;

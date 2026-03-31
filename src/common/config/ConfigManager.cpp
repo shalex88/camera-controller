@@ -47,11 +47,8 @@ namespace service::common {
         if (!valid_apis.contains(api)) {
             throw std::runtime_error("Invalid API type: " + api);
         }
-        if (server_address.empty()) {
-            throw std::runtime_error("Server address cannot be empty");
-        }
-        if (server_address.find(':') == std::string::npos) {
-            throw std::runtime_error("Server address must include port (format: host:port)");
+        if (port == 0) {
+            throw std::runtime_error("Port cannot be zero");
         }
     }
 
@@ -105,9 +102,6 @@ namespace service::common {
             throw std::runtime_error("App name cannot be empty");
         }
 
-        if (api_config.server_address == core_config.camera) {
-            throw std::runtime_error("API server address cannot be the same as camera type");
-        }
     }
 
     ConfigManager::ConfigManager(const std::string& filename) : app_config_(std::make_unique<AppConfig>()) {
@@ -139,8 +133,8 @@ namespace service::common {
             if (api_node["api_type"]) {
                 app_config_->api_config.api = api_node["api_type"].as<std::string>();
             }
-            if (api_node["server_address"]) {
-                app_config_->api_config.server_address = api_node["server_address"].as<std::string>();
+            if (api_node["port"]) {
+                app_config_->api_config.port = api_node["port"].as<uint16_t>();
             }
         }
     }

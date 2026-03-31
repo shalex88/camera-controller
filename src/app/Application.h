@@ -45,9 +45,9 @@ namespace service::app {
         void setupSignalHandlers();
 
         std::atomic<bool> shutdown_requested_{false};
-        std::string config_file_{"../config/config.yaml"};
+        std::string config_file_{"../../config/config.yaml"};
 
-        std::unique_ptr<common::ConfigManager> config_{};
-        std::unique_ptr<api::ApiController> api_controller_{};
+        std::unique_ptr<common::ConfigManager> config_;
+        std::unique_ptr<api::ApiController> api_controller_;
     };
 } // namespace service::app

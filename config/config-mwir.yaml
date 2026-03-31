@@ -1,9 +1,9 @@
 app:
   name: camera-controller-mwir
-  log_level: debug
+  log_level: info
   api:
     api_type: grpc
-    server_address: 0.0.0.0:50052
+    port: 50052
   core:
     camera: core
   infrastructure:

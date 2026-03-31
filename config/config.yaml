@@ -1,9 +1,9 @@
 app:
-  name: simulator
+  name: demo
   log_level: info
   api:
     api_type: grpc
-    server_address: 0.0.0.0:50051
+    port: 50051
   core:
     camera: core
   infrastructure:

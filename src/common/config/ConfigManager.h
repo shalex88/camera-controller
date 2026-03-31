@@ -11,7 +11,7 @@
 namespace service::common {
     struct ApiConfig {
         std::string api;
-        std::string server_address;
+        uint16_t port{0};
 
         void validate() const;
     };

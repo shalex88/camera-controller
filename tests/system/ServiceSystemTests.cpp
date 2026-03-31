@@ -1,12 +1,13 @@
-#include <gtest/gtest.h>
-#include <gmock/gmock.h>
 #include <chrono>
 #include <memory>
 #include <thread>
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
+#include "../../utils/GrpcClient.h"
 #include "app/Application.h"
 #include "common/config/ConfigManager.h"
-#include "../../utils/GrpcClient.h"
+#include "common/network/NetworkUtils.h"
 
 using namespace service;
 using namespace testing;
@@ -31,7 +32,7 @@ protected:
 
         config = std::make_unique<common::ConfigManager>(config_path);
         const auto& api_config_obj = config->getApiConfig();
-        server_address = api_config_obj.server_address;
+        server = common::network::getPrimaryIpAddress().value();
     }
 
     void TearDown() override {
@@ -43,12 +44,12 @@ protected:
 
     std::unique_ptr<app::Application> app;
     std::unique_ptr<common::ConfigManager> config;
-    std::string server_address;
+    std::string server;
 };
 
 TEST_F(ServiceSystemTests, CameraRequestResponse) {
-    std::cout << "Connecting to server at " << server_address << "\n";
-    const auto channel = CreateChannel(server_address, grpc::InsecureChannelCredentials());
+    std::cout << "Connecting to server at " << server << "\n";
+    const auto channel = CreateChannel(server, grpc::InsecureChannelCredentials());
     const GrpcClient client(channel);
 
     constexpr common::types::zoom test_zoom = 1u;
