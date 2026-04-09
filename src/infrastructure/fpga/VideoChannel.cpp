@@ -131,7 +131,7 @@ namespace service::infrastructure {
             // TODO: Channel 3
         };
 
-        Result<void> configureChannel(uint32_t channel_num) {
+        Result<void> configureChannel(const uint32_t channel_num) {
             LOG_DEBUG("Configuring video channel {}...", channel_num);
             auto [global, mux, mipi, test_pattern] = channel_configs.at(channel_num - 1); //FIXME: Remove '-1' when channel 0 is configured
 
@@ -229,7 +229,7 @@ namespace service::infrastructure {
             return Result<void>::success();
         }
 
-        Result<void> validateLiveVideo(uint32_t channel_num) {
+        Result<void> validateLiveVideo(const uint32_t channel_num) {
             // Channel 0
             // 0x800b0058 *4 // width
             // 0x800b005c // height
@@ -262,17 +262,17 @@ namespace service::infrastructure {
         }
     } // unnamed namespace
 
-    VideoChannel::VideoChannel(uint32_t channel_num) {
+    Result<void> VideoChannel::initialize(const uint32_t channel_num) {
         if (const auto result = configureChannel(channel_num); result.isError()) {
-            throw std::runtime_error("Failed to configure video channel: " + result.error());
+            return Result<void>::error("Failed to configure video channel: " + result.error());
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(80));
 
         if (const auto result = validateLiveVideo(channel_num); result.isError()) {
-            throw std::runtime_error("Live video is not available: " + result.error());
+            return Result<void>::error("Live video is not available: " + result.error());
         }
-    }
 
-    VideoChannel::~VideoChannel() noexcept = default;
+        return Result<void>::success();
+    }
 } // namespace service::infrastructure

@@ -1,7 +1,10 @@
 #include "Camera.h"
 
+#include <string>
+
 #include "common/logger/Logger.h"
 #include "infrastructure/camera/hal/ICameraHw.h"
+#include "infrastructure/fpga/VideoChannel.h"
 
 namespace service::infrastructure {
     Camera::Camera(std::unique_ptr<ICameraHw> camera_strategy)
@@ -19,6 +22,11 @@ namespace service::infrastructure {
                 throw std::runtime_error("Invalid focus limits from camera");
             }
         }
+    }
+
+    Camera::Camera(std::unique_ptr<ICameraHw> camera_strategy, uint32_t video_channel)
+        : Camera(std::move(camera_strategy)) {
+        video_channel_ = video_channel;
     }
 
     Camera::~Camera() {
@@ -248,6 +256,16 @@ namespace service::infrastructure {
         LOG_DEBUG("Connecting camera...");
         if (const auto connect_result = camera_hw_->open(); connect_result.isError()) {
             return Result<void>::error(connect_result.error());
+        }
+
+        if (video_channel_) {
+            const auto channel_result = VideoChannel::initialize(*video_channel_);
+            if (channel_result.isError()) {
+                if (const auto rollback_result = camera_hw_->close(); rollback_result.isError()) {
+                    LOG_ERROR("Failed to roll back camera open after video channel failure: {}", rollback_result.error());
+                }
+                return Result<void>::error(std::string("Video channel initialization failed: ") + channel_result.error());
+            }
         }
 
         connected_ = true;

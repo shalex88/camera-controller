@@ -88,6 +88,7 @@ grpcui -plaintext 0.0.0.0:50051
 - Support using hostname for tcp clients instead of IP address
 - Test video registers for live video
 - Print server address like in other services
+- Install pkg-config !!!
 
 ## MPSOC replace fpga
 scp omb_evb_top.bit root@frontier-peripheral-ctrl-mpsoc.local:~/fpga/

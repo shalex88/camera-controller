@@ -15,7 +15,6 @@
 #include "infrastructure/camera/protocol/visca/ViscaProtocol.h"
 #include "infrastructure/camera/transport/ethernet/TcpClient.h"
 #include "infrastructure/camera/transport/uart/Uart.h"
-#include "infrastructure/fpga/VideoChannel.h"
 
 namespace service::infrastructure {
     namespace {
@@ -29,6 +28,14 @@ namespace service::infrastructure {
             }
             return result;
         }
+
+        std::unique_ptr<Camera> makeCamera(std::unique_ptr<ICameraHw> hw,
+                                           const std::optional<uint32_t>& video_channel) {
+            if (video_channel) {
+                return std::make_unique<Camera>(std::move(hw), *video_channel);
+            }
+            return std::make_unique<Camera>(std::move(hw));
+        }
     } // unnamed namespace
 
     std::unique_ptr<ICamera> CameraFactory::createCamera(const common::InfrastructureConfig& config) {
@@ -36,10 +43,6 @@ namespace service::infrastructure {
         for (size_t i = 0; i < config.endpoints.size(); ++i) {
             const auto& [address, configuration] = config.endpoints[i];
             LOG_DEBUG("Endpoint[{}]: {} {}", i, address, formatConfiguration(configuration));
-        }
-
-        if (config.video_channel != std::nullopt) {
-            VideoChannel(config.video_channel.value());
         }
 
         if (config.camera == "adimec") {
@@ -57,7 +60,7 @@ namespace service::infrastructure {
             auto lens_protocol = std::make_unique<ItlProtocol>(std::move(lens_transport));
 
             auto camera = std::make_unique<AdimecCamera>(std::move(camera_protocol), std::move(lens_protocol));
-            return std::make_unique<Camera>(std::move(camera));
+            return makeCamera(std::move(camera), config.video_channel);
         }
 
         if (config.camera == "sony") {
@@ -69,7 +72,7 @@ namespace service::infrastructure {
             auto protocol = std::make_unique<ViscaProtocol>(std::move(transport));
 
             auto camera = std::make_unique<SonyCamera>(std::move(protocol));
-            return std::make_unique<Camera>(std::move(camera));
+            return makeCamera(std::move(camera), config.video_channel);
         }
 
         if (config.camera == "mwir") {
@@ -82,7 +85,7 @@ namespace service::infrastructure {
             auto protocol = std::make_unique<ItlProtocol>(std::move(transport));
 
             auto camera = std::make_unique<MwirCamera>(std::move(protocol));
-            return std::make_unique<Camera>(std::move(camera));
+            return makeCamera(std::move(camera), config.video_channel);
         }
 
         if (config.camera == "fake_advanced") {

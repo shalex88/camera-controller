@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
@@ -12,6 +13,7 @@ namespace service::infrastructure {
     class Camera final : public ICamera {
     public:
         explicit Camera(std::unique_ptr<ICameraHw> camera_strategy);
+        Camera(std::unique_ptr<ICameraHw> camera_strategy, uint32_t video_channel);
         ~Camera() override;
 
         Result<void> setZoom(common::types::zoom normalized_zoom) const override;
@@ -38,6 +40,7 @@ namespace service::infrastructure {
 
     private:
         std::unique_ptr<ICameraHw> camera_hw_;
+        std::optional<uint32_t> video_channel_ {std::nullopt};
         bool connected_ {false};
 
         static bool isValidNormalizedZoom(common::types::zoom value);

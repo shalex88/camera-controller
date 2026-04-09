@@ -1,10 +1,11 @@
 #pragma once
 #include <cstdint>
 
+#include "common/types/Result.h"
+
 namespace service::infrastructure {
     class VideoChannel {
     public:
-        explicit VideoChannel(uint32_t channel_num);
-        ~VideoChannel() noexcept;
+        static Result<void> initialize(uint32_t channel_num);
     };
 } // namespace service::infrastructure
