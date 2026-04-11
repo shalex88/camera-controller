@@ -7,31 +7,48 @@
 namespace service::infrastructure {
     AdimecCamera::AdimecCamera(std::unique_ptr<GenicamProtocol> camera_protocol, std::unique_ptr<ItlProtocol> lens_protocol) :
         camera_protocol_(std::move(camera_protocol)), lens_protocol_(std::move(lens_protocol)) {
+        if (!camera_protocol_) {
+            throw std::invalid_argument("Camera protocol cannot be null");
+        }
+        if (!lens_protocol_) {
+            throw std::invalid_argument("Lens protocol cannot be null");
+        }
     }
 
     Result<void> AdimecCamera::open() {
-        if (camera_protocol_->open().isError()) {
-            return Result<void>::error("Failed to connect to Adimec camera");
+        if (const auto camera_result = camera_protocol_->open(); camera_result.isError()) {
+            return Result<void>::error("Failed to connect to Adimec camera: " + camera_result.error());
         }
-        if (lens_protocol_) {
-            if (lens_protocol_->open().isError()) {
-                return Result<void>::error("Failed to connect to Adimec lens");
+
+        if (const auto lens_result = lens_protocol_->open(); lens_result.isError()) {
+            if (const auto rollback_result = camera_protocol_->close(); rollback_result.isError()) {
+                LOG_ERROR("Failed to roll back Adimec camera connection after lens failure: {}", rollback_result.error());
             }
-        } else {
-            LOG_WARN("No lens endpoint provided. Operating without lens control.");
+
+            return Result<void>::error("Failed to connect to Adimec lens: " + lens_result.error());
         }
+
         return Result<void>::success();
     }
 
     Result<void> AdimecCamera::close() {
-        if (camera_protocol_->close().isError()) {
-            return Result<void>::error("Failed to disconnect from Adimec camera");
+        std::string error_message;
+
+        if (const auto lens_result = lens_protocol_->close(); lens_result.isError()) {
+            error_message = "Failed to disconnect from Adimec lens: " + lens_result.error();
         }
-        if (lens_protocol_) {
-            if (lens_protocol_->close().isError()) {
-                return Result<void>::error("Failed to disconnect from Adimec lens");
+
+        if (const auto camera_result = camera_protocol_->close(); camera_result.isError()) {
+            if (!error_message.empty()) {
+                error_message.append("; ");
             }
+            error_message.append("Failed to disconnect from Adimec camera: ").append(camera_result.error());
         }
+
+        if (!error_message.empty()) {
+            return Result<void>::error(error_message);
+        }
+
         return Result<void>::success();
     }
 

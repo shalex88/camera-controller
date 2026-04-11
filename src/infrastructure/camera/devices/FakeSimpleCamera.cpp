@@ -12,21 +12,21 @@ namespace service::infrastructure {
             .max = 0xFF
         };
 
-        common::types::zoom zoom_ = zoom_limits_.min;
-        common::types::focus focus_ = focus_limits_.min;
-        common::types::info info_ = "Fake Simple Camera";
     } // unnamed namespace
 
     Result<void> FakeSimpleCamera::setZoom(common::types::zoom zoom) const {
+        std::lock_guard lock(state_mutex_);
         zoom_ = zoom;
         return Result<void>::success();
     }
 
     Result<common::types::zoom> FakeSimpleCamera::getZoom() const {
+        std::lock_guard lock(state_mutex_);
         return Result<common::types::zoom>::success(zoom_);
     }
 
     Result<common::types::info> FakeSimpleCamera::getInfo() const {
+        std::lock_guard lock(state_mutex_);
         return Result<common::types::info>::success(info_);
     }
 
@@ -43,11 +43,13 @@ namespace service::infrastructure {
     }
 
     Result<void> FakeSimpleCamera::setFocus(common::types::focus focus) const {
+        std::lock_guard lock(state_mutex_);
         focus_ = focus;
         return Result<void>::success();
     }
 
     Result<common::types::focus> FakeSimpleCamera::getFocus() const {
+        std::lock_guard lock(state_mutex_);
         return Result<common::types::focus>::success(focus_);
     }
 

@@ -46,16 +46,15 @@ namespace service::infrastructure {
         }
 
         if (config.camera == "adimec") {
-            if (config.endpoints.size() < 1 || config.endpoints.size() > 2) {
-                throw std::invalid_argument(
-                    "Adimec requires 1 or 2 endpoints");
+            if (config.endpoints.size() != 2) {
+                throw std::invalid_argument("Adimec requires exactly 2 endpoints");
             }
 
-            const auto& [camera_address, camera_configuration] = config.endpoints[0];
+            const auto& camera_address = config.endpoints[0].address;
             auto camera_transport = std::make_unique<FpgaTransport>(camera_address);
             auto camera_protocol = std::make_unique<GenicamProtocol>(std::move(camera_transport));
 
-            const auto& [lens_address, lens_configuration] = config.endpoints[1];
+            const auto& lens_address = config.endpoints[1].address;
             auto lens_transport = std::make_unique<TcpClient>(lens_address);
             auto lens_protocol = std::make_unique<ItlProtocol>(std::move(lens_transport));
 

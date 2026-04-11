@@ -12,10 +12,6 @@ namespace service::infrastructure {
             .min = 0x0, .max = 0xFF
         };
 
-        common::types::zoom zoom_ = zoom_limits_.min;
-        common::types::focus focus_ = focus_limits_.min;
-        bool auto_focus_enabled_ = true;
-
         constexpr std::uint32_t DEVICE_ID = static_cast<std::uint32_t>('E') | (static_cast<std::uint32_t>('N') << 8U) |
             (static_cast<std::uint32_t>('G') << 16U) | (static_cast<std::uint32_t>('2') << 24U);
         constexpr std::uint32_t GET_VERSION_GENIP = 0x0000'0001;
@@ -23,7 +19,8 @@ namespace service::infrastructure {
         constexpr std::uint32_t SET_AOI_INDEX = 0x0000'000E;
     } // unnamed namespace
 
-    MwirCamera::MwirCamera(std::unique_ptr<ItlProtocol> protocol) : protocol_(std::move(protocol)) {
+    MwirCamera::MwirCamera(std::unique_ptr<ItlProtocol> protocol)
+        : protocol_(std::move(protocol)), zoom_(zoom_limits_.min), focus_(focus_limits_.min) {
         if (!protocol_) {
             throw std::invalid_argument("Protocol cannot be null");
         }
@@ -32,15 +29,18 @@ namespace service::infrastructure {
     MwirCamera::~MwirCamera() = default;
 
     Result<void> MwirCamera::setZoom(common::types::zoom zoom) const {
+        std::lock_guard lock(state_mutex_);
         zoom_ = zoom;
         return Result<void>::success();
     }
 
     Result<common::types::zoom> MwirCamera::getZoom() const {
+        std::lock_guard lock(state_mutex_);
         return Result<common::types::zoom>::success(zoom_);
     }
 
     Result<void> MwirCamera::setFocus(common::types::focus focus) const {
+        std::lock_guard lock(state_mutex_);
         if (auto_focus_enabled_) {
             return Result<void>::error("Cannot set focus value while autofocus is enabled");
         }
@@ -49,6 +49,7 @@ namespace service::infrastructure {
     }
 
     Result<common::types::focus> MwirCamera::getFocus() const {
+        std::lock_guard lock(state_mutex_);
         if (auto_focus_enabled_) {
             return Result<common::types::focus>::error("Cannot get focus value while autofocus is enabled");
         }
@@ -65,7 +66,7 @@ namespace service::infrastructure {
         if (framework_ver.isError()) {
             return Result<common::types::info>::error(framework_ver.error());
         }
-        const std::string result = "GenIP v" + std::to_string(static_cast<uint8_t>(genip_ver.value().at(0))) + "." +
+        const std::string result = "MWIR GenIP v" + std::to_string(static_cast<uint8_t>(genip_ver.value().at(0))) + "." +
             std::to_string(static_cast<uint8_t>(genip_ver.value().at(1))) + "." +
             std::to_string(static_cast<uint8_t>(genip_ver.value().at(2))) + "." +
             std::to_string(static_cast<uint8_t>(genip_ver.value().at(3))) + " Framework v" +
@@ -91,15 +92,18 @@ namespace service::infrastructure {
     }
 
     Result<void> MwirCamera::enableAutoFocus(bool enable) const {
-        // auto_focus_enabled_ = enable;
         std::vector<std::byte> payload = {std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}};
         if (const auto result = protocol_->send(DEVICE_ID, SET_AOI_INDEX, std::span<const std::byte>{payload}); result.isError()) {
             return Result<void>::error(result.error());
         }
+
+        std::lock_guard lock(state_mutex_);
+        auto_focus_enabled_ = enable;
         return Result<void>::success();
     }
 
     Result<bool> MwirCamera::isAutoFocusEnabled() const {
+        std::lock_guard lock(state_mutex_);
         return Result<bool>::success(auto_focus_enabled_);
     }
 

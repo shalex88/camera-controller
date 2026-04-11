@@ -1,5 +1,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <filesystem>
 /* Add your project include files here */
 #include "common/config/ConfigManager.h"
 #include "common/logger/Logger.h"
@@ -16,7 +17,9 @@ using namespace testing;
 
 class AdimecCameraTests : public Test {
 protected:
-    AdimecCameraTests() : config_(std::make_unique<common::ConfigManager>("../../config/config-nfov.yaml")) {
+    AdimecCameraTests()
+        : config_(std::make_unique<common::ConfigManager>(
+            (std::filesystem::path(CAMERA_CONTROLLER_SOURCE_DIR) / "config" / "config-nfov.yaml").string())) {
         CONFIGURE_LOGGER(config_->getAppName(), config_->getLogLevel());
         const auto& infrastructure_config = config_->getInfrastructureConfig();
         const auto& camera_endpoint = infrastructure_config.endpoints[0];

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mutex>
+
 #include "common/types/CameraCapabilities.h"
 #include "common/types/CameraTypes.h"
 #include "infrastructure/camera/hal/ICameraHw.h"
@@ -39,5 +41,9 @@ namespace service::infrastructure {
 
     private:
         std::unique_ptr<ItlProtocol> protocol_;
+        mutable std::mutex state_mutex_;
+        mutable common::types::zoom zoom_;
+        mutable common::types::focus focus_;
+        mutable bool auto_focus_enabled_{true};
     };
 } // namespace service::infrastructure

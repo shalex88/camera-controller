@@ -1,4 +1,5 @@
 #include <chrono>
+#include <filesystem>
 #include <memory>
 #include <thread>
 #include <gmock/gmock.h>
@@ -15,8 +16,12 @@ using namespace testing;
 class ServiceSystemTests : public Test {
 protected:
     void SetUp() override {
-        const char* config_path = "../../config/config-simulator.yaml";
-        char* argv[] = {const_cast<char*>("camera-service"), const_cast<char*>("-c"), const_cast<char*>(config_path)};
+        config_path_ = (std::filesystem::path(CAMERA_CONTROLLER_SOURCE_DIR) / "tests" / "system" / "config.yaml").string();
+        char* argv[] = {
+            const_cast<char*>("camera-service"),
+            const_cast<char*>("-c"),
+            const_cast<char*>(config_path_.c_str())
+        };
         const int argc = 3;
 
         app = std::make_unique<app::Application>(argc, argv);
@@ -30,9 +35,11 @@ protected:
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
 
-        config = std::make_unique<common::ConfigManager>(config_path);
+        config = std::make_unique<common::ConfigManager>(config_path_);
         const auto& api_config_obj = config->getApiConfig();
-        server = common::network::getPrimaryIpAddress().value();
+        const auto server_ip = common::network::getPrimaryIpAddress();
+        ASSERT_TRUE(server_ip.isSuccess()) << "Failed to resolve server IP: " << server_ip.error();
+        server = server_ip.value() + ":" + std::to_string(api_config_obj.port);
     }
 
     void TearDown() override {
@@ -44,12 +51,13 @@ protected:
 
     std::unique_ptr<app::Application> app;
     std::unique_ptr<common::ConfigManager> config;
+    std::string config_path_;
     std::string server;
 };
 
 TEST_F(ServiceSystemTests, CameraRequestResponse) {
     std::cout << "Connecting to server at " << server << "\n";
-    const auto channel = CreateChannel(server, grpc::InsecureChannelCredentials());
+    const auto channel = grpc::CreateChannel(server, grpc::InsecureChannelCredentials());
     const GrpcClient client(channel);
 
     constexpr common::types::zoom test_zoom = 1u;

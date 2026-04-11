@@ -102,10 +102,16 @@ namespace service::infrastructure {
         }
 
         if (const auto result = protocol_->setAddress(); result.isError()) {
+            if (const auto rollback_result = protocol_->close(); rollback_result.isError()) {
+                LOG_ERROR("Failed to roll back Sony protocol after setAddress failure: {}", rollback_result.error());
+            }
             return Result<void>::error(result.error());
         }
 
         if (const auto result = protocol_->clear(); result.isError()) {
+            if (const auto rollback_result = protocol_->close(); rollback_result.isError()) {
+                LOG_ERROR("Failed to roll back Sony protocol after clear failure: {}", rollback_result.error());
+            }
             return Result<void>::error(result.error());
         }
 

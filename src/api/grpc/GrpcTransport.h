@@ -1,8 +1,11 @@
 #pragma once
 
 #include "api/ITransport.h"
-#include "api/proto/camera_service.grpc.pb.h" //TODO: can move to implementation file?
 #include "common/types/Result.h"
+
+namespace grpc {
+    class Server;
+}
 
 namespace service::api {
     class IRequestHandler;

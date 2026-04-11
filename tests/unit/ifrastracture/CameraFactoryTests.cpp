@@ -42,3 +42,14 @@ TEST(CameraFactoryTests, ThrowsOnEmptyType) {
 
     EXPECT_THROW(infrastructure::CameraFactory::createCamera(config), std::invalid_argument);
 }
+
+TEST(CameraFactoryTests, AdimecRequiresExactlyTwoEndpoints) {
+    common::InfrastructureConfig config;
+    config.camera = "adimec";
+
+    common::EndpointConfig camera_endpoint;
+    camera_endpoint.address = "/dev/mem";
+    config.endpoints.push_back(camera_endpoint);
+
+    EXPECT_THROW(infrastructure::CameraFactory::createCamera(config), std::invalid_argument);
+}

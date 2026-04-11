@@ -4,7 +4,6 @@
 #include "api/RequestHandler.h"
 #include "api/grpc/GrpcTransport.h"
 #include "common/types/Result.h"
-#include "../../utils/GrpcClient.h"
 #include "../../Mocks.h"
 
 class GrpcTransportTests : public Test {

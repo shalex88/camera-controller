@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mutex>
+
 #include "common/types/CameraCapabilities.h"
 #include "infrastructure/camera/hal/ICameraHw.h"
 
@@ -38,5 +40,13 @@ namespace service::infrastructure {
         // IStabilizeCapable implementation
         Result<void> stabilize(bool enable) const override;
         Result<bool> isStabilizationEnabled() const override;
+
+    private:
+        mutable std::mutex state_mutex_;
+        mutable common::types::zoom zoom_{0};
+        mutable common::types::focus focus_{0};
+        mutable bool auto_focus_enabled_{true};
+        mutable bool stabilize_enabled_{false};
+        const common::types::info info_{"Fake Advanced Camera"};
     };
 } // namespace service::infrastructure

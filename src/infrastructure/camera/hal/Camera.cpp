@@ -279,12 +279,12 @@ namespace service::infrastructure {
         }
 
         LOG_DEBUG("Disconnecting camera...");
-        connected_ = false;
 
         if (const auto disconnect_result = camera_hw_->close(); disconnect_result.isError()) {
             return Result<void>::error(disconnect_result.error());
         }
 
+        connected_ = false;
         LOG_DEBUG("Camera disconnected");
         return Result<void>::success();
     }

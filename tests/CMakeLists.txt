@@ -33,6 +33,7 @@ foreach(TEST_DIR ${TEST_DIRS})
             add_executable(${TARGET_NAME} ${TEST_FILES} ${SOURCE_FILES})
             target_link_libraries(${TARGET_NAME} PRIVATE gtest gtest_main gmock)
             link_common_libraries(${TARGET_NAME})
+            target_compile_definitions(${TARGET_NAME} PRIVATE CAMERA_CONTROLLER_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 
             include(GoogleTest)
 

@@ -35,7 +35,7 @@ protected:
 
         // Give the server a moment to start listening
         std::cout << "Connecting to server at " << server_addr << ":" << server_port << "\n";
-        const auto channel = CreateChannel(server, grpc::InsecureChannelCredentials());
+        const auto channel = grpc::CreateChannel(server, grpc::InsecureChannelCredentials());
         client = std::make_unique<GrpcClient>(channel);
     }
 

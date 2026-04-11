@@ -73,6 +73,25 @@ TEST_F(CameraTests, DisonnectWhenConnectedSucceeds) {
     ASSERT_TRUE(camera_->close().isSuccess());
 }
 
+TEST_F(CameraTests, DisconnectFailureKeepsCameraMarkedConnected) {
+    EXPECT_CALL(*camera_hw_, open())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*camera_hw_, close())
+        .WillOnce(Return(Result<void>::error("disconnect failed")))
+        .WillOnce(Return(Result<void>::success()));
+
+    ASSERT_TRUE(camera_->open().isSuccess());
+    EXPECT_TRUE(camera_->isConnected());
+
+    const auto disconnect_result = camera_->close();
+    ASSERT_TRUE(disconnect_result.isError());
+    EXPECT_EQ(disconnect_result.error(), "disconnect failed");
+    EXPECT_TRUE(camera_->isConnected());
+
+    ASSERT_TRUE(camera_->close().isSuccess());
+    EXPECT_FALSE(camera_->isConnected());
+}
+
 TEST_F(CameraTests, SetZoomWhenNotConnectedFail) {
     const auto result = camera_->setZoom(2);
     ASSERT_TRUE(result.isError());

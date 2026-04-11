@@ -11,24 +11,21 @@ namespace service::infrastructure {
             .min = 0x0,
             .max = 0xFF
         };
-
-        common::types::zoom zoom_ = zoom_limits_.min;
-        common::types::focus focus_ = focus_limits_.min;
-        bool auto_focus_enabled_ = true;
-        bool stabilize_enabled_ = false;
-        common::types::info info_ = "Fake Advanced Camera";
     } // unnamed namespace
 
     Result<void> FakeAdvancedCamera::setZoom(const common::types::zoom zoom) const {
+        std::lock_guard lock(state_mutex_);
         zoom_ = zoom;
         return Result<void>::success();
     }
 
     Result<common::types::zoom> FakeAdvancedCamera::getZoom() const {
+        std::lock_guard lock(state_mutex_);
         return Result<common::types::zoom>::success(zoom_);
     }
 
     Result<void> FakeAdvancedCamera::setFocus(common::types::focus focus) const {
+        std::lock_guard lock(state_mutex_);
         if (auto_focus_enabled_) {
             return Result<void>::error("Cannot set focus value while autofocus is enabled");
         }
@@ -37,6 +34,7 @@ namespace service::infrastructure {
     }
 
     Result<common::types::focus> FakeAdvancedCamera::getFocus() const {
+        std::lock_guard lock(state_mutex_);
         if (auto_focus_enabled_) {
             return Result<common::types::focus>::error("Cannot get focus value while autofocus is enabled");
         }
@@ -44,6 +42,7 @@ namespace service::infrastructure {
     }
 
     Result<common::types::info> FakeAdvancedCamera::getInfo() const {
+        std::lock_guard lock(state_mutex_);
         return Result<common::types::info>::success(info_);
     }
 
@@ -56,20 +55,24 @@ namespace service::infrastructure {
     }
 
     Result<void> FakeAdvancedCamera::enableAutoFocus(bool enable) const {
+        std::lock_guard lock(state_mutex_);
         auto_focus_enabled_ = enable;
         return Result<void>::success();
     }
 
     Result<bool> FakeAdvancedCamera::isAutoFocusEnabled() const {
+        std::lock_guard lock(state_mutex_);
         return Result<bool>::success(auto_focus_enabled_);
     }
 
     Result<void> FakeAdvancedCamera::stabilize(bool enable) const {
+        std::lock_guard lock(state_mutex_);
         stabilize_enabled_ = enable;
         return Result<void>::success();
     }
 
     Result<bool> FakeAdvancedCamera::isStabilizationEnabled() const {
+        std::lock_guard lock(state_mutex_);
         return Result<bool>::success(stabilize_enabled_);
     }
 
