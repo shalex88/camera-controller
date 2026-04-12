@@ -38,13 +38,13 @@ namespace service::app {
         void run() const;
         Result<void> stop() const;
 
-        void requestShutdown();
+        void requestShutdown() const;
 
     private:
         void parseArguments(int argc, char* argv[]);
         void setupSignalHandlers();
 
-        std::atomic<bool> shutdown_requested_{false};
+        mutable std::atomic<bool> shutdown_requested_{false};
         std::string config_file_{"../../config/config.yaml"};
 
         std::unique_ptr<common::ConfigManager> config_;

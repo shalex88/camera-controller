@@ -18,13 +18,22 @@
 #include "infrastructure/camera/hal/ICamera.h"
 
 namespace service::app {
-    static Application* g_application_instance = nullptr;
+    namespace {
+        volatile std::sig_atomic_t g_shutdown_signal = 0;
+
+        bool consumeShutdownSignal() {
+            if (g_shutdown_signal == 0) {
+                return false;
+            }
+
+            g_shutdown_signal = 0;
+            return true;
+        }
+    } // namespace
 
     void signalHandler(int signal) {
         if (signal == SIGTERM || signal == SIGINT) {
-            if (g_application_instance != nullptr) {
-                g_application_instance->requestShutdown();
-            }
+            g_shutdown_signal = 1;
         }
     }
 
@@ -35,7 +44,7 @@ namespace service::app {
 
     Application::~Application() {
         common::runtime::clearShutdownHandler();
-        g_application_instance = nullptr;
+        g_shutdown_signal = 0;
     }
 
     void Application::parseArguments(int argc, char* argv[]) {
@@ -60,7 +69,6 @@ namespace service::app {
     }
 
     void Application::setupSignalHandlers() {
-        g_application_instance = this;
         std::signal(SIGTERM, signalHandler);
         std::signal(SIGINT, signalHandler);
     }
@@ -103,7 +111,16 @@ namespace service::app {
 
     void Application::run() const {
         while (api_controller_ != nullptr && api_controller_->isRunning() && !shutdown_requested_.load()) {
+            if (consumeShutdownSignal()) {
+                requestShutdown();
+                break;
+            }
+
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+
+        if (consumeShutdownSignal()) {
+            requestShutdown();
         }
 
         if (shutdown_requested_.load()) {
@@ -123,7 +140,7 @@ namespace service::app {
         return Result<void>::success();
     }
 
-    void Application::requestShutdown() {
+    void Application::requestShutdown() const {
         shutdown_requested_.store(true);
     }
 } // namespace service::app
