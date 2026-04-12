@@ -36,7 +36,9 @@ namespace service::infrastructure {
     }
 
     Result<void> Camera::setZoom(const common::types::zoom normalized_zoom) const {
-        if (!isConnected()) {
+        std::scoped_lock lock(mutex_);
+
+        if (!connected_) {
             return Result<void>::error("Camera not connected");
         }
 
@@ -59,7 +61,9 @@ namespace service::infrastructure {
     }
 
     Result<common::types::zoom> Camera::getZoom() const {
-        if (!isConnected()) {
+        std::scoped_lock lock(mutex_);
+
+        if (!connected_) {
             return Result<common::types::zoom>::error("Camera not connected");
         }
 
@@ -88,7 +92,9 @@ namespace service::infrastructure {
     }
 
     Result<void> Camera::setFocus(const common::types::focus normalized_focus) const {
-        if (!isConnected()) {
+        std::scoped_lock lock(mutex_);
+
+        if (!connected_) {
             return Result<void>::error("Camera not connected");
         }
 
@@ -111,7 +117,9 @@ namespace service::infrastructure {
     }
 
     Result<common::types::focus> Camera::getFocus() const {
-        if (!isConnected()) {
+        std::scoped_lock lock(mutex_);
+
+        if (!connected_) {
             return Result<common::types::focus>::error("Camera not connected");
         }
 
@@ -140,7 +148,9 @@ namespace service::infrastructure {
     }
 
     Result<void> Camera::enableAutoFocus(const bool on) const {
-        if (!isConnected()) {
+        std::scoped_lock lock(mutex_);
+
+        if (!connected_) {
             return Result<void>::error("Camera not connected");
         }
 
@@ -155,7 +165,9 @@ namespace service::infrastructure {
     }
 
     Result<bool> Camera::isAutoFocusEnabled() const {
-        if (!isConnected()) {
+        std::scoped_lock lock(mutex_);
+
+        if (!connected_) {
             return Result<bool>::error("Camera not connected");
         }
 
@@ -170,7 +182,9 @@ namespace service::infrastructure {
     }
 
     Result<common::types::info> Camera::getInfo() const {
-        if (!isConnected()) {
+        std::scoped_lock lock(mutex_);
+
+        if (!connected_) {
             return Result<common::types::info>::error("Camera not connected");
         }
 
@@ -189,7 +203,9 @@ namespace service::infrastructure {
     }
 
     Result<void> Camera::stabilize(const bool on) const {
-        if (!isConnected()) {
+        std::scoped_lock lock(mutex_);
+
+        if (!connected_) {
             return Result<void>::error("Camera not connected");
         }
 
@@ -204,7 +220,9 @@ namespace service::infrastructure {
     }
 
     Result<bool> Camera::isStabilizationEnabled() const {
-        if (!isConnected()) {
+        std::scoped_lock lock(mutex_);
+
+        if (!connected_) {
             return Result<bool>::error("Camera not connected");
         }
 
@@ -219,17 +237,19 @@ namespace service::infrastructure {
     }
 
     Result<common::capabilities::CapabilityList> Camera::getCapabilities() const {
-        if (!isConnected()) {
+        std::scoped_lock lock(mutex_);
+
+        if (!connected_) {
             return Result<common::capabilities::CapabilityList>::error("Camera not connected");
         }
 
         common::capabilities::CapabilityList capabilities;
 
-        if (hasZoomCapability()) {
+        if (getCapability<common::capabilities::IZoomCapable>() != nullptr) {
             capabilities.emplace_back(common::capabilities::Capability::Zoom);
         }
 
-        if (hasFocusCapability()) {
+        if (getCapability<common::capabilities::IFocusCapable>() != nullptr) {
             capabilities.emplace_back(common::capabilities::Capability::Focus);
         }
 
@@ -249,6 +269,8 @@ namespace service::infrastructure {
     }
 
     Result<void> Camera::open() {
+        std::scoped_lock lock(mutex_);
+
         if (connected_) {
             return Result<void>::error("Camera already connected");
         }
@@ -274,6 +296,8 @@ namespace service::infrastructure {
     }
 
     Result<void> Camera::close() {
+        std::scoped_lock lock(mutex_);
+
         if (!connected_) {
             return Result<void>::success();
         }
@@ -290,14 +314,17 @@ namespace service::infrastructure {
     }
 
     bool Camera::isConnected() const {
+        std::scoped_lock lock(mutex_);
         return connected_;
     }
 
     bool Camera::hasZoomCapability() const {
+        std::scoped_lock lock(mutex_);
         return getCapability<common::capabilities::IZoomCapable>() != nullptr;
     }
 
     bool Camera::hasFocusCapability() const {
+        std::scoped_lock lock(mutex_);
         return getCapability<common::capabilities::IFocusCapable>() != nullptr;
     }
 

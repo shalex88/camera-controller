@@ -1,7 +1,5 @@
 #pragma once
 
-#include <mutex>
-
 #include "common/types/CameraCapabilities.h"
 #include "infrastructure/camera/hal/ICameraHw.h"
 
@@ -32,7 +30,6 @@ namespace service::infrastructure {
         Result<void> close() override;
 
     private:
-        mutable std::mutex state_mutex_;
         mutable common::types::zoom zoom_{0};
         mutable common::types::focus focus_{0};
         const common::types::info info_{"Fake Simple Camera"};

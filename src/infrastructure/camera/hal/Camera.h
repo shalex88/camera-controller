@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 #include <optional>
 
 #include "common/types/CameraTypes.h"
@@ -39,6 +40,7 @@ namespace service::infrastructure {
         bool hasFocusCapability() const;
 
     private:
+        mutable std::mutex mutex_;
         std::unique_ptr<ICameraHw> camera_hw_;
         std::optional<uint32_t> video_channel_ {std::nullopt};
         bool connected_ {false};
