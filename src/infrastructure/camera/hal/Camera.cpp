@@ -1,12 +1,40 @@
 #include "Camera.h"
 
 #include <string>
+#include <utility>
 
 #include "common/logger/Logger.h"
+#include "common/runtime/ShutdownCoordinator.h"
 #include "infrastructure/camera/hal/ICameraHw.h"
 #include "infrastructure/fpga/VideoChannel.h"
 
 namespace service::infrastructure {
+    template <typename Operation>
+    auto Camera::withRetryLocked(const std::string_view op_name, Operation&& operation) const -> decltype(operation()) {
+        using ResultType = decltype(operation());
+
+        auto result = operation();
+        if (result.isSuccess() || !shouldRetry(result.error())) {
+            return result;
+        }
+
+        LOG_WARN("{} failed with '{}', reconnecting and retrying once", op_name, result.error());
+
+        if (const auto recover_result = recoverLocked(op_name); recover_result.isError()) {
+            LOG_WARN("{} recovery failed with '{}', requesting graceful shutdown", op_name, recover_result.error());
+            common::runtime::requestShutdown();
+            return ResultType::error(recover_result.error());
+        }
+
+        result = operation();
+        if (result.isError()) {
+            LOG_WARN("{} retry failed with '{}', requesting graceful shutdown", op_name, result.error());
+            common::runtime::requestShutdown();
+        }
+
+        return result;
+    }
+
     Camera::Camera(std::unique_ptr<ICameraHw> camera_strategy)
         : camera_hw_(std::move(camera_strategy)) {
         if (!camera_hw_) {
@@ -57,7 +85,9 @@ namespace service::infrastructure {
         }
 
         LOG_DEBUG("{} normalized: {}, converted: {}", __func__, normalized_zoom, camera_zoom);
-        return zoom_capable_camera->setZoom(camera_zoom);
+        return withRetryLocked(__func__, [zoom_capable_camera, camera_zoom] {
+            return zoom_capable_camera->setZoom(camera_zoom);
+        });
     }
 
     Result<common::types::zoom> Camera::getZoom() const {
@@ -73,7 +103,9 @@ namespace service::infrastructure {
         }
 
         LOG_DEBUG(__func__);
-        const auto zoom_result = zoom_capable_camera->getZoom();
+        const auto zoom_result = withRetryLocked(__func__, [zoom_capable_camera] {
+            return zoom_capable_camera->getZoom();
+        });
 
         if (zoom_result.isError()) {
             return Result<common::types::zoom>::error(zoom_result.error());
@@ -113,7 +145,9 @@ namespace service::infrastructure {
         }
 
         LOG_DEBUG("{} normalized: {}, converted: {}", __func__, normalized_focus, camera_focus);
-        return focus_capable->setFocus(camera_focus);
+        return withRetryLocked(__func__, [focus_capable, camera_focus] {
+            return focus_capable->setFocus(camera_focus);
+        });
     }
 
     Result<common::types::focus> Camera::getFocus() const {
@@ -129,7 +163,9 @@ namespace service::infrastructure {
         }
 
         LOG_DEBUG(__func__);
-        const auto focus_result = focus_capable->getFocus();
+        const auto focus_result = withRetryLocked(__func__, [focus_capable] {
+            return focus_capable->getFocus();
+        });
 
         if (focus_result.isError()) {
             return Result<common::types::focus>::error(focus_result.error());
@@ -161,7 +197,9 @@ namespace service::infrastructure {
 
         LOG_DEBUG(__func__);
 
-        return auto_focus_capable->enableAutoFocus(on);
+        return withRetryLocked(__func__, [auto_focus_capable, on] {
+            return auto_focus_capable->enableAutoFocus(on);
+        });
     }
 
     Result<bool> Camera::isAutoFocusEnabled() const {
@@ -178,7 +216,9 @@ namespace service::infrastructure {
 
         LOG_DEBUG(__func__);
 
-        return auto_focus_capable->isAutoFocusEnabled();
+        return withRetryLocked(__func__, [auto_focus_capable] {
+            return auto_focus_capable->isAutoFocusEnabled();
+        });
     }
 
     Result<common::types::info> Camera::getInfo() const {
@@ -193,7 +233,9 @@ namespace service::infrastructure {
             return Result<common::types::info>::error("Camera doesn't support info");
         }
 
-        auto info_result = info_capable->getInfo();
+        auto info_result = withRetryLocked(__func__, [info_capable] {
+            return info_capable->getInfo();
+        });
         if (info_result.isError()) {
             return Result<common::types::info>::error(info_result.error());
         }
@@ -216,7 +258,9 @@ namespace service::infrastructure {
 
         LOG_DEBUG(__func__);
 
-        return stabilize_capable->stabilize(on);
+        return withRetryLocked(__func__, [stabilize_capable, on] {
+            return stabilize_capable->stabilize(on);
+        });
     }
 
     Result<bool> Camera::isStabilizationEnabled() const {
@@ -233,7 +277,9 @@ namespace service::infrastructure {
 
         LOG_DEBUG(__func__);
 
-        return stabilize_capable->isStabilizationEnabled();
+        return withRetryLocked(__func__, [stabilize_capable] {
+            return stabilize_capable->isStabilizationEnabled();
+        });
     }
 
     Result<common::capabilities::CapabilityList> Camera::getCapabilities() const {
@@ -270,7 +316,10 @@ namespace service::infrastructure {
 
     Result<void> Camera::open() {
         std::scoped_lock lock(mutex_);
+        return openLocked();
+    }
 
+    Result<void> Camera::openLocked() const {
         if (connected_) {
             return Result<void>::error("Camera already connected");
         }
@@ -297,7 +346,10 @@ namespace service::infrastructure {
 
     Result<void> Camera::close() {
         std::scoped_lock lock(mutex_);
+        return closeLocked();
+    }
 
+    Result<void> Camera::closeLocked() const {
         if (!connected_) {
             return Result<void>::success();
         }
@@ -311,6 +363,16 @@ namespace service::infrastructure {
         connected_ = false;
         LOG_DEBUG("Camera disconnected");
         return Result<void>::success();
+    }
+
+    Result<void> Camera::recoverLocked(const std::string_view op_name) const {
+        const auto close_result = camera_hw_->close();
+        if (close_result.isError()) {
+            LOG_WARN("Failed to close camera during {} recovery: {}", op_name, close_result.error());
+        }
+
+        connected_ = false;
+        return openLocked();
     }
 
     bool Camera::isConnected() const {
@@ -358,6 +420,10 @@ namespace service::infrastructure {
 
     bool Camera::isValidNormalizedFocus(const common::types::focus value) {
         return value >= common::types::MIN_NORMALIZED_FOCUS && value <= common::types::MAX_NORMALIZED_FOCUS;
+    }
+
+    bool Camera::shouldRetry(const std::string_view error) {
+        return error == "Read failed" || error == "Write failed";
     }
 
     common::types::zoom Camera::normalizeZoom(const common::types::zoom camera_zoom) const {

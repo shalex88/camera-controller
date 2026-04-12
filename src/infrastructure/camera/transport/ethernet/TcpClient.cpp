@@ -137,7 +137,7 @@ namespace service::infrastructure {
         while (total_sent < tx_data.size()) {
             const ssize_t sent = ::send(socket_fd_, tx_data.data() + total_sent, tx_data.size() - total_sent, 0);
             if (sent < 0) {
-                return Result<void>::error("Send failed");
+                return Result<void>::error("Write failed");
             }
             total_sent += static_cast<size_t>(sent);
         }
@@ -166,7 +166,7 @@ namespace service::infrastructure {
                 return Result<size_t>::error(std::string("Select failed: ") + std::strerror(errno));
             }
             if (select_result == 0) {
-                return Result<size_t>::error("Read timeout");
+                return Result<size_t>::error("Read failed");
             }
 
             if (!FD_ISSET(socket_fd_, &read_fds)) {

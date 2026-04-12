@@ -3,6 +3,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <string_view>
 
 #include "common/types/CameraTypes.h"
 #include "common/types/Result.h"
@@ -43,10 +44,14 @@ namespace service::infrastructure {
         mutable std::mutex mutex_;
         std::unique_ptr<ICameraHw> camera_hw_;
         std::optional<uint32_t> video_channel_ {std::nullopt};
-        bool connected_ {false};
+        mutable bool connected_ {false};
 
         static bool isValidNormalizedZoom(common::types::zoom value);
         static bool isValidNormalizedFocus(common::types::focus value);
+        static bool shouldRetry(std::string_view error);
+        Result<void> openLocked() const;
+        Result<void> closeLocked() const;
+        Result<void> recoverLocked(std::string_view op_name) const;
         bool isValidCameraZoom(common::types::zoom value) const;
         bool isValidCameraFocus(common::types::focus value) const;
         common::types::zoom normalizeZoom(common::types::zoom camera_zoom) const;
@@ -59,5 +64,8 @@ namespace service::infrastructure {
 
         template <typename Capability>
         Capability* getCapability() const;
+
+        template <typename Operation>
+        auto withRetryLocked(std::string_view op_name, Operation&& operation) const -> decltype(operation());
     };
 } // namespace service::infrastructure

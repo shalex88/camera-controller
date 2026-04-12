@@ -11,6 +11,7 @@
 #include "api/ApiControllerFactory.h"
 #include "common/config/ConfigManager.h"
 #include "common/logger/Logger.h"
+#include "common/runtime/ShutdownCoordinator.h"
 #include "core/CoreFactory.h"
 #include "core/ICore.h"
 #include "infrastructure/camera/CameraFactory.h"
@@ -32,7 +33,10 @@ namespace service::app {
         setupSignalHandlers();
     }
 
-    Application::~Application() = default;
+    Application::~Application() {
+        common::runtime::clearShutdownHandler();
+        g_application_instance = nullptr;
+    }
 
     void Application::parseArguments(int argc, char* argv[]) {
         CLI::App app{"A camera control service", APP_NAME};
@@ -69,6 +73,10 @@ namespace service::app {
 
             LOG_INFO("{} v{}.{}.{}{}", APP_NAME, APP_VERSION_MAJOR, APP_VERSION_MINOR, APP_VERSION_PATCH,
                      APP_VERSION_DIRTY);
+
+            common::runtime::registerShutdownHandler([this] {
+                requestShutdown();
+            });
 
             auto camera = infrastructure::CameraFactory::createCamera(config_->getInfrastructureConfig());
             auto core = core::CoreFactory::createCore(std::move(camera), config_->getCoreConfig());

@@ -4,6 +4,7 @@
 #include "../../Mocks.h"
 #include "common/types/Result.h"
 #include "common/types/CameraCapabilities.h"
+#include "common/runtime/ShutdownCoordinator.h"
 #include "infrastructure/camera/hal/ICamera.h"
 #include "infrastructure/camera/hal/Camera.h"
 #include "infrastructure/camera/devices/FakeAdvancedCamera.h"
@@ -13,6 +14,14 @@ using namespace testing;
 
 class CameraTests : public Test {
 protected:
+    void SetUp() override {
+        common::runtime::clearShutdownHandler();
+    }
+
+    void TearDown() override {
+        common::runtime::clearShutdownHandler();
+    }
+
     CameraTests() {
         auto camera_strategy_obj = std::make_unique<NiceMock<MockCameraHw>>();
         camera_hw_ = camera_strategy_obj.get();
@@ -177,6 +186,103 @@ TEST_F(CameraTests, SetValidZoomWhenCameraErrorFails) {
     ASSERT_TRUE(set_result.isError());
 }
 
+TEST_F(CameraTests, SetZoomRetriesOnceAfterWriteFailure) {
+    constexpr auto normalized_zoom = 50;
+    constexpr common::types::ZoomRange zoom_limits{.min = 0, .max = 100};
+    constexpr auto expected_hw_value = 50;
+
+    ON_CALL(*camera_hw_, getZoomLimits())
+        .WillByDefault(Return(zoom_limits));
+
+    {
+        InSequence sequence;
+        EXPECT_CALL(*camera_hw_, open())
+            .WillOnce(Return(Result<void>::success()));
+        EXPECT_CALL(*camera_hw_, setZoom(expected_hw_value))
+            .WillOnce(Return(Result<void>::error("Write failed")));
+        EXPECT_CALL(*camera_hw_, close())
+            .WillOnce(Return(Result<void>::success()));
+        EXPECT_CALL(*camera_hw_, open())
+            .WillOnce(Return(Result<void>::success()));
+        EXPECT_CALL(*camera_hw_, setZoom(expected_hw_value))
+            .WillOnce(Return(Result<void>::success()));
+    }
+
+    ASSERT_TRUE(camera_->open().isSuccess());
+    ASSERT_TRUE(camera_->setZoom(normalized_zoom).isSuccess());
+
+    ASSERT_TRUE(Mock::VerifyAndClearExpectations(camera_hw_));
+    EXPECT_CALL(*camera_hw_, close())
+        .WillOnce(Return(Result<void>::success()));
+    ASSERT_TRUE(camera_->close().isSuccess());
+}
+
+TEST_F(CameraTests, SetZoomDoesNotRetryOnGenericError) {
+    constexpr auto normalized_zoom = 50;
+    constexpr common::types::ZoomRange zoom_limits{.min = 0, .max = 100};
+    constexpr auto expected_hw_value = 50;
+
+    ON_CALL(*camera_hw_, getZoomLimits())
+        .WillByDefault(Return(zoom_limits));
+
+    EXPECT_CALL(*camera_hw_, open())
+        .WillOnce(Return(Result<void>::success()));
+    EXPECT_CALL(*camera_hw_, setZoom(expected_hw_value))
+        .WillOnce(Return(Result<void>::error("error")));
+    EXPECT_CALL(*camera_hw_, close()).Times(0);
+
+    ASSERT_TRUE(camera_->open().isSuccess());
+
+    const auto set_result = camera_->setZoom(normalized_zoom);
+    ASSERT_TRUE(set_result.isError());
+    EXPECT_EQ(set_result.error(), "error");
+
+    ASSERT_TRUE(Mock::VerifyAndClearExpectations(camera_hw_));
+    EXPECT_CALL(*camera_hw_, close())
+        .WillOnce(Return(Result<void>::success()));
+    ASSERT_TRUE(camera_->close().isSuccess());
+}
+
+TEST_F(CameraTests, SetZoomRequestsShutdownWhenRetryAlsoFails) {
+    constexpr auto normalized_zoom = 50;
+    constexpr common::types::ZoomRange zoom_limits{.min = 0, .max = 100};
+    constexpr auto expected_hw_value = 50;
+    bool shutdown_requested = false;
+
+    common::runtime::registerShutdownHandler([&shutdown_requested] {
+        shutdown_requested = true;
+    });
+
+    ON_CALL(*camera_hw_, getZoomLimits())
+        .WillByDefault(Return(zoom_limits));
+
+    {
+        InSequence sequence;
+        EXPECT_CALL(*camera_hw_, open())
+            .WillOnce(Return(Result<void>::success()));
+        EXPECT_CALL(*camera_hw_, setZoom(expected_hw_value))
+            .WillOnce(Return(Result<void>::error("Write failed")));
+        EXPECT_CALL(*camera_hw_, close())
+            .WillOnce(Return(Result<void>::success()));
+        EXPECT_CALL(*camera_hw_, open())
+            .WillOnce(Return(Result<void>::success()));
+        EXPECT_CALL(*camera_hw_, setZoom(expected_hw_value))
+            .WillOnce(Return(Result<void>::error("Write failed")));
+    }
+
+    ASSERT_TRUE(camera_->open().isSuccess());
+
+    const auto set_result = camera_->setZoom(normalized_zoom);
+    ASSERT_TRUE(set_result.isError());
+    EXPECT_EQ(set_result.error(), "Write failed");
+    EXPECT_TRUE(shutdown_requested);
+
+    ASSERT_TRUE(Mock::VerifyAndClearExpectations(camera_hw_));
+    EXPECT_CALL(*camera_hw_, close())
+        .WillOnce(Return(Result<void>::success()));
+    ASSERT_TRUE(camera_->close().isSuccess());
+}
+
 TEST_F(CameraTests, GetValidZoomWhenCameraErrorFails) {
     EXPECT_CALL(*camera_hw_, open())
         .WillOnce(Return(Result<void>::success()));
@@ -320,6 +426,117 @@ TEST_F(CameraTests, GetValidFocusWhenCameraErrorFails) {
 
     const auto set_result = camera_->getFocus();
     ASSERT_TRUE(set_result.isError());
+}
+
+TEST_F(CameraTests, GetInfoRetriesOnceAfterReadFailure) {
+    const common::types::info expected_info{"camera-info"};
+
+    {
+        InSequence sequence;
+        EXPECT_CALL(*camera_hw_, open())
+            .WillOnce(Return(Result<void>::success()));
+        EXPECT_CALL(*camera_hw_, getInfo())
+            .WillOnce(Return(Result<common::types::info>::error("Read failed")));
+        EXPECT_CALL(*camera_hw_, close())
+            .WillOnce(Return(Result<void>::success()));
+        EXPECT_CALL(*camera_hw_, open())
+            .WillOnce(Return(Result<void>::success()));
+        EXPECT_CALL(*camera_hw_, getInfo())
+            .WillOnce(Return(Result<common::types::info>::success(expected_info)));
+    }
+
+    ASSERT_TRUE(camera_->open().isSuccess());
+
+    const auto info_result = camera_->getInfo();
+    ASSERT_TRUE(info_result.isSuccess());
+    EXPECT_EQ(info_result.value(), expected_info);
+
+    ASSERT_TRUE(Mock::VerifyAndClearExpectations(camera_hw_));
+    EXPECT_CALL(*camera_hw_, close())
+        .WillOnce(Return(Result<void>::success()));
+    ASSERT_TRUE(camera_->close().isSuccess());
+}
+
+TEST_F(CameraTests, GetInfoReconnectsEvenWhenRecoveryCloseFails) {
+    const common::types::info expected_info{"camera-info"};
+
+    {
+        InSequence sequence;
+        EXPECT_CALL(*camera_hw_, open())
+            .WillOnce(Return(Result<void>::success()));
+        EXPECT_CALL(*camera_hw_, getInfo())
+            .WillOnce(Return(Result<common::types::info>::error("Read failed")));
+        EXPECT_CALL(*camera_hw_, close())
+            .WillOnce(Return(Result<void>::error("close failed")));
+        EXPECT_CALL(*camera_hw_, open())
+            .WillOnce(Return(Result<void>::success()));
+        EXPECT_CALL(*camera_hw_, getInfo())
+            .WillOnce(Return(Result<common::types::info>::success(expected_info)));
+    }
+
+    ASSERT_TRUE(camera_->open().isSuccess());
+
+    const auto info_result = camera_->getInfo();
+    ASSERT_TRUE(info_result.isSuccess());
+    EXPECT_EQ(info_result.value(), expected_info);
+
+    ASSERT_TRUE(Mock::VerifyAndClearExpectations(camera_hw_));
+    EXPECT_CALL(*camera_hw_, close())
+        .WillOnce(Return(Result<void>::success()));
+    ASSERT_TRUE(camera_->close().isSuccess());
+}
+
+TEST_F(CameraTests, GetInfoReconnectFailureLeavesCameraDisconnected) {
+    {
+        InSequence sequence;
+        EXPECT_CALL(*camera_hw_, open())
+            .WillOnce(Return(Result<void>::success()));
+        EXPECT_CALL(*camera_hw_, getInfo())
+            .WillOnce(Return(Result<common::types::info>::error("Read failed")));
+        EXPECT_CALL(*camera_hw_, close())
+            .WillOnce(Return(Result<void>::success()));
+        EXPECT_CALL(*camera_hw_, open())
+            .WillOnce(Return(Result<void>::error("reconnect failed")));
+    }
+
+    ASSERT_TRUE(camera_->open().isSuccess());
+
+    const auto info_result = camera_->getInfo();
+    ASSERT_TRUE(info_result.isError());
+    EXPECT_EQ(info_result.error(), "reconnect failed");
+    EXPECT_FALSE(camera_->isConnected());
+
+    ASSERT_TRUE(camera_->close().isSuccess());
+}
+
+TEST_F(CameraTests, GetInfoReconnectFailureRequestsShutdown) {
+    bool shutdown_requested = false;
+
+    common::runtime::registerShutdownHandler([&shutdown_requested] {
+        shutdown_requested = true;
+    });
+
+    {
+        InSequence sequence;
+        EXPECT_CALL(*camera_hw_, open())
+            .WillOnce(Return(Result<void>::success()));
+        EXPECT_CALL(*camera_hw_, getInfo())
+            .WillOnce(Return(Result<common::types::info>::error("Read failed")));
+        EXPECT_CALL(*camera_hw_, close())
+            .WillOnce(Return(Result<void>::success()));
+        EXPECT_CALL(*camera_hw_, open())
+            .WillOnce(Return(Result<void>::error("reconnect failed")));
+    }
+
+    ASSERT_TRUE(camera_->open().isSuccess());
+
+    const auto info_result = camera_->getInfo();
+    ASSERT_TRUE(info_result.isError());
+    EXPECT_EQ(info_result.error(), "reconnect failed");
+    EXPECT_TRUE(shutdown_requested);
+    EXPECT_FALSE(camera_->isConnected());
+
+    ASSERT_TRUE(camera_->close().isSuccess());
 }
 
 TEST_F(CameraTests, SetInvalidFocusFail) {

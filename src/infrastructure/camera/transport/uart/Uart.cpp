@@ -133,7 +133,7 @@ namespace service::infrastructure {
         LOG_TRACE("UART TX: {}", getHexDump(data));
 
         if (const auto bytes_written = ::write(port_fd_, data.data(), data.size()); bytes_written < 0) {
-            return Result<void>::error("Failed to write to UART: " + std::string(strerror(errno)));
+            return Result<void>::error("Write failed");
         }
 
         return Result<void>::success();
@@ -159,7 +159,7 @@ namespace service::infrastructure {
                 return Result<size_t>::error(std::string("Select failed: ") + std::strerror(errno));
             }
             if (select_result == 0) {
-                return Result<size_t>::error("Read timeout");
+                return Result<size_t>::error("Read failed");
             }
 
             if (!FD_ISSET(port_fd_, &read_fds)) {
