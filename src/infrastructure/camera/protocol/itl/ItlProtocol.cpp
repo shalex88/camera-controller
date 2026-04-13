@@ -1,11 +1,20 @@
 #include "ItlProtocol.h"
 
 #include <algorithm>
+#include <cstdio>
 #include <string>
 
 #include "infrastructure/camera/transport/ITransport.h"
 
 namespace {
+    enum class ItlResponseType {
+        Standard,
+        Ack,
+        Nack,
+        Error,
+        Unknown
+    };
+
     struct __attribute__((packed)) ItlHeader {
         std::array<std::byte, 4> opcode{};
         std::array<std::byte, 4> id{};
@@ -22,6 +31,16 @@ namespace {
         std::vector<std::byte> payload;
     };
 
+    struct ItlResponse {
+        ItlResponseType type{ItlResponseType::Unknown};
+        std::vector<std::byte> payload;
+        std::uint16_t error_reason{0};
+    };
+
+    constexpr std::uint32_t ACK_RESPONSE_OPCODE = 0x9999'9999;
+    constexpr std::uint32_t NACK_RESPONSE_OPCODE = 0x8888'8888;
+    constexpr std::uint32_t ERROR_RESPONSE_OPCODE = 0x7777'7777;
+
     std::array<std::byte, 2> toBytes(std::uint16_t value) {
         return {static_cast<std::byte>(value & 0xFF), static_cast<std::byte>((value >> 8) & 0xFF)};
     }
@@ -37,7 +56,15 @@ namespace {
     }
 
     std::uint16_t fromBytes(std::span<const std::byte, 2> bytes) {
-        return static_cast<std::uint16_t>(bytes[0]) | (static_cast<std::uint16_t>(bytes[1]) << 8);
+        return std::to_integer<std::uint16_t>(bytes[0]) | (std::to_integer<std::uint16_t>(bytes[1]) << 8);
+    }
+
+    std::uint32_t fromBytes(std::span<const std::byte, 4> bytes) {
+        constexpr std::uint32_t bits_per_byte = 8;
+        return std::to_integer<std::uint32_t>(bytes[0]) |
+            (std::to_integer<std::uint32_t>(bytes[1]) << bits_per_byte) |
+            (std::to_integer<std::uint32_t>(bytes[2]) << (2 * bits_per_byte)) |
+            (std::to_integer<std::uint32_t>(bytes[3]) << (3 * bits_per_byte));
     }
 
     std::array<std::byte, 4> toResponseOpcodeBytes(std::uint32_t request_opcode) {
@@ -102,6 +129,34 @@ namespace {
         return std::equal(actual.begin(), actual.end(), expected_bytes.begin());
     }
 
+    ItlResponseType classifyResponseType(std::span<const std::byte, 4> opcode, std::uint32_t request_opcode) {
+        if (isValidOpcode(opcode, request_opcode)) {
+            return ItlResponseType::Standard;
+        }
+
+        switch (fromBytes(opcode)) {
+            case ACK_RESPONSE_OPCODE:
+                return ItlResponseType::Ack;
+            case NACK_RESPONSE_OPCODE:
+                return ItlResponseType::Nack;
+            case ERROR_RESPONSE_OPCODE:
+                return ItlResponseType::Error;
+            default:
+                return ItlResponseType::Unknown;
+        }
+    }
+
+    std::string toHexString(std::uint32_t value) {
+        char buffer[11];
+        snprintf(buffer, sizeof(buffer), "0x%08X", static_cast<unsigned int>(value));
+        return buffer;
+    }
+
+    std::string toHexString(std::uint16_t value) {
+        char buffer[7];
+        snprintf(buffer, sizeof(buffer), "0x%04X", static_cast<unsigned int>(value));
+        return buffer;
+    }
 
     void printMessage(std::string_view label, std::span<const std::byte> message) {
         std::string buffer = std::string(label) + " (" + std::to_string(message.size()) + " bytes): [";
@@ -117,8 +172,7 @@ namespace {
         LOG_DEBUG("{}", buffer);
     }
 
-    Result<ItlMessage> deserialize(std::span<const std::byte> data, std::uint32_t request_opcode,
-                                   std::uint32_t device_id) {
+    Result<ItlMessage> deserialize(std::span<const std::byte> data, std::uint32_t device_id) {
         ItlMessage message;
         if (data.size() < sizeof(ItlHeader)) {
             return Result<ItlMessage>::error("Data is too short");
@@ -129,10 +183,6 @@ namespace {
         // Opcode
         std::copy_n(data.begin() + offset, sizeof(message.header.opcode), message.header.opcode.begin());
         offset += sizeof(message.header.opcode);
-
-        if (!isValidOpcode(message.header.opcode, request_opcode)) {
-            return Result<ItlMessage>::error("Unexpected opcode");
-        }
 
         // ID
         std::copy_n(data.begin() + offset, sizeof(message.header.id), message.header.id.begin());
@@ -147,6 +197,12 @@ namespace {
         offset += sizeof(message.header.length);
 
         const std::uint16_t length = fromBytes(message.header.length);
+        if (length < sizeof(ItlHeader)) {
+            return Result<ItlMessage>::error("Declared length is shorter than header");
+        }
+        if (length > data.size()) {
+            return Result<ItlMessage>::error("Declared length exceeds received data");
+        }
 
         // Counter
         std::copy_n(data.begin() + offset, sizeof(message.header.counter), message.header.counter.begin());
@@ -168,7 +224,7 @@ namespace {
 
         // Payload (remaining bytes)
         if (offset < length) {
-            message.payload.insert(message.payload.end(), data.begin() + offset, data.end());
+            message.payload.insert(message.payload.end(), data.begin() + offset, data.begin() + length);
         }
 
         if (!isValidChecksum(message)) {
@@ -176,6 +232,49 @@ namespace {
         }
 
         return Result<ItlMessage>::success(message);
+    }
+
+    Result<ItlResponse> decodeResponse(const ItlMessage& message, std::uint32_t request_opcode) {
+        ItlResponse response;
+        response.type = classifyResponseType(message.header.opcode, request_opcode);
+        if (response.type == ItlResponseType::Unknown) {
+            return Result<ItlResponse>::error("Unexpected opcode");
+        }
+
+        if (response.type == ItlResponseType::Standard) {
+            response.payload = message.payload;
+            return Result<ItlResponse>::success(response);
+        }
+
+        constexpr std::size_t echoed_opcode_size = sizeof(std::uint32_t);
+        if (message.payload.size() < echoed_opcode_size) {
+            return Result<ItlResponse>::error("Wrapped response is missing opcode");
+        }
+
+        const auto echoed_opcode = fromBytes(std::span<const std::byte, 4>{message.payload.data(), echoed_opcode_size});
+        if (echoed_opcode != request_opcode) {
+            return Result<ItlResponse>::error(
+                "Wrapped response opcode does not match request: expected " + toHexString(request_opcode) +
+                ", got " + toHexString(echoed_opcode));
+        }
+
+        std::size_t payload_offset = echoed_opcode_size;
+        if (response.type == ItlResponseType::Error) {
+            constexpr std::size_t error_reason_size = sizeof(std::uint16_t);
+            if (message.payload.size() < payload_offset + error_reason_size) {
+                return Result<ItlResponse>::error("ERROR response is missing reason code");
+            }
+
+            response.error_reason = fromBytes(
+                std::span<const std::byte, 2>{message.payload.data() + payload_offset, error_reason_size});
+            payload_offset += error_reason_size;
+        }
+
+        response.payload.insert(
+            response.payload.end(),
+            message.payload.begin() + static_cast<std::ptrdiff_t>(payload_offset),
+            message.payload.end());
+        return Result<ItlResponse>::success(response);
     }
 
     std::vector<std::byte> createMessage(std::uint32_t opcode, std::span<const std::byte> payload,
@@ -227,11 +326,30 @@ namespace service::infrastructure {
 
         const auto response_data = std::span<const std::byte>{rx_buffer_.data(), serialized_response.value()};
         printMessage("Received", response_data);
-        const auto deserialized_response = deserialize(response_data, opcode, device_id);
+        const auto deserialized_response = deserialize(response_data, device_id);
         if (deserialized_response.isError()) {
             return Result<std::vector<std::byte>>::error("Invalid response received: " + deserialized_response.error());
         }
 
-        return Result<std::vector<std::byte>>::success(deserialized_response.value().payload);
+        const auto decoded_response = decodeResponse(deserialized_response.value(), opcode);
+        if (decoded_response.isError()) {
+            return Result<std::vector<std::byte>>::error("Invalid response received: " + decoded_response.error());
+        }
+
+        switch (decoded_response.value().type) {
+            case ItlResponseType::Standard:
+            case ItlResponseType::Ack:
+                return Result<std::vector<std::byte>>::success(decoded_response.value().payload);
+            case ItlResponseType::Nack:
+                return Result<std::vector<std::byte>>::error("Device NACK for opcode " + toHexString(opcode));
+            case ItlResponseType::Error:
+                return Result<std::vector<std::byte>>::error(
+                    "Device ERROR for opcode " + toHexString(opcode) + ", reason " +
+                    toHexString(decoded_response.value().error_reason));
+            case ItlResponseType::Unknown:
+                return Result<std::vector<std::byte>>::error("Invalid response received: Unexpected opcode");
+        }
+
+        return Result<std::vector<std::byte>>::error("Invalid response received: Unexpected opcode");
     }
 } // namespace service::infrastructure

@@ -23,6 +23,7 @@ namespace {
         (static_cast<std::uint32_t>('G') << 16U) |
         (static_cast<std::uint32_t>('2') << 24U);
     constexpr std::uint32_t kSetAoiIndexOpcode = 0x0000'000E;
+    constexpr std::uint32_t kAckResponseOpcode = 0x9999'9999;
     constexpr std::size_t kItlHeaderSize = 20;
 
     std::array<std::byte, 2> toBytes16(const std::uint16_t value) {
@@ -41,19 +42,19 @@ namespace {
         };
     }
 
-    std::vector<std::byte> makeItlResponse(const std::uint32_t request_opcode, const std::uint32_t device_id) {
+    std::vector<std::byte> makeAckWrappedItlResponse(const std::uint32_t request_opcode, const std::uint32_t device_id) {
         std::vector<std::byte> response;
-        response.reserve(kItlHeaderSize);
+        response.reserve(kItlHeaderSize + sizeof(request_opcode));
 
-        auto opcode = toBytes32(request_opcode);
-        opcode.back() = std::byte{0xF0};
+        const auto opcode = toBytes32(kAckResponseOpcode);
 
         const auto id = toBytes32(device_id);
-        const auto length = toBytes16(static_cast<std::uint16_t>(kItlHeaderSize));
+        const auto length = toBytes16(static_cast<std::uint16_t>(kItlHeaderSize + sizeof(request_opcode)));
         const std::array<std::byte, 2> counter{std::byte{1}, std::byte{0}};
         const std::array<std::byte, 4> timestamp{};
-        constexpr std::byte source{2};
-        constexpr std::byte destination{1};
+        constexpr std::byte source{0};
+        constexpr std::byte destination{0};
+        const auto wrapped_opcode = toBytes32(request_opcode);
 
         response.insert(response.end(), opcode.begin(), opcode.end());
         response.insert(response.end(), id.begin(), id.end());
@@ -64,15 +65,19 @@ namespace {
         response.push_back(destination);
         response.push_back(std::byte{0});
         response.push_back(std::byte{0});
+        response.insert(response.end(), wrapped_opcode.begin(), wrapped_opcode.end());
 
         std::uint16_t checksum = 0;
-        for (std::size_t i = 0; i < response.size() - 2; ++i) {
+        for (std::size_t i = 0; i < response.size(); ++i) {
+            if (i == kItlHeaderSize - 2 || i == kItlHeaderSize - 1) {
+                continue;
+            }
             checksum ^= std::to_integer<std::uint8_t>(response[i]);
         }
 
         const auto checksum_bytes = toBytes16(checksum);
-        response[response.size() - 2] = checksum_bytes[0];
-        response[response.size() - 1] = checksum_bytes[1];
+        response[kItlHeaderSize - 2] = checksum_bytes[0];
+        response[kItlHeaderSize - 1] = checksum_bytes[1];
 
         return response;
     }
@@ -80,7 +85,7 @@ namespace {
     class SuccessfulItlTransport final : public infrastructure::ITransport {
     public:
         SuccessfulItlTransport()
-            : response_(makeItlResponse(kSetAoiIndexOpcode, kMwirDeviceId)) {
+            : response_(makeAckWrappedItlResponse(kSetAoiIndexOpcode, kMwirDeviceId)) {
         }
 
         Result<void> open() override {
