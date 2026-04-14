@@ -16,7 +16,6 @@ namespace service::infrastructure {
             (static_cast<std::uint32_t>('G') << 16U) | (static_cast<std::uint32_t>('2') << 24U);
         constexpr std::uint32_t GET_VERSION_GENIP = 0x0000'0001;
         constexpr std::uint32_t GET_VERSION_FRAMEWORK = 0x0001'0001;
-        constexpr std::uint32_t SET_AOI_INDEX = 0x0000'000E;
     } // unnamed namespace
 
     MwirCamera::MwirCamera(std::unique_ptr<ItlProtocol> protocol)
@@ -39,7 +38,7 @@ namespace service::infrastructure {
 
     Result<void> MwirCamera::setFocus(common::types::focus focus) const {
         if (auto_focus_enabled_) {
-            return Result<void>::error("Cannot set focus value while autofocus is enabled");
+            return Result<void>::error("Cannot set a focus value while autofocus is enabled");
         }
         focus_ = focus;
         return Result<void>::success();
@@ -88,11 +87,6 @@ namespace service::infrastructure {
     }
 
     Result<void> MwirCamera::enableAutoFocus(bool enable) const {
-        std::vector<std::byte> payload = {std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0}};
-        if (const auto result = protocol_->send(DEVICE_ID, SET_AOI_INDEX, std::span<const std::byte>{payload}); result.isError()) {
-            return Result<void>::error(result.error());
-        }
-
         auto_focus_enabled_ = enable;
         return Result<void>::success();
     }

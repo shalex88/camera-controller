@@ -58,6 +58,7 @@ namespace service::infrastructure {
 
         std::array<VideoChannelConfig, 4> channel_configs{
             // TODO: Channel 0 ADIMEC
+            VideoChannelConfig{},
             // Channel 1 Sony
             VideoChannelConfig{
                 .global = GlobalRegisters{
@@ -129,6 +130,7 @@ namespace service::infrastructure {
                 }
             },
             // TODO: Channel 3
+            VideoChannelConfig{}
         };
 
         Result<void> configureChannel(const uint32_t channel_num) {
@@ -240,7 +242,7 @@ namespace service::infrastructure {
             // 0x800b00d8 // 1 length
             // 0x800b00dc // 3 FPS
             LOG_DEBUG("Validating live video on channel {}...", channel_num);
-            auto [global, mux, mipi, test_pattern] = channel_configs.at(channel_num - 1); //FIXME: Remove '-1' when channel 0 is configured
+            auto [global, mux, mipi, test_pattern] = channel_configs.at(channel_num);
 
             const auto global_reg = std::make_unique<RegisterImplUio>(global.uio);
             const auto width_result = global_reg->get(global.live_video_width.address);
