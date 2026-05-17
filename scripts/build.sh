@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
@@ -34,11 +33,18 @@ if [ -z "$BUILD_TYPE" ] || [ "$BUILD_TYPE" != "native" ] && [ "$BUILD_TYPE" != "
     exit 1
 fi
 
+BUILD_MODE=$2
+if [ -z "$BUILD_MODE" ] || [ "$BUILD_MODE" != "debug" ] && [ "$BUILD_MODE" != "release" ]; then
+    echo "Error: Invalid or missing build mode. Use 'debug' or 'release'." >&2
+    exit 1
+fi
+
 if [ "$BUILD_TYPE" == "cross" ]; then
     configure_toolchain
 fi
 
-BUILD_DIR="build-$BUILD_TYPE"
+PRESET="$BUILD_TYPE-$BUILD_MODE"
+BUILD_DIR="$ROOT_DIR/build/$PRESET"
 LOG_FILE="$BUILD_DIR/build.log"
 
 mkdir -p "$BUILD_DIR"
@@ -50,21 +56,20 @@ mkdir -p "$BUILD_DIR"
     else
         echo "Native build"
     fi
+    echo "Using CMake preset: $PRESET"
     echo "Build directory: $BUILD_DIR"
 
-    CMAKE_ARGS=(-S . -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release)
-    
+    CMAKE_ARGS=(--preset "$PRESET")
+
     # Add install prefix if INSTALL_ROOT is set
     if [ -n "${INSTALL_ROOT:-}" ]; then
         CMAKE_ARGS+=(-DCMAKE_INSTALL_PREFIX="$INSTALL_ROOT" -DINSTALL_ROOT="$INSTALL_ROOT")
         echo "Install prefix: $INSTALL_ROOT"
     fi
 
-    if [ "$BUILD_TYPE" == "cross" ]; then
-        cmake "${CMAKE_ARGS[@]}"
-    else
-        cmake "${CMAKE_ARGS[@]}"
-    fi
+    cd "$ROOT_DIR" || exit 1
+
+    cmake "${CMAKE_ARGS[@]}"
 
     CMAKE_EXIT=$?
     if [ $CMAKE_EXIT -ne 0 ]; then
@@ -73,7 +78,7 @@ mkdir -p "$BUILD_DIR"
         exit $CMAKE_EXIT
     fi
 
-    cmake --build "$BUILD_DIR" -- -j"$(nproc)"
+    cmake --build --preset "$PRESET" --parallel "$(nproc)"
     BUILD_EXIT=$?
     if [ $BUILD_EXIT -ne 0 ]; then
         echo "Build failed with exit code $BUILD_EXIT" >&2
@@ -81,10 +86,10 @@ mkdir -p "$BUILD_DIR"
         exit $BUILD_EXIT
     fi
 
-    cmake --build "$BUILD_DIR" --target package
+    cmake --build --preset "$PRESET" --target package
     BUILD_EXIT=$?
 
-    echo "Build log saved to $ROOT_DIR/$LOG_FILE"
+    echo "Build log saved to $LOG_FILE"
     echo "Build completed at $(date)"
     exit $BUILD_EXIT
 } 2>&1 | tee "$LOG_FILE"
