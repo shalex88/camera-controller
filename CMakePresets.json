@@ -45,9 +45,7 @@
       "displayName": "Cross Debug",
       "inherits": "cross-base",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_C_FLAGS_DEBUG": "-O0 -g3",
-        "CMAKE_CXX_FLAGS_DEBUG": "-O0 -g3"
+        "CMAKE_BUILD_TYPE": "Debug"
       }
     },
     {
