@@ -28,10 +28,7 @@ jobs:
         run: ./scripts/build.sh native release
 
       - name: Test
-        run: cd ./${{ env.BUILD_DIR }}/$sub_project && ./$bin
-        env:
-          sub_project: tests
-          bin: ${{ env.PROJECT_NAME }}-unit-tests
+        run: cd ./${{ env.BUILD_DIR }}/tests && ./${{ env.PROJECT_NAME }}-unit-tests
 
       - name: Create coverage reports
         if: github.event_name == 'push'
