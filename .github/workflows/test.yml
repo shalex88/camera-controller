@@ -8,7 +8,7 @@ on:
 
 env:
   BUILD_TYPE: Release
-  BUILD_DIR: build-native
+  BUILD_DIR: build/native-release
 
 jobs:
   test:
@@ -25,7 +25,7 @@ jobs:
           echo "PROJECT_NAME=$(echo "${{ github.repository }}" | awk -F '/' '{print $2}')" >> $GITHUB_ENV
 
       - name: Build
-        run: ./scripts/build.sh native
+        run: ./scripts/build.sh native release
 
       - name: Test
         run: cd ./${{ env.BUILD_DIR }}/$sub_project && ./$bin
