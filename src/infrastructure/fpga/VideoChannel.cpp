@@ -81,15 +81,15 @@ namespace service::infrastructure {
                     .uio = "/dev/uio14",
                     .mipi_rx_enable = {0x800D'0000, ENABLE},
                     .mipi_rx_disable = {0x800D'0000, DISABLE},
-                    .mipi_line_length = {0x800D'0040, 1080},
+                    .mipi_line_length = {0x800D'0040, 2160},
                     .mipi_protocol_config = {0x800D'0004, 0x0000'E01B}
                 },
                 .test_pattern = TestPatternRegisters{
                     .uio = "/dev/uio6",
                     .test_pattern_enable = {0x8005009C, ENABLE},
-                    .test_pattern_frame_width = {0x80050070, 1920},
-                    .test_pattern_frame_height = {0x80050074, 1080},
-                    .test_pattern_active_video_width = {0x80050078, 0x00000468},
+                    .test_pattern_frame_width = {0x80050070, 3840},
+                    .test_pattern_frame_height = {0x80050074, 2160},
+                    .test_pattern_active_video_width = {0x80050078, 0x00000629},
                     .test_pattern_frame_to_frame_time = {0x8005007C, 0x007A1200},
                     .test_pattern_type = {0x80050008, 0x0000000F},
                 }
@@ -135,7 +135,7 @@ namespace service::infrastructure {
 
         Result<void> configureChannel(const uint32_t channel_num) {
             LOG_DEBUG("Configuring video channel {}...", channel_num);
-            auto [global, mux, mipi, test_pattern] = channel_configs.at(channel_num - 1); //FIXME: Remove '-1' when channel 0 is configured
+            auto [global, mux, mipi, test_pattern] = channel_configs.at(channel_num);
 
             {
                 const auto global_reg = std::make_unique<RegisterImplUio>(global.uio);
@@ -247,14 +247,17 @@ namespace service::infrastructure {
             const auto global_reg = std::make_unique<RegisterImplUio>(global.uio);
             const auto width_result = global_reg->get(global.live_video_width.address);
             if (width_result.isError() || (width_result.value() * 4 != test_pattern.test_pattern_frame_width.value)) {
+                LOG_DEBUG("Expected width: {}, Actual width: {}", test_pattern.test_pattern_frame_width.value, width_result.isError() ? "Error reading register" : std::to_string(width_result.value() * 4));
                 return Result<void>::error("Failed validate width resolution");
             }
             const auto height_result = global_reg->get(global.live_video_height.address);
             if (height_result.isError() || (height_result.value() != test_pattern.test_pattern_frame_height.value)) {
+                LOG_DEBUG("Expected height: {}, Actual height: {}", test_pattern.test_pattern_frame_height.value, height_result.isError() ? "Error reading register" : std::to_string(height_result.value()));
                 return Result<void>::error("Failed to validate height resolution");
             }
             const auto fps_result = global_reg->get(global.live_video_fps.address);
             if (fps_result.isError() || fps_result.value() == 0) {
+                LOG_DEBUG("Expected FPS: >0, Actual FPS: {}", fps_result.isError() ? "Error reading register" : std::to_string(fps_result.value()));
                 return Result<void>::error("Failed to validate live FPS");
             }
 
@@ -269,7 +272,7 @@ namespace service::infrastructure {
             return Result<void>::error("Failed to configure video channel: " + result.error());
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(80));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000)); //FIXME: what is the real sync time?
 
         if (const auto result = validateLiveVideo(channel_num); result.isError()) {
             return Result<void>::error("Live video is not available: " + result.error());
